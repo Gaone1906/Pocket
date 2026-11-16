@@ -45,6 +45,8 @@ Rules that matter:
   and the minutes in the response.
 - **Projects.** `project` is matched to a board project by name, case-insensitively, and created when its first session is logged. A finished focus
   is logged under it; without one it lands in Unassigned. Setting `project` on a running timer re-labels the current run.
+- **Declared sessions.** Sessions the user logs by hand (time worked away from the laptop) carry `"declared": true` and an
+  optional `started` in `board.json`; they count like any other session.
 - **Session units.** A "session" is 25 focused minutes, so a 40-minute focus counts as 1.6. Report counts the way
   `/pomodoro/stats` does, rounded to one decimal.
 - **Breaks.** Pocket moves to the break and back to focus on its own; you cannot skip phases through the API. Show your own
