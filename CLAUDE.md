@@ -68,7 +68,12 @@ Reference integration: the CAT question bank at `~/Desktop/workspace/personal/ca
   and to the table above.
 - Timer behaviour lives in `Sources/Pocket/PomodoroApp.swift` (`remoteStart`, `remotePause`, `remoteResume`, `remoteStop`,
   `remoteState`). Sessions and projects are in `PomodoroBoardStore`, `Sources/Pocket/PomodoroBoard.swift`, saved to
-  `~/Library/Application Support/Pocket/Pomodoro/board.json`. Back up that file before any test that records sessions.
+  `~/Library/Application Support/Pocket/Pomodoro/board.json`.
+- Never run tests against real data. Set `POCKET_DATA_DIR` to a scratch folder first (in a harness, `setenv` before
+  anything touches `PocketData`); every path, backups and the data repo included, then lives there.
+- `DataVault` (`Sources/Pocket/DataVault.swift`) owns safety: a dated snapshot on every save (30 days plus one per month),
+  quarantine and recovery on unreadable loads, keep-aside before restore, an optional mirror folder, and git sync to
+  `pocket.backup.repo`. Any new persisted file must load through the same guard and snapshot on save.
 - Validate input in the server and answer `400` with a readable message; never crash on a body.
 - Log every remote action with the `note(...)` helper, including the source, project and the values that shaped the outcome.
 - No comments in code.

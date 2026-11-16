@@ -41,6 +41,15 @@ The first launch opens a setup window. In it you:
 - Esc or clicking elsewhere hides the panel.
 - Local tools and pages on `localhost` can drive the Pomodoro through `http://127.0.0.1:8977`: start, pause, resume and stop it with custom focus and break lengths, log sessions under a project, and read projects, sessions and totals. `GET /` lists the routes and [CLAUDE.md](CLAUDE.md) is the integration guide. Requests from other websites are refused.
 
+## Your data
+
+Pomodoro sessions and to-dos live in `~/Library/Application Support/Pocket`. Pocket protects them in four ways:
+
+- **Daily copies.** Every save also writes a dated copy to `Backups/`. The last 30 days are kept, plus the first copy of every month, forever.
+- **Safe loading.** If a file can't be read, Pocket moves it aside as `*.broken-*.json` and loads the newest good copy instead of starting empty.
+- **Restore.** Board settings → Backup lists every copy. Restoring first keeps the current board aside, so it can be undone.
+- **Off-machine copies.** Set `defaults write com.pranav.pocket pocket.backup.repo <private git url>` (and `pocket.backup.githubUser <login>` to use that `gh` account) and Pocket pushes the data to that repo about 90 seconds after each change. Keep that repo private. With Google Drive for Desktop installed, copies are also mirrored to `My Drive/Pocket Backups`; set `pocket.backup.folder` to mirror elsewhere.
+
 ## Performance
 
 Web apps load only when they are first opened. The exception is WhatsApp and Slack, which stay connected so messages arrive. Pages that aren't realtime are throttled while hidden, and Spotify unloads after 30 minutes idle if it isn't playing. If you don't pick any web apps, Pocket uses only a few megabytes.
