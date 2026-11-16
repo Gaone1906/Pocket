@@ -3,6 +3,7 @@ func makeApp(_ spec: AppSpec) -> PocketApp? {
     switch spec.id {
     case "calendar": return CalendarApp(spec: spec)
     case "todo": return TodoApp(spec: spec)
+    case "pomodoro": return PomodoroApp(spec: spec)
     default: return nil
     }
 }
