@@ -146,15 +146,20 @@ enum Board {
             .sorted { $0.day > $1.day }
     }
 
-    static func dayLabel(_ day: Date) -> String {
-        let calendar = Calendar.current
-        let sameYear = calendar.isDate(day, equalTo: Date(), toGranularity: .year)
-        let date = sameYear
+    static func dayDate(_ day: Date) -> String {
+        Calendar.current.isDate(day, equalTo: Date(), toGranularity: .year)
             ? day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
             : day.formatted(.dateTime.day().month(.abbreviated).year())
-        if calendar.isDateInToday(day) { return "Today · \(date)" }
-        if calendar.isDateInYesterday(day) { return "Yesterday · \(date)" }
-        return date
+    }
+
+    static func dayTag(_ day: Date) -> String? {
+        if Calendar.current.isDateInToday(day) { return "Today" }
+        if Calendar.current.isDateInYesterday(day) { return "Yesterday" }
+        return nil
+    }
+
+    static func dayLabel(_ day: Date) -> String {
+        dayTag(day).map { "\($0) · \(dayDate(day))" } ?? dayDate(day)
     }
 
     static func duration(_ minutes: Int) -> String {
@@ -316,6 +321,121 @@ private struct TallyGroup: View {
     }
 }
 
+private struct SessionMarks: View {
+    let sessions: [PomodoroSession]
+    let assigned: Bool
+    let tint: Color
+    @ObservedObject var store: PomodoroBoardStore
+
+    var body: some View {
+        if assigned {
+            let groups = TallyStick.groups(for: TallyStick.sticks(for: sessions))
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 44, maximum: 44), spacing: 20)], alignment: .leading, spacing: 16) {
+                ForEach(groups, id: \.first!.id) { group in
+                    TallyGroup(sticks: group, tint: tint) { SessionMenu.show($0, store: store) }
+                }
+            }
+        } else {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 22, maximum: 22), spacing: 8)], alignment: .leading, spacing: 8) {
+                ForEach(sessions) { session in
+                    GlowDot()
+                        .onTapGesture { SessionMenu.show(session, store: store) }
+                        .draggable(session.id.uuidString)
+                        .help(session.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))
+                }
+            }
+        }
+    }
+}
+
+private struct BoardCalendar: View {
+    @ObservedObject var store: PomodoroBoardStore
+
+    private struct Lane: Identifiable {
+        let project: PomodoroProject?
+        var id: String { project?.id.uuidString ?? "unassigned" }
+        var tint: Color { project.map { Board.hue($0.hue) } ?? Board.gold }
+        var name: String { project.map { $0.name.isEmpty ? "Untitled" : $0.name } ?? "Unassigned" }
+    }
+
+    var body: some View {
+        let lanes = [Lane(project: nil)] + store.projects.map { Lane(project: $0) }
+        let days = Board.days(store.sessions)
+        ScrollView([.horizontal, .vertical]) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 14) {
+                    Color.clear.frame(width: 150, height: 1)
+                    ForEach(lanes) { lane in
+                        HStack(spacing: 8) {
+                            Circle().fill(lane.tint).frame(width: 7, height: 7)
+                            Text(lane.name)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Board.ink)
+                                .lineLimit(1)
+                            Spacer(minLength: 4)
+                            Text(Board.unitsLabel(Board.units(store.sessions(in: lane.project?.id))))
+                                .font(.system(size: 12, weight: .semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(Board.muted)
+                        }
+                        .padding(.horizontal, 16)
+                        .frame(width: 260, height: 46)
+                        .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Board.line, lineWidth: 1))
+                    }
+                }
+                if days.isEmpty {
+                    Text("Finished sessions show up here, one row per day")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Board.muted)
+                        .padding(.leading, 164)
+                        .padding(.top, 10)
+                }
+                ForEach(days, id: \.day) { entry in
+                    HStack(alignment: .top, spacing: 14) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(Board.dayDate(entry.day))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Board.ink)
+                                .lineLimit(1)
+                            Text([Board.dayTag(entry.day), "\(Board.unitsLabel(Board.units(entry.sessions))) sessions"].compactMap { $0 }.joined(separator: " · "))
+                                .font(.system(size: 11))
+                                .monospacedDigit()
+                                .foregroundStyle(Board.muted)
+                        }
+                        .padding(14)
+                        .frame(width: 150, alignment: .topLeading)
+                        .frame(maxHeight: .infinity, alignment: .topLeading)
+                        .background(RoundedRectangle(cornerRadius: 16).fill(Board.sidebar))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Board.line, lineWidth: 1))
+                        ForEach(lanes) { lane in
+                            let sessions = entry.sessions.filter { $0.project == lane.project?.id }
+                            VStack(alignment: .leading) {
+                                if sessions.isEmpty {
+                                    Text("–")
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(Board.muted.opacity(0.4))
+                                } else {
+                                    SessionMarks(sessions: sessions, assigned: lane.project != nil, tint: lane.tint, store: store)
+                                }
+                            }
+                            .padding(16)
+                            .frame(width: 260, alignment: .topLeading)
+                            .frame(minHeight: 72, maxHeight: .infinity, alignment: .topLeading)
+                            .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Board.line, lineWidth: 1))
+                        }
+                    }
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 20)
+        }
+        .defaultScrollAnchor(.topLeading)
+    }
+}
+
 private struct BoardColumn: View {
     let project: PomodoroProject?
     @ObservedObject var store: PomodoroBoardStore
@@ -378,23 +498,7 @@ private struct BoardColumn: View {
                                     .monospacedDigit()
                                     .foregroundStyle(Board.muted)
                             }
-                            if project == nil {
-                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 22, maximum: 22), spacing: 8)], alignment: .leading, spacing: 8) {
-                                    ForEach(entry.sessions) { session in
-                                        GlowDot()
-                                            .onTapGesture { SessionMenu.show(session, store: store) }
-                                            .draggable(session.id.uuidString)
-                                            .help(session.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))
-                                    }
-                                }
-                            } else {
-                                let groups = TallyStick.groups(for: TallyStick.sticks(for: entry.sessions))
-                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 44, maximum: 44), spacing: 20)], alignment: .leading, spacing: 16) {
-                                    ForEach(groups, id: \.first!.id) { group in
-                                        TallyGroup(sticks: group, tint: tint) { SessionMenu.show($0, store: store) }
-                                    }
-                                }
-                            }
+                            SessionMarks(sessions: entry.sessions, assigned: project != nil, tint: tint, store: store)
                         }
                     }
                 }
@@ -518,6 +622,7 @@ struct PomodoroBoardView: View {
     @ObservedObject var model: PomodoroModel
     @ObservedObject var store: PomodoroBoardStore
     @AppStorage("pomodoro.board.settings") private var showSettings = true
+    @AppStorage("pomodoro.board.mode") private var mode = "sessions"
 
     var body: some View {
         HStack(spacing: 0) {
@@ -539,14 +644,18 @@ struct PomodoroBoardView: View {
                     }
                     .buttonStyle(.plain)
                     .help(showSettings ? "Hide timer settings" : "Show timer settings")
-                    Text("Sessions")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(Board.ink)
+                    HStack(alignment: .firstTextBaseline, spacing: 16) {
+                        modeButton("Sessions", "sessions")
+                        modeButton("Calendar", "calendar")
+                    }
                     Spacer()
                 }
                 .padding(.leading, showSettings ? 20 : 84)
                 .padding(.trailing, 20)
                 .padding(.top, 14)
+                if mode == "calendar" {
+                    BoardCalendar(store: store)
+                } else {
                 ScrollViewReader { reader in
                     ScrollView(.horizontal) {
                         HStack(alignment: .top, spacing: 14) {
@@ -576,12 +685,27 @@ struct PomodoroBoardView: View {
                         .frame(maxHeight: .infinity, alignment: .top)
                     }
                 }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Board.backdrop)
         .ignoresSafeArea()
         .environment(\.colorScheme, .dark)
+    }
+
+    private func modeButton(_ title: String, _ value: String) -> some View {
+        Button {
+            guard mode != value else { return }
+            note("pomodoro board view mode=\(value)")
+            withAnimation(.easeInOut(duration: 0.15)) { mode = value }
+        } label: {
+            Text(title)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(mode == value ? Board.ink : Board.muted.opacity(0.6))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
