@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     let otp = OtpWatcher()
     lazy var mail = MailWatcher(otp: otp)
     var apps: [String: PocketApp] = [:]
+    lazy var tray = TrayApp()
     var otpRunning = false
     var awake: NSObjectProtocol?
 
@@ -83,7 +84,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     func app(_ id: String) -> PocketApp? { apps[id] }
 
-    func anchor(for id: String) -> NSStatusItem? { bar.anchor(for: id) }
+    func anchor(for id: String) -> NSStatusItem { bar.anchor(for: id) }
 
     func open(_ id: String, source: String) {
         guard let app = apps[id] else { return note("pocket open ignored app=\(id) source=\(source) cause=not enabled") }
@@ -91,16 +92,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 
     func hideOthers(except keep: PocketApp) {
-        apps.values.filter { $0 !== keep }.forEach { $0.hide(reason: "switched") }
+        (Array(apps.values) + [tray]).filter { $0 !== keep }.forEach { $0.hide(reason: "switched") }
     }
 
     func appendCommonItems(to menu: NSMenu, for id: String?) {
         if !menu.items.isEmpty { menu.addItem(.separator()) }
+        if let id, layout.enabled.contains(id) {
+            let toBar = !layout.inBar(id)
+            let move = NSMenuItem(title: toBar ? "Move to menu bar" : "Move to dropdown", action: #selector(moveFromMenu(_:)), keyEquivalent: "")
+            move.target = self
+            move.representedObject = id
+            menu.addItem(move)
+        }
+        menu.addItem(withTitle: "Set up Pocket…", action: #selector(presentSetup), keyEquivalent: "").target = self
+        menu.addItem(.separator())
         if layout.otp && mail.available {
             menu.addItem(withTitle: "Add Gmail account for codes…", action: #selector(MailWatcher.addAccount), keyEquivalent: "").target = mail
             menu.addItem(.separator())
         }
         menu.addItem(withTitle: "Quit Pocket", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
+    }
+
+    @objc func moveFromMenu(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        layout.move(id, toBar: !layout.inBar(id))
+    }
+
+    @objc func presentSetup() {
+        tray.hide(reason: "switched")
+        note("pocket setup requested apps=\(layout.enabled.joined(separator: ","))")
     }
 
     @objc func remoteToggle(_ notification: Notification) {

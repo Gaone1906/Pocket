@@ -1,8 +1,34 @@
 import AppKit
 
 final class BarController: NSObject {
+    let launcher: NSStatusItem
     var items: [String: NSStatusItem] = [:]
     var order: [String] = []
+
+    override init() {
+        launcher = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        super.init()
+        if let button = launcher.button {
+            button.image = NSImage(systemSymbolName: traySpec.symbol, accessibilityDescription: "Pocket apps")
+            button.image?.isTemplate = true
+            button.target = self
+            button.action = #selector(launcherClicked)
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.toolTip = "Pocket: more apps and layout"
+        }
+    }
+
+    @objc func launcherClicked() {
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            let menu = NSMenu()
+            AppDelegate.shared.appendCommonItems(to: menu, for: nil)
+            launcher.menu = menu
+            launcher.button?.performClick(nil)
+            launcher.menu = nil
+            return
+        }
+        AppDelegate.shared.tray.toggle(anchor: launcher, source: "launcher")
+    }
 
     func sync(_ ids: [String]) {
         if ids != order {
@@ -32,7 +58,7 @@ final class BarController: NSObject {
         button.attributedTitle = app.barTitle() ?? NSAttributedString(string: "")
     }
 
-    func anchor(for id: String) -> NSStatusItem? { items[id] }
+    func anchor(for id: String) -> NSStatusItem { items[id] ?? launcher }
 
     @objc func clicked(_ sender: NSStatusBarButton) {
         guard let id = sender.identifier?.rawValue, let item = items[id] else { return }
