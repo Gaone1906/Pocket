@@ -61,7 +61,7 @@ Rules that matter:
 5. When `phase` is `idle`, the user stopped the timer from the menu bar; leave your session mode.
 6. If a request fails because Pocket isn't running, say so in your UI and keep working without the timer; don't retry in a tight loop.
 
-Reference integration: the CAT question bank at `~/Desktop/workspace/personal/cat-sectionals/app.js` (search `POCKET`) starts
+Reference integration: Preparo, the exam practice app at `~/Desktop/workspace/personal/preparo/app/app.js` (search `POCKET`) starts
 40/8 sessions under "Quant Question Bank" and loads 22 questions per focus.
 
 ## Backups: setting up and restoring data
