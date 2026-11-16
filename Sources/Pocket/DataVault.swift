@@ -13,6 +13,7 @@ enum PocketData {
     static var todos: URL { root.appendingPathComponent("todos.json") }
     static var backups: URL { root.appendingPathComponent("Backups", isDirectory: true) }
     static var repo: URL { root.appendingPathComponent("DataRepo", isDirectory: true) }
+    static var syncState: URL { root.appendingPathComponent("sync-state.json") }
 }
 
 struct VaultSnapshot: Identifiable {
@@ -31,9 +32,13 @@ final class DataVault: ObservableObject {
     @Published private(set) var lastSnapshot: Date?
     @Published private(set) var lastSync: Date?
     @Published private(set) var syncProblem: String?
+    @Published private(set) var incoming: [String: Int] = [:]
 
     private let queue = DispatchQueue(label: "pocket.vault", qos: .utility)
     private var syncPending = false
+    private var mergers: [String: (Data) -> Void] = [:]
+    private var overridden = Set<String>()
+    private var held: [String: Int] = [:]
     private let dayFormat: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
@@ -188,6 +193,43 @@ final class DataVault: ObservableObject {
         }
     }
 
+    func register(_ name: String, merge: @escaping (Data) -> Void) {
+        mergers[name] = merge
+    }
+
+    func bringIn() {
+        queue.async { [self] in
+            let waiting = incomingNames()
+            let payloads = waiting.compactMap { name in
+                (try? Data(contentsOf: PocketData.repo.appendingPathComponent("\(name).json"))).map { (name, $0) }
+            }
+            DispatchQueue.main.async { [self] in
+                for (name, data) in payloads {
+                    guard let merge = mergers[name] else {
+                        note("pocket vault bring in skipped name=\(name) reason=no-store")
+                        continue
+                    }
+                    merge(data)
+                    note("pocket vault brought in name=\(name) bytes=\(data.count)")
+                }
+                syncNow()
+            }
+        }
+    }
+
+    func keepThisMac() {
+        queue.async { [self] in
+            let waiting = incomingNames()
+            overridden.formUnion(waiting)
+            note("pocket vault keeping local over github names=\(waiting.sorted().joined(separator: ","))")
+            sync()
+        }
+    }
+
+    private func incomingNames() -> [String] {
+        Array(held.keys)
+    }
+
     func syncNow() {
         queue.async { [self] in sync() }
     }
@@ -201,8 +243,22 @@ final class DataVault: ObservableObject {
         }
         guard git(["pull", "--rebase", "--quiet"], in: repo, step: "pull") else { return }
         var sessions = 0
-        for (source, name) in [(PocketData.board, "board.json"), (PocketData.todos, "todos.json")] where files.fileExists(atPath: source.path) {
+        var known = loadSyncState()
+        var blocked: [String: Int] = [:]
+        var pushed: [String: Set<String>] = [:]
+        for (source, name) in [(PocketData.board, "board.json"), (PocketData.todos, "todos.json")] {
             let target = repo.appendingPathComponent(name)
+            let key = (name as NSString).deletingPathExtension
+            let local = Self.ids(in: try? Data(contentsOf: source), name: key)
+            let remote = Self.ids(in: try? Data(contentsOf: target), name: key)
+            let unseen = remote.subtracting(local).subtracting(known[key] ?? [])
+            if !unseen.isEmpty, !overridden.contains(key) {
+                blocked[key] = unseen.count
+                note("pocket vault sync held name=\(key) unseen=\(unseen.count) local=\(local.count) remote=\(remote.count)")
+                continue
+            }
+            guard files.fileExists(atPath: source.path) else { continue }
+            pushed[key] = local
             do {
                 if files.fileExists(atPath: target.path) { try files.removeItem(at: target) }
                 try files.copyItem(at: source, to: target)
@@ -215,17 +271,58 @@ final class DataVault: ObservableObject {
                 sessions = (json["sessions"] as? [Any])?.count ?? 0
             }
         }
+        let heldNote = blocked.isEmpty ? nil : Self.heldMessage(blocked)
+        held = blocked
+        DispatchQueue.main.async { self.incoming = blocked }
         guard git(["add", "-A"], in: repo, step: "add") else { return }
         if git(["diff", "--cached", "--quiet"], in: repo, step: "diff", quiet: true) {
-            finish(problem: nil)
-            note("pocket vault sync unchanged repo=\(remote)")
+            remember(pushed, into: &known)
+            finish(problem: heldNote)
+            note("pocket vault sync unchanged repo=\(remote) held=\(blocked.count)")
             return
         }
         let message = "backup \(stampFormat.string(from: Date())) sessions=\(sessions)"
         guard git(["commit", "--quiet", "-m", message], in: repo, step: "commit"),
               git(["push", "--quiet"], in: repo, step: "push") else { return }
-        finish(problem: nil)
-        note("pocket vault synced repo=\(remote) sessions=\(sessions)")
+        remember(pushed, into: &known)
+        finish(problem: heldNote)
+        note("pocket vault synced repo=\(remote) sessions=\(sessions) held=\(blocked.count)")
+    }
+
+    private static func heldMessage(_ blocked: [String: Int]) -> String {
+        let parts = blocked.sorted { $0.key < $1.key }.map { "\($0.value) \($0.key == "board" ? "session" : "to-do")\($0.value == 1 ? "" : "s")" }
+        return "GitHub has \(parts.joined(separator: " and ")) this Mac doesn't"
+    }
+
+    private func remember(_ pushed: [String: Set<String>], into known: inout [String: Set<String>]) {
+        guard !pushed.isEmpty else { return }
+        for (key, ids) in pushed {
+            known[key] = ids
+            overridden.remove(key)
+        }
+        do {
+            let data = try JSONSerialization.data(withJSONObject: known.mapValues { $0.sorted() }, options: [.sortedKeys])
+            try data.write(to: PocketData.syncState, options: .atomic)
+        } catch {
+            note("pocket vault sync state write failed path=\(PocketData.syncState.path) error=\(error.localizedDescription)")
+        }
+    }
+
+    private func loadSyncState() -> [String: Set<String>] {
+        guard let data = try? Data(contentsOf: PocketData.syncState),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: [String]] else { return [:] }
+        return json.mapValues(Set.init)
+    }
+
+    static func ids(in data: Data?, name: String) -> Set<String> {
+        guard let data, let json = try? JSONSerialization.jsonObject(with: data) else { return [] }
+        let list: [Any]?
+        if name == "board" {
+            list = (json as? [String: Any])?["sessions"] as? [Any]
+        } else {
+            list = json as? [Any]
+        }
+        return Set((list ?? []).compactMap { ($0 as? [String: Any])?["id"] as? String })
     }
 
     private func finish(problem: String?) {
