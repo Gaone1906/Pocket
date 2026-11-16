@@ -17,8 +17,7 @@ final class TodoStore: ObservableObject {
     let fileURL: URL
 
     init() {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        fileURL = base.appendingPathComponent("Pocket", isDirectory: true).appendingPathComponent("todos.json")
+        fileURL = PocketData.todos
     }
 
     var open: [TodoItem] { items.filter { !$0.done } }
@@ -26,19 +25,25 @@ final class TodoStore: ObservableObject {
     var next: TodoItem? { items.first { !$0.done } }
 
     func load() {
-        let files = FileManager.default
-        guard files.fileExists(atPath: fileURL.path) else {
-            note("pocket todo load none path=\(fileURL.path) count=0")
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            do {
+                items = ordered(try decoder.decode([TodoItem].self, from: Data(contentsOf: fileURL)))
+                note("pocket todo loaded path=\(fileURL.path) count=\(items.count) open=\(open.count)")
+                return
+            } catch {
+                note("pocket todo load failed path=\(fileURL.path) cause=\(error)")
+                DataVault.shared.quarantine(fileURL, name: "todos")
+            }
+        }
+        guard let (recovered, snap) = DataVault.shared.recover("todos", decode: { try decoder.decode([TodoItem].self, from: $0) }) else {
+            note("pocket todo load none path=\(fileURL.path) count=0 snapshots=0")
             return
         }
-        do {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            items = ordered(try decoder.decode([TodoItem].self, from: Data(contentsOf: fileURL)))
-            note("pocket todo loaded path=\(fileURL.path) count=\(items.count) open=\(open.count)")
-        } catch {
-            note("pocket todo load failed path=\(fileURL.path) cause=\(error)")
-        }
+        items = ordered(recovered)
+        note("pocket todo recovered from=\(snap.url.path) count=\(items.count)")
+        save()
     }
 
     func add(_ title: String) {
@@ -106,7 +111,9 @@ final class TodoStore: ObservableObject {
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            try encoder.encode(items).write(to: fileURL, options: .atomic)
+            let data = try encoder.encode(items)
+            try data.write(to: fileURL, options: .atomic)
+            DataVault.shared.snapshot(data, name: "todos", count: items.count)
         } catch {
             note("pocket todo save failed path=\(fileURL.path) count=\(items.count) cause=\(error)")
         }
