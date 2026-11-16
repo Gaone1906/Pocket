@@ -13,6 +13,10 @@ struct PomodoroSession: Codable, Identifiable, Equatable {
     let ended: Date
     let minutes: Int
     var project: UUID?
+    var started: Date? = nil
+    var declared: Bool? = nil
+
+    var isDeclared: Bool { declared == true }
 }
 
 final class PomodoroBoardStore: ObservableObject {
@@ -120,6 +124,14 @@ final class PomodoroBoardStore: ObservableObject {
         note("pomodoro session recorded session=\(session.id) minutes=\(minutes) project=\(project?.uuidString ?? "unassigned") total=\(sessions.count)")
     }
 
+    func declare(minutes: Int, ended: Date, started: Date?, project: UUID?) {
+        let session = PomodoroSession(id: UUID(), ended: ended, minutes: minutes, project: project, started: started, declared: true)
+        sessions.append(session)
+        sessions.sort { $0.ended < $1.ended }
+        save()
+        note("pomodoro session declared session=\(session.id) minutes=\(minutes) ended=\(ended.ISO8601Format()) started=\(started?.ISO8601Format() ?? "none") project=\(project?.uuidString ?? "unassigned") total=\(sessions.count)")
+    }
+
     func projectId(named name: String) -> UUID {
         if let found = projects.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) { return found.id }
         let id = addProject()
@@ -188,6 +200,16 @@ enum Board {
 
     static func hue(_ index: Int) -> Color { theme.projectTint(index) }
 
+    static func sessionLabel(_ session: PomodoroSession) -> String {
+        guard session.isDeclared else {
+            return "\(session.minutes) min · \(session.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))"
+        }
+        let day = session.ended.formatted(.dateTime.day().month(.abbreviated))
+        guard let started = session.started else { return "\(session.minutes) min · \(day) · declared" }
+        let span = "\(started.formatted(date: .omitted, time: .shortened))–\(session.ended.formatted(date: .omitted, time: .shortened))"
+        return "\(session.minutes) min · \(day) \(span) · declared"
+    }
+
     static func units(_ sessions: [PomodoroSession]) -> Double {
         (Double(sessions.reduce(0) { $0 + $1.minutes }) / Double(TallyStick.fullMinutes) * 10).rounded() / 10
     }
@@ -251,7 +273,7 @@ enum SessionMenu {
     }
 
     private static func label(_ session: PomodoroSession) -> String {
-        "\(session.minutes) min · \(session.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))"
+        Board.sessionLabel(session)
     }
 
     private static func items(for session: PomodoroSession, store: PomodoroBoardStore) -> [NSMenuItem] {
@@ -371,7 +393,7 @@ private struct TallyGroup: View {
             .contentShape(Rectangle())
             .onTapGesture { tap(stick.sessions) }
             .draggable(stick.sessions.last?.id.uuidString ?? "")
-            .help(stick.sessions.map { "\($0.minutes) min · \($0.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))" }.joined(separator: "\n"))
+            .help(stick.sessions.map(Board.sessionLabel).joined(separator: "\n"))
     }
 }
 
@@ -395,7 +417,7 @@ private struct SessionMarks: View {
                     GlowDot()
                         .onTapGesture { SessionMenu.show(session, store: store) }
                         .draggable(session.id.uuidString)
-                        .help(session.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))
+                        .help(Board.sessionLabel(session))
                 }
             }
         }
@@ -493,6 +515,7 @@ private struct BoardCalendar: View {
 private struct BoardColumn: View {
     let project: PomodoroProject?
     @ObservedObject var store: PomodoroBoardStore
+    let declare: (UUID?) -> Void
     @State private var name = ""
     @State private var targeted = false
     @FocusState private var editing: Bool
@@ -524,6 +547,8 @@ private struct BoardColumn: View {
                     .foregroundStyle(Board.muted)
                 if let project {
                     Menu {
+                        Button("Declare a session…") { declare(project.id) }
+                        Divider()
                         Button("Delete project", role: .destructive) { store.deleteProject(project.id) }
                     } label: {
                         Image(systemName: "ellipsis")
@@ -548,6 +573,13 @@ private struct BoardColumn: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(targeted ? tint.opacity(0.8) : Board.line, lineWidth: targeted ? 1.5 : 1))
+        .contextMenu {
+            Button("Declare a session…") { declare(project?.id) }
+            if let project {
+                Divider()
+                Button("Delete project", role: .destructive) { store.deleteProject(project.id) }
+            }
+        }
         .dropDestination(for: String.self) { items, _ in
             let ids = items.compactMap(UUID.init(uuidString:))
             ids.forEach { store.assign($0, to: project?.id) }
@@ -848,8 +880,10 @@ struct PomodoroBoardView: View {
     @AppStorage("pomodoro.board.stats") private var showStats = true
     @AppStorage("pomodoro.board.panel") private var showPanel = false
     @AppStorage("pomodoro.board.mode") private var mode = "sessions"
+    @State private var declaring: DeclareTarget?
 
     var body: some View {
+        ZStack {
         HStack(spacing: 0) {
             if showStats {
                 HStack(spacing: 0) {
@@ -889,9 +923,9 @@ struct PomodoroBoardView: View {
                     ScrollViewReader { reader in
                         ScrollView(.horizontal) {
                             HStack(alignment: .top, spacing: 14) {
-                                BoardColumn(project: nil, store: store)
+                                BoardColumn(project: nil, store: store, declare: openDeclare)
                                 ForEach(store.projects) { project in
-                                    BoardColumn(project: project, store: store).id(project.id)
+                                    BoardColumn(project: project, store: store, declare: openDeclare).id(project.id)
                                 }
                                 Button {
                                     let id = store.addProject()
@@ -931,6 +965,17 @@ struct PomodoroBoardView: View {
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
+            if let target = declaring {
+                Color.black.opacity(themes.theme.isDark ? 0.4 : 0.18)
+                    .ignoresSafeArea()
+                    .onTapGesture { closeDeclare() }
+                    .transition(.opacity)
+                DeclareSessionCard(project: store.project(target.project), store: store, close: closeDeclare)
+                    .id(target.id)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
+        }
+        .animation(.smooth(duration: 0.3), value: declaring?.id)
         .animation(Board.glide, value: mode)
         .animation(Board.glide, value: showStats)
         .animation(Board.glide, value: showPanel)
@@ -940,6 +985,22 @@ struct PomodoroBoardView: View {
         .ignoresSafeArea()
         .environment(\.colorScheme, themes.theme.colorScheme)
     }
+}
+
+extension PomodoroBoardView {
+    private func openDeclare(_ project: UUID?) {
+        note("pomodoro declare opened project=\(project?.uuidString ?? "unassigned")")
+        declaring = DeclareTarget(project: project)
+    }
+
+    private func closeDeclare() {
+        declaring = nil
+    }
+}
+
+struct DeclareTarget: Identifiable, Equatable {
+    let id = UUID()
+    let project: UUID?
 }
 
 private struct BoardSettingsButton: View {
