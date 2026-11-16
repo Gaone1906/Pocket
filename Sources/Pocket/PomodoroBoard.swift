@@ -566,11 +566,6 @@ private struct BoardStats: View {
         VStack(alignment: .leading, spacing: 14) {
             card("TODAY", today)
             card("ALL TIME", store.sessions)
-            Spacer()
-            Text("A session is 25 focused minutes. Run the timer from the Pomodoro in the menu bar.")
-                .font(.system(size: 11))
-                .foregroundStyle(Board.muted)
-                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 20)
         .padding(.top, 52)
@@ -671,10 +666,6 @@ private struct BoardSettingsPanel: View {
                     .help(theme.name)
                 }
             }
-            Text("The whole board takes a soft tint of the colour you pick.")
-                .font(.system(size: 11))
-                .foregroundStyle(Board.muted)
-                .fixedSize(horizontal: false, vertical: true)
             Spacer()
         }
         .padding(.horizontal, 22)
