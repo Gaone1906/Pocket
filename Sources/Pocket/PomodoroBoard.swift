@@ -55,11 +55,18 @@ final class PomodoroBoardStore: ObservableObject {
         projects.first { $0.id == id }
     }
 
-    func record(minutes: Int, ended: Date) {
-        let session = PomodoroSession(id: UUID(), ended: ended, minutes: minutes, project: nil)
+    func record(minutes: Int, ended: Date, project: UUID? = nil) {
+        let session = PomodoroSession(id: UUID(), ended: ended, minutes: minutes, project: project)
         sessions.append(session)
         save()
-        note("pomodoro session recorded session=\(session.id) minutes=\(minutes) total=\(sessions.count)")
+        note("pomodoro session recorded session=\(session.id) minutes=\(minutes) project=\(project?.uuidString ?? "unassigned") total=\(sessions.count)")
+    }
+
+    func projectId(named name: String) -> UUID {
+        if let found = projects.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) { return found.id }
+        let id = addProject()
+        rename(id, name)
+        return id
     }
 
     func assign(_ id: UUID, to project: UUID?) {

@@ -33,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                                                             name: Notification.Name("com.pranav.pocket.toggle"), object: nil)
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(remoteRestart(_:)),
                                                             name: Notification.Name("com.pranav.pocket.restart"), object: nil)
+        PocketServer.shared.start()
         if !layout.setupDone { SetupController.shared.present() }
         note("pocket started apps=\(layout.enabled.joined(separator: ","))")
     }

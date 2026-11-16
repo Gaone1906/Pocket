@@ -39,6 +39,8 @@ enum PomodoroPalette {
 final class PomodoroModel: ObservableObject {
     @Published var state: PomodoroState = .idle
     @Published var tick = Date()
+    @Published var project: String?
+    @Published var cycle = 0
     @Published var focusMinutes: Int {
         didSet {
             UserDefaults.standard.set(focusMinutes, forKey: "pomodoro.focus")
@@ -181,6 +183,32 @@ final class PomodoroApp: PocketApp {
         board.present()
     }
 
+    func remoteState() -> [String: Any] {
+        var state: [String: Any] = [
+            "phase": model.isIdle ? "idle" : model.phase == .focus ? "focus" : model.phase == .long ? "long" : "rest",
+            "running": model.isRunning,
+            "remaining": Int(model.remaining().rounded(.up)),
+            "focusMinutes": model.focusMinutes,
+            "cycle": model.cycle,
+            "project": model.project ?? NSNull(),
+        ]
+        if case .running(_, let ends) = model.state { state["endsAt"] = Int(ends.timeIntervalSince1970 * 1000) }
+        return state
+    }
+
+    func remoteStart(project: String?, source: String) {
+        model.project = project
+        note("pomodoro remote start source=\(source) project=\(project ?? "none") state=\(model.isIdle ? "idle" : model.isRunning ? "running" : "paused") phase=\(model.phase.label)")
+        if !model.isRunning { toggle() }
+        changed()
+    }
+
+    func remoteStop(source: String) {
+        note("pomodoro remote stop source=\(source) project=\(model.project ?? "none") phase=\(model.phase.label)")
+        reset(reason: "stopped from \(source)")
+        model.project = nil
+    }
+
     override func stop() {
         stopTimer()
         super.stop()
@@ -190,6 +218,7 @@ final class PomodoroApp: PocketApp {
         switch model.state {
         case .idle:
             let phase = PomodoroPhase.focus
+            model.cycle += 1
             model.state = .running(phase, Date().addingTimeInterval(model.seconds(for: phase)))
             note("pomodoro start phase=\(phase.label) planned=\(model.minutes(for: phase))m")
             requestAuthorizationOnce()
@@ -212,6 +241,7 @@ final class PomodoroApp: PocketApp {
         let phase = model.phase
         note("pomodoro phase end phase=\(phase.label) planned=\(model.minutes(for: phase))m reason=\(reason)")
         model.state = .idle
+        model.project = nil
         stopTimer()
         refresh()
     }
@@ -236,6 +266,7 @@ final class PomodoroApp: PocketApp {
             if next == .long { model.streak = 0 }
         } else {
             next = .focus
+            model.cycle += 1
         }
         note("pomodoro phase end phase=\(phase.label) planned=\(model.minutes(for: phase))m reason=\(reason) next=\(next.label) nextPlanned=\(model.minutes(for: next))m")
         if running {
@@ -251,7 +282,10 @@ final class PomodoroApp: PocketApp {
             return
         }
         if ends.timeIntervalSinceNow <= 0 {
-            if phase == .focus { PomodoroBoardStore.shared.record(minutes: model.focusMinutes, ended: ends) }
+            if phase == .focus {
+                let store = PomodoroBoardStore.shared
+                store.record(minutes: model.focusMinutes, ended: ends, project: model.project.map(store.projectId(named:)))
+            }
             advance(from: phase, reason: "finished", running: true)
             NSSound(named: "Glass")?.play()
             let message = phase == .focus
@@ -370,6 +404,7 @@ struct PomodoroView: View {
 
     private var heading: String {
         if case .paused = model.state { return "Paused" }
+        if model.phase == .focus, let project = model.project { return project }
         return model.phase.label
     }
 
