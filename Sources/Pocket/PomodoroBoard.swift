@@ -1,3 +1,4 @@
+import Combine
 import AppKit
 import SwiftUI
 
@@ -86,7 +87,7 @@ final class PomodoroBoardStore: ObservableObject {
     @discardableResult
     func addProject() -> UUID {
         let used = Set(projects.map(\.hue))
-        let hue = (0..<Board.hues.count).first { !used.contains($0) } ?? projects.count % Board.hues.count
+        let hue = (0..<Board.hueCount).first { !used.contains($0) } ?? projects.count % Board.hueCount
         let project = PomodoroProject(id: UUID(), name: "", hue: hue)
         projects.append(project)
         save()
@@ -111,25 +112,20 @@ final class PomodoroBoardStore: ObservableObject {
 }
 
 enum Board {
-    static let backdrop = Color(red: 0.071, green: 0.075, blue: 0.082)
-    static let sidebar = Color(red: 0.094, green: 0.098, blue: 0.106)
-    static let column = Color(red: 0.118, green: 0.122, blue: 0.133)
-    static let line = Color.white.opacity(0.07)
-    static let muted = Color(red: 0.545, green: 0.557, blue: 0.580)
-    static let ink = Color.white.opacity(0.9)
-    static let gold = Color(nsColor: PomodoroPalette.gold)
-    static let hues: [Color] = [
-        Color(red: 0.47, green: 0.78, blue: 0.67),
-        Color(red: 0.55, green: 0.69, blue: 0.95),
-        Color(red: 0.93, green: 0.55, blue: 0.48),
-        Color(red: 0.74, green: 0.60, blue: 0.93),
-        Color(red: 0.62, green: 0.82, blue: 0.43),
-        Color(red: 0.93, green: 0.62, blue: 0.80),
-        Color(red: 0.45, green: 0.80, blue: 0.88),
-        Color(red: 0.90, green: 0.76, blue: 0.35),
-    ]
+    static var theme: BoardTheme { BoardThemeStore.shared.theme }
+    static var backdrop: Color { theme.backdrop }
+    static var sidebar: Color { theme.sidebar }
+    static var column: Color { theme.card }
+    static var line: Color { theme.line }
+    static var muted: Color { theme.muted }
+    static var ink: Color { theme.ink }
+    static var faint: Color { theme.faint }
+    static var accent: Color { theme.accent }
+    static var accentInk: Color { theme.accentInk }
+    static var shadow: Color { theme.shadow }
+    static let hueCount = BoardTheme.projectOffsets.count
 
-    static func hue(_ index: Int) -> Color { hues[((index % hues.count) + hues.count) % hues.count] }
+    static func hue(_ index: Int) -> Color { theme.projectTint(index) }
 
     static func units(_ sessions: [PomodoroSession]) -> Double {
         (Double(sessions.reduce(0) { $0 + $1.minutes }) / Double(TallyStick.fullMinutes) * 10).rounded() / 10
@@ -225,10 +221,10 @@ private struct GlowDot: View {
 
     var body: some View {
         Circle()
-            .fill(Board.gold)
+            .fill(Board.accent)
             .frame(width: 10, height: 10)
-            .shadow(color: Board.gold.opacity(bright ? 0.95 : 0.55), radius: bright ? 7 : 4)
-            .shadow(color: Board.gold.opacity(0.35), radius: 12)
+            .shadow(color: Board.accent.opacity(bright ? 0.95 : 0.55), radius: bright ? 7 : 4)
+            .shadow(color: Board.accent.opacity(0.35), radius: 12)
             .frame(width: 22, height: 22)
             .contentShape(Rectangle())
             .onAppear {
@@ -350,7 +346,7 @@ private struct BoardCalendar: View {
     private struct Lane: Identifiable {
         let project: PomodoroProject?
         var id: String { project?.id.uuidString ?? "unassigned" }
-        var tint: Color { project.map { Board.hue($0.hue) } ?? Board.gold }
+        var tint: Color { project.map { Board.hue($0.hue) } ?? Board.accent }
         var name: String { project.map { $0.name.isEmpty ? "Untitled" : $0.name } ?? "Unassigned" }
     }
 
@@ -410,7 +406,7 @@ private struct BoardCalendar: View {
                                 if sessions.isEmpty {
                                     Text("–")
                                         .font(.system(size: 12))
-                                        .foregroundStyle(Board.muted.opacity(0.4))
+                                        .foregroundStyle(Board.faint)
                                 } else {
                                     SessionMarks(sessions: sessions, assigned: lane.project != nil, tint: lane.tint, store: store)
                                 }
@@ -440,7 +436,7 @@ private struct BoardColumn: View {
     @FocusState private var editing: Bool
 
     private var sessions: [PomodoroSession] { store.sessions(in: project?.id) }
-    private var tint: Color { project.map { Board.hue($0.hue) } ?? Board.gold }
+    private var tint: Color { project.map { Board.hue($0.hue) } ?? Board.accent }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -515,24 +511,23 @@ private struct SettingRow: View {
     let unit: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        HStack(spacing: 10) {
             Text(title)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 12))
                 .foregroundStyle(Board.muted)
-            HStack(spacing: 10) {
-                step("minus", -1)
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("\(value)")
-                        .font(.system(size: 20, weight: .bold).width(.condensed))
-                        .monospacedDigit()
-                        .foregroundStyle(Board.ink)
-                    Text(unit)
-                        .font(.system(size: 11))
-                        .foregroundStyle(Board.muted)
-                }
-                .frame(minWidth: 84)
-                step("plus", 1)
+            Spacer(minLength: 4)
+            step("minus", -1)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text("\(value)")
+                    .font(.system(size: 18, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundStyle(Board.ink)
+                Text(unit)
+                    .font(.system(size: 10))
+                    .foregroundStyle(Board.muted)
             }
+            .frame(width: 66)
+            step("plus", 1)
         }
     }
 
@@ -541,58 +536,151 @@ private struct SettingRow: View {
             value = min(range.upperBound, max(range.lowerBound, value + delta))
         } label: {
             Image(systemName: symbol)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(Board.ink.opacity(0.8))
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(Board.ink)
                 .frame(width: 24, height: 24)
-                .background(Circle().fill(Color.white.opacity(0.07)))
+                .background(Circle().fill(Board.column))
+                .overlay(Circle().stroke(Board.line, lineWidth: 1))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
     }
 }
 
-private struct BoardSettings: View {
-    @ObservedObject var model: PomodoroModel
-    @ObservedObject var store: PomodoroBoardStore
-
-    private var today: [PomodoroSession] { store.sessions.filter { Calendar.current.isDateInToday($0.ended) } }
+private struct BoardSectionTitle: View {
+    let text: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("TIMER")
-                .font(.system(size: 10, weight: .semibold))
-                .tracking(1.6)
+        Text(text)
+            .font(.system(size: 10, weight: .semibold))
+            .tracking(1.6)
+            .foregroundStyle(Board.muted)
+    }
+}
+
+private struct BoardStats: View {
+    @ObservedObject var store: PomodoroBoardStore
+
+    var body: some View {
+        let today = store.sessions.filter { Calendar.current.isDateInToday($0.ended) }
+        VStack(alignment: .leading, spacing: 14) {
+            card("TODAY", today)
+            card("ALL TIME", store.sessions)
+            Spacer()
+            Text("A session is 25 focused minutes. Run the timer from the Pomodoro in the menu bar.")
+                .font(.system(size: 11))
                 .foregroundStyle(Board.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 52)
+        .padding(.bottom, 20)
+        .frame(width: 220, alignment: .leading)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(Board.sidebar)
+    }
+
+    private func card(_ title: String, _ sessions: [PomodoroSession]) -> some View {
+        let minutes = sessions.reduce(0) { $0 + $1.minutes }
+        let units = Board.units(sessions)
+        return VStack(alignment: .leading, spacing: 10) {
+            BoardSectionTitle(text: title)
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(Board.unitsLabel(units))
+                        .font(.system(size: 30, weight: .bold))
+                        .monospacedDigit()
+                        .foregroundStyle(Board.accentInk)
+                    Text(units == 1 ? "session" : "sessions")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Board.muted)
+                }
+                Rectangle().fill(Board.line).frame(height: 1)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(minutes == 0 ? "0m" : Board.duration(minutes))
+                        .font(.system(size: 22, weight: .bold))
+                        .monospacedDigit()
+                        .foregroundStyle(Board.ink)
+                    Text("focused")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Board.muted)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Board.line, lineWidth: 1))
+        }
+        .padding(.top, 8)
+    }
+}
+
+private struct BoardSettingsPanel: View {
+    @ObservedObject var model: PomodoroModel
+    @ObservedObject var themes: BoardThemeStore
+    let close: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Settings")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(Board.ink)
+                Spacer()
+                Button(action: close) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Board.muted)
+                        .frame(width: 26, height: 26)
+                        .background(Circle().fill(Board.column))
+                        .overlay(Circle().stroke(Board.line, lineWidth: 1))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Close settings")
+            }
+            BoardSectionTitle(text: "TIMER").padding(.top, 6)
             SettingRow(title: "Focus", value: $model.focusMinutes, range: 1...120, unit: "min")
             SettingRow(title: "Short break", value: $model.breakMinutes, range: 1...60, unit: "min")
             SettingRow(title: "Long break", value: $model.longBreakMinutes, range: 1...90, unit: "min")
             SettingRow(title: "Long break after", value: $model.longEvery, range: 2...12, unit: "sessions")
             Rectangle().fill(Board.line).frame(height: 1).padding(.vertical, 4)
-            Text("TODAY")
-                .font(.system(size: 10, weight: .semibold))
-                .tracking(1.6)
-                .foregroundStyle(Board.muted)
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(Board.unitsLabel(Board.units(today)))
-                    .font(.system(size: 28, weight: .bold).width(.condensed))
-                    .foregroundStyle(Board.gold)
-                Text(Board.units(today) == 1 ? "session" : "sessions")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Board.muted)
+            HStack(alignment: .firstTextBaseline) {
+                BoardSectionTitle(text: "THEME")
+                Spacer()
+                Text(themes.theme.name)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Board.accentInk)
             }
-            Text("\(Board.duration(today.reduce(0) { $0 + $1.minutes })) focused · \(Board.unitsLabel(Board.units(store.sessions))) all time")
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 14) {
+                ForEach(BoardTheme.all) { theme in
+                    let on = theme == themes.theme
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) { themes.theme = theme }
+                    } label: {
+                        Circle()
+                            .fill(theme.swatch)
+                            .overlay(Circle().stroke(theme.swatchEdge, lineWidth: 1))
+                            .frame(width: 32, height: 32)
+                            .padding(3)
+                            .overlay(Circle().stroke(on ? theme.swatchRing : .clear, lineWidth: 1.5))
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(theme.name)
+                }
+            }
+            Text("The whole board takes a soft tint of the colour you pick.")
                 .font(.system(size: 11))
                 .foregroundStyle(Board.muted)
-            Spacer()
-            Text("Run the timer from the Pomodoro in the menu bar.")
-                .font(.system(size: 11))
-                .foregroundStyle(Board.muted.opacity(0.8))
                 .fixedSize(horizontal: false, vertical: true)
+            Spacer()
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 56)
+        .padding(.horizontal, 22)
+        .padding(.top, 18)
         .padding(.bottom, 20)
-        .frame(width: 230, alignment: .leading)
+        .frame(width: 280, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Board.sidebar)
     }
@@ -601,20 +689,22 @@ private struct BoardSettings: View {
 struct PomodoroBoardView: View {
     @ObservedObject var model: PomodoroModel
     @ObservedObject var store: PomodoroBoardStore
-    @AppStorage("pomodoro.board.settings") private var showSettings = true
+    @ObservedObject var themes = BoardThemeStore.shared
+    @AppStorage("pomodoro.board.stats") private var showStats = true
+    @AppStorage("pomodoro.board.panel") private var showPanel = false
     @AppStorage("pomodoro.board.mode") private var mode = "sessions"
 
     var body: some View {
         HStack(spacing: 0) {
-            if showSettings {
-                BoardSettings(model: model, store: store)
+            if showStats {
+                BoardStats(store: store)
                     .transition(.move(edge: .leading))
                 Rectangle().fill(Board.line).frame(width: 1)
             }
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 12) {
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) { showSettings.toggle() }
+                        withAnimation(.easeInOut(duration: 0.2)) { showStats.toggle() }
                     } label: {
                         Image(systemName: "sidebar.left")
                             .font(.system(size: 13))
@@ -623,52 +713,88 @@ struct PomodoroBoardView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help(showSettings ? "Hide timer settings" : "Show timer settings")
+                    .help(showStats ? "Hide stats" : "Show stats")
                     BoardModeToggle(mode: $mode)
                     Spacer()
+                    BoardSettingsButton(open: showPanel) {
+                        note("pomodoro board settings panel open=\(!showPanel)")
+                        withAnimation(.easeInOut(duration: 0.22)) { showPanel.toggle() }
+                    }
                 }
-                .padding(.leading, showSettings ? 20 : 84)
+                .padding(.leading, showStats ? 20 : 84)
                 .padding(.trailing, 20)
-                .padding(.top, 14)
+                .padding(.top, 12)
                 if mode == "calendar" {
                     BoardCalendar(store: store)
                 } else {
-                ScrollViewReader { reader in
-                    ScrollView(.horizontal) {
-                        HStack(alignment: .top, spacing: 14) {
-                            BoardColumn(project: nil, store: store)
-                            ForEach(store.projects) { project in
-                                BoardColumn(project: project, store: store).id(project.id)
-                            }
-                            Button {
-                                let id = store.addProject()
-                                DispatchQueue.main.async { withAnimation { reader.scrollTo(id, anchor: .trailing) } }
-                            } label: {
-                                VStack(spacing: 8) {
-                                    Image(systemName: "plus")
-                                        .font(.system(size: 16, weight: .semibold))
-                                    Text("New project")
-                                        .font(.system(size: 12, weight: .medium))
+                    ScrollViewReader { reader in
+                        ScrollView(.horizontal) {
+                            HStack(alignment: .top, spacing: 14) {
+                                BoardColumn(project: nil, store: store)
+                                ForEach(store.projects) { project in
+                                    BoardColumn(project: project, store: store).id(project.id)
                                 }
-                                .foregroundStyle(Board.muted)
-                                .frame(width: 200, height: 110)
-                                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Board.line, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5])))
-                                .contentShape(Rectangle())
+                                Button {
+                                    let id = store.addProject()
+                                    DispatchQueue.main.async { withAnimation { reader.scrollTo(id, anchor: .trailing) } }
+                                } label: {
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 16, weight: .semibold))
+                                        Text("New project")
+                                            .font(.system(size: 12, weight: .medium))
+                                    }
+                                    .foregroundStyle(Board.muted)
+                                    .frame(width: 200, height: 110)
+                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Board.line, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5])))
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 20)
+                            .frame(maxHeight: .infinity, alignment: .top)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 20)
-                        .frame(maxHeight: .infinity, alignment: .top)
                     }
                 }
+            }
+            if showPanel {
+                Rectangle().fill(Board.line).frame(width: 1)
+                BoardSettingsPanel(model: model, themes: themes) {
+                    withAnimation(.easeInOut(duration: 0.22)) { showPanel = false }
                 }
+                .transition(.move(edge: .trailing))
             }
         }
+        .id(themes.theme.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Board.backdrop)
         .ignoresSafeArea()
-        .environment(\.colorScheme, .dark)
+        .environment(\.colorScheme, .light)
+    }
+}
+
+private struct BoardSettingsButton: View {
+    let open: Bool
+    let action: () -> Void
+
+    var body: some View {
+        let icon = Image(systemName: "slider.horizontal.3")
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(open ? Board.accentInk : Board.muted)
+            .frame(width: 40, height: 40)
+            .contentShape(Circle())
+        Button(action: action) {
+            if #available(macOS 26, *) {
+                icon.glassEffect(.regular.interactive(), in: Circle())
+            } else {
+                icon
+                    .background(Circle().fill(.ultraThinMaterial))
+                    .overlay(Circle().strokeBorder(Board.line, lineWidth: 1))
+            }
+        }
+        .buttonStyle(.plain)
+        .help(open ? "Close settings" : "Settings")
     }
 }
 
@@ -687,7 +813,7 @@ private struct BoardModeToggle: View {
             segments
                 .padding(4)
                 .background(Capsule().fill(.ultraThinMaterial))
-                .overlay(Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
+                .overlay(Capsule().strokeBorder(Board.line, lineWidth: 1))
         }
     }
 
@@ -707,7 +833,8 @@ private struct BoardModeToggle: View {
                         .background {
                             if mode == value {
                                 Capsule()
-                                    .fill(Color.white.opacity(0.14))
+                                    .fill(Color.white.opacity(0.85))
+                                    .shadow(color: Board.shadow, radius: 4, y: 1)
                                     .matchedGeometryEffect(id: "pill", in: pill)
                             }
                         }
@@ -722,6 +849,7 @@ private struct BoardModeToggle: View {
 final class PomodoroBoardWindow: NSObject, NSWindowDelegate {
     private let model: PomodoroModel
     private var window: NSWindow?
+    private var themeWatch: AnyCancellable?
 
     init(model: PomodoroModel) {
         self.model = model
@@ -741,8 +869,9 @@ final class PomodoroBoardWindow: NSObject, NSWindowDelegate {
         window.title = "Pomodoro"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.appearance = NSAppearance(named: .darkAqua)
+        window.appearance = NSAppearance(named: .aqua)
         window.backgroundColor = NSColor(Board.backdrop)
+        themeWatch = BoardThemeStore.shared.$theme.sink { [weak window] theme in window?.backgroundColor = NSColor(theme.backdrop) }
         window.minSize = NSSize(width: 640, height: 420)
         window.contentView = NSHostingView(rootView: PomodoroBoardView(model: model, store: .shared))
         window.isReleasedWhenClosed = false
@@ -758,6 +887,7 @@ final class PomodoroBoardWindow: NSObject, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         window?.delegate = nil
         window = nil
+        themeWatch = nil
         NSApp.setActivationPolicy(.accessory)
         note("pomodoro board closed")
     }
