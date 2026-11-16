@@ -127,7 +127,7 @@ enum Board {
     static var shadow: Color { theme.shadow }
     static let hueCount = BoardTheme.projectOffsets.count
 
-    static let glide = Animation.spring(response: 0.5, dampingFraction: 0.9)
+    static let glide = Animation.smooth(duration: 0.55)
 
     static func hue(_ index: Int) -> Color { theme.projectTint(index) }
 
@@ -653,24 +653,16 @@ private struct BoardSettingsPanel: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Board.accentInkStyle)
             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 14) {
-                ForEach(BoardTheme.all) { theme in
-                    let on = theme == themes.theme
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.3)) { themes.theme = theme }
-                    } label: {
-                        Circle()
-                            .fill(theme.swatchStyle)
-                            .overlay(Circle().stroke(theme.swatchEdge, lineWidth: 1))
-                            .frame(width: 32, height: 32)
-                            .padding(3)
-                            .overlay(Circle().stroke(on ? theme.swatchRing : .clear, lineWidth: 1.5))
-                            .contentShape(Circle())
+            Grid(horizontalSpacing: 8, verticalSpacing: 14) {
+                ForEach(Array(stride(from: 0, to: BoardTheme.all.count, by: 5)), id: \.self) { start in
+                    GridRow {
+                        ForEach(BoardTheme.all[start..<min(start + 5, BoardTheme.all.count)]) { theme in
+                            swatch(theme)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .help(theme.name)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             Spacer()
         }
         .padding(.horizontal, 22)
@@ -679,6 +671,23 @@ private struct BoardSettingsPanel: View {
         .frame(width: 280, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Board.sidebar)
+    }
+
+    private func swatch(_ theme: BoardTheme) -> some View {
+        let on = theme == themes.theme
+        return Button {
+            withAnimation(.easeInOut(duration: 0.3)) { themes.theme = theme }
+        } label: {
+            Circle()
+                .fill(theme.swatchStyle)
+                .overlay(Circle().stroke(theme.swatchEdge, lineWidth: 1))
+                .frame(width: 32, height: 32)
+                .padding(3)
+                .overlay(Circle().stroke(on ? theme.swatchRing : .clear, lineWidth: 1.5))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(theme.name)
     }
 }
 
@@ -725,8 +734,7 @@ struct PomodoroBoardView: View {
                 ZStack(alignment: .topLeading) {
                 if mode == "calendar" {
                     BoardCalendar(store: store)
-                        .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
-                                                removal: .move(edge: .trailing).combined(with: .opacity)))
+                        .transition(.opacity.combined(with: .offset(x: 36)))
                 } else {
                     ScrollViewReader { reader in
                         ScrollView(.horizontal) {
@@ -757,8 +765,7 @@ struct PomodoroBoardView: View {
                             .frame(maxHeight: .infinity, alignment: .top)
                         }
                     }
-                    .transition(.asymmetric(insertion: .move(edge: .leading).combined(with: .opacity),
-                                            removal: .move(edge: .leading).combined(with: .opacity)))
+                    .transition(.opacity.combined(with: .offset(x: -36)))
                 }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -774,6 +781,9 @@ struct PomodoroBoardView: View {
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
+        .animation(Board.glide, value: mode)
+        .animation(Board.glide, value: showStats)
+        .animation(Board.glide, value: showPanel)
         .id(themes.theme.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Board.backdrop)
