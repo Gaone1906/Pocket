@@ -15,7 +15,7 @@ Small apps that live in the macOS menu bar. Click an icon and the app drops down
 | Calculator | Type or tap a calculation and see the answer as you go |
 | Scratchpad | Notes in pages, with headings, bold, italic, underline, strikethrough and bulleted or numbered lists (type `- `, `1. ` or `# ` to start one) |
 | System Stats | CPU, memory, disk, network and battery at a glance |
-| Preparo | Opens Preparo, the local exam practice app at http://localhost:8960, in your browser |
+| Preparo | Opens Preparo, the local exam practice app at http://localhost:8960, in Ardia (or the default browser if Ardia is missing) |
 
 ## Install
 

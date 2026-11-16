@@ -21,6 +21,7 @@ struct AppSpec {
     let hotKey: UInt32?
     let web: WebSpec?
     var link: URL? = nil
+    var browser: String? = nil
 }
 
 let safariAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
@@ -78,8 +79,8 @@ let catalog: [AppSpec] = [
             glyph: nil, hotKey: UInt32(kVK_ANSI_N), web: nil),
     AppSpec(id: "stats", name: "System Stats", summary: "CPU, memory, disk, network and battery at a glance", symbol: "gauge.with.dots.needle.33percent",
             glyph: nil, hotKey: nil, web: nil),
-    AppSpec(id: "preparo", name: "Preparo", summary: "Opens Preparo, your exam practice app, in the browser", symbol: "graduationcap.fill",
-            glyph: Glyphs.preparo, hotKey: nil, web: nil, link: URL(string: "http://localhost:8960/")!),
+    AppSpec(id: "preparo", name: "Preparo", summary: "Opens Preparo, your exam practice app, in Ardia", symbol: "graduationcap.fill",
+            glyph: Glyphs.preparo, hotKey: nil, web: nil, link: URL(string: "http://localhost:8960/")!, browser: "com.ardia.browser"),
 ]
 
 func spec(_ id: String) -> AppSpec? { catalog.first { $0.id == id } }
