@@ -10,6 +10,7 @@ final class PocketServer {
     private struct Request {
         let method: String
         let path: String
+        let query: [String: String]
         let headers: [String: String]
         let body: Data
     }
@@ -76,7 +77,15 @@ final class PocketServer {
         let length = Int(headers["content-length"] ?? "") ?? 0
         let body = data[split.upperBound...]
         guard body.count >= length else { return nil }
-        return Request(method: String(parts[0]), path: String(parts[1].split(separator: "?").first ?? ""), headers: headers, body: Data(body.prefix(length)))
+        let target = parts[1].split(separator: "?", maxSplits: 1)
+        var query: [String: String] = [:]
+        if target.count == 2 {
+            for pair in target[1].split(separator: "&") {
+                let kv = pair.split(separator: "=", maxSplits: 1).map { String($0).removingPercentEncoding ?? String($0) }
+                if let key = kv.first { query[key] = kv.count == 2 ? kv[1] : "" }
+            }
+        }
+        return Request(method: String(parts[0]), path: String(target.first ?? ""), query: query, headers: headers, body: Data(body.prefix(length)))
     }
 
     private func reply(_ connection: NWConnection, request: Request) {
@@ -93,7 +102,7 @@ final class PocketServer {
         }
         var head = "HTTP/1.1 \(response.status) \(Self.reason(response.status))\r\nConnection: close\r\nCache-Control: no-store\r\n"
         if allowed, let origin {
-            head += "Access-Control-Allow-Origin: \(origin)\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\nAccess-Control-Allow-Private-Network: true\r\nVary: Origin\r\n"
+            head += "Access-Control-Allow-Origin: \(origin)\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type, X-Pocket-Source\r\nAccess-Control-Allow-Private-Network: true\r\nVary: Origin\r\n"
         }
         let body = response.body.flatMap { try? JSONSerialization.data(withJSONObject: $0) } ?? Data()
         if !body.isEmpty { head += "Content-Type: application/json\r\n" }
@@ -104,36 +113,124 @@ final class PocketServer {
         })
     }
 
+    private struct Invalid: Error {
+        let message: String
+    }
+
+    private static let routes = [
+        "GET /": "this list",
+        "GET /pomodoro": "timer state",
+        "POST /pomodoro/start": "start or resume focus; body {project?, focus?, rest?, long?} in minutes",
+        "POST /pomodoro/pause": "pause a running phase",
+        "POST /pomodoro/resume": "resume a paused phase",
+        "POST /pomodoro/stop": "stop and reset to idle",
+        "GET /pomodoro/projects": "board projects",
+        "GET /pomodoro/sessions?since=<ISO 8601>&project=<name>": "finished focus sessions",
+        "GET /pomodoro/stats": "today and all-time totals",
+    ]
+
     private func route(_ request: Request) -> Response {
+        if request.method == "GET", request.path == "/" {
+            return Response(status: 200, body: ["app": "pocket", "routes": Self.routes])
+        }
         guard let pomodoro = AppDelegate.shared.app("pomodoro") as? PomodoroApp else {
             if request.method == "POST" { note("pocket server pomodoro unavailable path=\(request.path) cause=not enabled") }
             return Response(status: 409, body: ["error": "Pomodoro isn't enabled in Pocket"])
         }
-        let source = request.headers["origin"] ?? "local"
-        switch (request.method, request.path) {
-        case ("GET", "/pomodoro"):
-            return Response(status: 200, body: pomodoro.remoteState())
-        case ("POST", "/pomodoro/start"):
-            let json = (try? JSONSerialization.jsonObject(with: request.body)) as? [String: Any]
-            let project = (json?["project"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let focus = json?["focus"] as? Int
-            let rest = json?["rest"] as? Int
-            let plan = focus.flatMap { focus in rest.map { PomodoroPlan(focus: focus, rest: $0) } }
-                .flatMap { (1...180).contains($0.focus) && (1...60).contains($0.rest) ? $0 : nil }
-            pomodoro.remoteStart(project: project?.isEmpty == false ? project : nil, plan: plan, source: source)
-            return Response(status: 200, body: pomodoro.remoteState())
-        case ("POST", "/pomodoro/stop"):
-            pomodoro.remoteStop(source: source)
-            return Response(status: 200, body: pomodoro.remoteState())
-        default:
-            return Response(status: 404, body: ["error": "no route \(request.method) \(request.path)"])
+        let source = request.headers["x-pocket-source"] ?? request.headers["origin"] ?? request.headers["user-agent"] ?? "local"
+        let store = PomodoroBoardStore.shared
+        do {
+            switch (request.method, request.path) {
+            case ("GET", "/pomodoro"):
+                return Response(status: 200, body: pomodoro.remoteState())
+            case ("POST", "/pomodoro/start"):
+                let json = try Self.object(request.body)
+                let project = try Self.text(json, "project")
+                let plan = PomodoroPlan(
+                    focus: try Self.minutes(json, "focus", 1...240),
+                    rest: try Self.minutes(json, "rest", 1...90),
+                    long: try Self.minutes(json, "long", 1...120)
+                )
+                pomodoro.remoteStart(project: project, plan: plan, source: source)
+                return Response(status: 200, body: pomodoro.remoteState())
+            case ("POST", "/pomodoro/pause"):
+                pomodoro.remotePause(source: source)
+                return Response(status: 200, body: pomodoro.remoteState())
+            case ("POST", "/pomodoro/resume"):
+                pomodoro.remoteResume(source: source)
+                return Response(status: 200, body: pomodoro.remoteState())
+            case ("POST", "/pomodoro/stop"):
+                pomodoro.remoteStop(source: source)
+                return Response(status: 200, body: pomodoro.remoteState())
+            case ("GET", "/pomodoro/projects"):
+                return Response(status: 200, body: ["projects": store.projects.map { project in
+                    let minutes = store.sessions(in: project.id).reduce(0) { $0 + $1.minutes }
+                    return ["id": project.id.uuidString, "name": project.name, "minutes": minutes, "sessions": Self.units(minutes)] as [String: Any]
+                }])
+            case ("GET", "/pomodoro/sessions"):
+                var sessions = store.sessions
+                if let since = request.query["since"] {
+                    guard let date = ISO8601DateFormatter().date(from: since) else { throw Invalid(message: "since must be ISO 8601, e.g. 2026-11-16T00:00:00Z") }
+                    sessions = sessions.filter { $0.ended >= date }
+                }
+                if let name = request.query["project"] {
+                    guard let project = store.projects.first(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) else { throw Invalid(message: "no project named \(name)") }
+                    sessions = sessions.filter { $0.project == project.id }
+                }
+                let formatter = ISO8601DateFormatter()
+                return Response(status: 200, body: ["sessions": sessions.sorted { $0.ended > $1.ended }.map { session in
+                    ["id": session.id.uuidString, "ended": formatter.string(from: session.ended), "minutes": session.minutes, "project": store.project(session.project)?.name ?? NSNull()] as [String: Any]
+                }])
+            case ("GET", "/pomodoro/stats"):
+                let today = store.sessions.filter { Calendar.current.isDateInToday($0.ended) }.reduce(0) { $0 + $1.minutes }
+                let total = store.sessions.reduce(0) { $0 + $1.minutes }
+                return Response(status: 200, body: [
+                    "today": ["minutes": today, "sessions": Self.units(today)],
+                    "allTime": ["minutes": total, "sessions": Self.units(total)],
+                    "sessionMinutes": TallyStick.fullMinutes,
+                ])
+            default:
+                return Response(status: 404, body: ["error": "no route \(request.method) \(request.path)", "routes": Self.routes])
+            }
+        } catch let invalid as Invalid {
+            note("pocket server rejected source=\(source) method=\(request.method) path=\(request.path) cause=\(invalid.message)")
+            return Response(status: 400, body: ["error": invalid.message])
+        } catch {
+            note("pocket server failed source=\(source) method=\(request.method) path=\(request.path) error=\(error)")
+            return Response(status: 500, body: ["error": "\(error)"])
         }
+    }
+
+    private static func units(_ minutes: Int) -> Double {
+        (Double(minutes) / Double(TallyStick.fullMinutes) * 10).rounded() / 10
+    }
+
+    private static func object(_ body: Data) throws -> [String: Any] {
+        guard !body.isEmpty else { return [:] }
+        guard let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else { throw Invalid(message: "body must be a JSON object") }
+        return json
+    }
+
+    private static func text(_ json: [String: Any], _ key: String) throws -> String? {
+        guard let value = json[key], !(value is NSNull) else { return nil }
+        guard let text = value as? String else { throw Invalid(message: "\(key) must be a string") }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func minutes(_ json: [String: Any], _ key: String, _ range: ClosedRange<Int>) throws -> Int? {
+        guard let value = json[key], !(value is NSNull) else { return nil }
+        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(), number.doubleValue == number.doubleValue.rounded(), range.contains(number.intValue) else {
+            throw Invalid(message: "\(key) must be a whole number of minutes from \(range.lowerBound) to \(range.upperBound)")
+        }
+        return number.intValue
     }
 
     private static func reason(_ status: Int) -> String {
         switch status {
         case 200: return "OK"
         case 204: return "No Content"
+        case 400: return "Bad Request"
         case 403: return "Forbidden"
         case 404: return "Not Found"
         case 409: return "Conflict"

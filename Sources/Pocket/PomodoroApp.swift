@@ -37,8 +37,11 @@ enum PomodoroPalette {
 }
 
 struct PomodoroPlan: Equatable {
-    let focus: Int
-    let rest: Int
+    var focus: Int?
+    var rest: Int?
+    var long: Int?
+
+    var isEmpty: Bool { focus == nil && rest == nil && long == nil }
 }
 
 final class PomodoroModel: ObservableObject {
@@ -90,12 +93,10 @@ final class PomodoroModel: ObservableObject {
     }
 
     func minutes(for phase: PomodoroPhase) -> Int {
-        switch (phase, plan) {
-        case (.focus, let plan?): return plan.focus
-        case (_, let plan?): return plan.rest
-        case (.focus, nil): return focusMinutes
-        case (.rest, nil): return breakMinutes
-        case (.long, nil): return longBreakMinutes
+        switch phase {
+        case .focus: return plan?.focus ?? focusMinutes
+        case .rest: return plan?.rest ?? breakMinutes
+        case .long: return plan?.long ?? plan?.rest ?? longBreakMinutes
         }
     }
     func seconds(for phase: PomodoroPhase) -> TimeInterval { TimeInterval(minutes(for: phase) * 60) }
@@ -198,6 +199,8 @@ final class PomodoroApp: PocketApp {
             "remaining": Int(model.remaining().rounded(.up)),
             "focusMinutes": model.minutes(for: .focus),
             "breakMinutes": model.minutes(for: .rest),
+            "longMinutes": model.minutes(for: .long),
+            "customPlan": model.plan != nil,
             "cycle": model.cycle,
             "project": model.project ?? NSNull(),
         ]
@@ -207,10 +210,20 @@ final class PomodoroApp: PocketApp {
 
     func remoteStart(project: String?, plan: PomodoroPlan?, source: String) {
         model.project = project
-        if model.isIdle { model.plan = plan }
+        if model.isIdle { model.plan = plan?.isEmpty == false ? plan : nil }
         note("pomodoro remote start source=\(source) project=\(project ?? "none") focus=\(model.minutes(for: .focus))m rest=\(model.minutes(for: .rest))m custom=\(model.plan != nil) state=\(model.isIdle ? "idle" : model.isRunning ? "running" : "paused") phase=\(model.phase.label)")
         if !model.isRunning { toggle() }
         changed()
+    }
+
+    func remotePause(source: String) {
+        note("pomodoro remote pause source=\(source) project=\(model.project ?? "none") phase=\(model.phase.label) running=\(model.isRunning)")
+        if model.isRunning { toggle() }
+    }
+
+    func remoteResume(source: String) {
+        note("pomodoro remote resume source=\(source) project=\(model.project ?? "none") phase=\(model.phase.label) paused=\(!model.isRunning && !model.isIdle)")
+        if !model.isRunning && !model.isIdle { toggle() }
     }
 
     func remoteStop(source: String) {
