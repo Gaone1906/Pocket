@@ -127,11 +127,81 @@ private struct AppRow: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .frame(width: 170)
+                ShortcutField(id: app.id)
             }
             Toggle("", isOn: enabled).toggleStyle(.switch).labelsHidden()
         }
         .padding(.vertical, 6)
     }
+}
+
+private struct ShortcutField: View {
+    let id: String
+    @ObservedObject var layout = Layout.shared
+    @State private var recording = false
+    @State private var monitor: Any?
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Button(action: toggle) {
+                Text(recording ? "Type keys…" : layout.shortcuts[id]?.display ?? "Shortcut")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundColor(recording ? .accentColor : layout.shortcuts[id] == nil ? .secondary : .primary)
+                    .frame(width: 72)
+            }
+            .help(recording ? "Press a key with ⌘, ⌥ or ⌃. Esc cancels, Delete clears." : "Click to set a shortcut that opens this app")
+            if layout.shortcuts[id] != nil && !recording {
+                Button { layout.setShortcut(id, nil) } label: { Image(systemName: "xmark.circle.fill").foregroundColor(.secondary) }
+                    .buttonStyle(.plain)
+                    .help("Remove the shortcut")
+            }
+        }
+        .frame(width: 98, alignment: .leading)
+        .onDisappear(perform: stop)
+    }
+
+    func toggle() {
+        recording ? stop() : start()
+    }
+
+    func start() {
+        stopOthers()
+        recording = true
+        AppDelegate.shared.recordingShortcut = true
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            switch Int(event.keyCode) {
+            case kVK_Escape:
+                stop()
+            case kVK_Delete, kVK_ForwardDelete:
+                layout.setShortcut(id, nil)
+                stop()
+            default:
+                guard let keys = Shortcut.from(event) else {
+                    NSSound.beep()
+                    return nil
+                }
+                layout.setShortcut(id, keys)
+                stop()
+            }
+            return nil
+        }
+        ShortcutField.active = stop
+    }
+
+    func stop() {
+        guard recording else { return }
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        recording = false
+        ShortcutField.active = nil
+        AppDelegate.shared.recordingShortcut = false
+    }
+
+    func stopOthers() {
+        ShortcutField.active?()
+    }
+
+    static var active: (() -> Void)?
 }
 
 private struct AppBadge: View {
@@ -310,7 +380,7 @@ private struct SetupView: View {
             .padding(.horizontal, 20).padding(.top, 20)
             if model.step == 1 { ChooseStep(model: model) } else { SignInStep(model: model) }
         }
-        .frame(minWidth: 620, minHeight: 640)
+        .frame(minWidth: 720, minHeight: 640)
     }
 }
 
@@ -329,7 +399,7 @@ final class SetupController: NSObject, NSWindowDelegate {
         let model = SetupModel()
         model.onDone = { [weak self] in self?.finish() }
         let host = NSHostingView(rootView: SetupView(model: model))
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 640),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 720, height: 640),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Set up Pocket"
         window.contentView = host
