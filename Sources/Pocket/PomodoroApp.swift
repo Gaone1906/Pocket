@@ -3,10 +3,15 @@ import SwiftUI
 import UserNotifications
 
 enum PomodoroPhase {
-    case focus, rest
+    case focus, rest, long
 
-    var other: PomodoroPhase { self == .focus ? .rest : .focus }
-    var label: String { self == .focus ? "Focus" : "Break" }
+    var label: String {
+        switch self {
+        case .focus: return "Focus"
+        case .rest: return "Break"
+        case .long: return "Long break"
+        }
+    }
 }
 
 enum PomodoroState {
@@ -47,15 +52,42 @@ final class PomodoroModel: ObservableObject {
         }
     }
 
+    @Published var longBreakMinutes: Int {
+        didSet {
+            UserDefaults.standard.set(longBreakMinutes, forKey: "pomodoro.long")
+            note("pomodoro setting long=\(longBreakMinutes)m")
+        }
+    }
+    @Published var longEvery: Int {
+        didSet {
+            UserDefaults.standard.set(longEvery, forKey: "pomodoro.longEvery")
+            note("pomodoro setting longEvery=\(longEvery)")
+        }
+    }
+    @Published var streak: Int {
+        didSet { UserDefaults.standard.set(streak, forKey: "pomodoro.streak") }
+    }
+
     init() {
         let defaults = UserDefaults.standard
         let focus = defaults.integer(forKey: "pomodoro.focus")
         let rest = defaults.integer(forKey: "pomodoro.break")
+        let long = defaults.integer(forKey: "pomodoro.long")
+        let every = defaults.integer(forKey: "pomodoro.longEvery")
         focusMinutes = (1...120).contains(focus) ? focus : 25
         breakMinutes = (1...60).contains(rest) ? rest : 5
+        longBreakMinutes = (1...90).contains(long) ? long : 15
+        longEvery = (2...12).contains(every) ? every : 4
+        streak = max(0, defaults.integer(forKey: "pomodoro.streak"))
     }
 
-    func minutes(for phase: PomodoroPhase) -> Int { phase == .focus ? focusMinutes : breakMinutes }
+    func minutes(for phase: PomodoroPhase) -> Int {
+        switch phase {
+        case .focus: return focusMinutes
+        case .rest: return breakMinutes
+        case .long: return longBreakMinutes
+        }
+    }
     func seconds(for phase: PomodoroPhase) -> TimeInterval { TimeInterval(minutes(for: phase) * 60) }
 
     var phase: PomodoroPhase {
@@ -99,6 +131,7 @@ final class PomodoroModel: ObservableObject {
 
 final class PomodoroApp: PocketApp {
     private let model = PomodoroModel()
+    private lazy var board = PomodoroBoardWindow(model: model)
     private var timer: Timer?
     private var authorizationRequested = false
 
@@ -106,8 +139,8 @@ final class PomodoroApp: PocketApp {
         super.init(spec: spec)
     }
 
-    override var defaultSize: NSSize { NSSize(width: 340, height: 360) }
-    override var minSize: NSSize { NSSize(width: 340, height: 360) }
+    override var defaultSize: NSSize { NSSize(width: 340, height: 330) }
+    override var minSize: NSSize { NSSize(width: 340, height: 330) }
     override var resizable: Bool { false }
 
     override func makeContent() -> NSView {
@@ -115,7 +148,8 @@ final class PomodoroApp: PocketApp {
             model: model,
             toggle: { [weak self] in self?.toggle() },
             reset: { [weak self] in self?.reset(reason: "reset") },
-            skip: { [weak self] in self?.skip() }
+            skip: { [weak self] in self?.skip() },
+            openBoard: { [weak self] in self?.openBoard() }
         )
         let hosting = NSHostingView(rootView: view)
         hosting.appearance = NSAppearance(named: .darkAqua)
@@ -134,6 +168,17 @@ final class PomodoroApp: PocketApp {
             .foregroundColor: PomodoroPalette.color(for: model.phase)
         ]
         return NSAttributedString(string: " " + PomodoroModel.format(model.remaining()), attributes: attributes)
+    }
+
+    override func menuItems() -> [NSMenuItem] {
+        let item = NSMenuItem(title: "Open Pomodoro board", action: #selector(openBoard), keyEquivalent: "")
+        item.target = self
+        return [item]
+    }
+
+    @objc private func openBoard() {
+        hide(reason: "switched")
+        board.present()
     }
 
     override func stop() {
@@ -184,7 +229,14 @@ final class PomodoroApp: PocketApp {
     }
 
     private func advance(from phase: PomodoroPhase, reason: String, running: Bool) {
-        let next = phase.other
+        let next: PomodoroPhase
+        if phase == .focus {
+            if reason == "finished" { model.streak += 1 }
+            next = model.streak >= model.longEvery ? .long : .rest
+            if next == .long { model.streak = 0 }
+        } else {
+            next = .focus
+        }
         note("pomodoro phase end phase=\(phase.label) planned=\(model.minutes(for: phase))m reason=\(reason) next=\(next.label) nextPlanned=\(model.minutes(for: next))m")
         if running {
             model.state = .running(next, Date().addingTimeInterval(model.seconds(for: next)))
@@ -199,10 +251,11 @@ final class PomodoroApp: PocketApp {
             return
         }
         if ends.timeIntervalSinceNow <= 0 {
+            if phase == .focus { PomodoroBoardStore.shared.record(minutes: model.focusMinutes, ended: ends) }
             advance(from: phase, reason: "finished", running: true)
             NSSound(named: "Glass")?.play()
             let message = phase == .focus
-                ? "Focus done — take a \(model.breakMinutes) min break"
+                ? "Focus done — take a \(model.minutes(for: model.phase)) min \(model.phase == .long ? "long break" : "break")"
                 : "Break over — back to focus"
             notify(title: spec.name, body: message)
         }
@@ -290,44 +343,6 @@ private struct FlapCard: View {
     }
 }
 
-private struct MinuteChip: View {
-    let title: String
-    @Binding var value: Int
-    let range: ClosedRange<Int>
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Text(title.uppercased())
-                .font(.system(size: 10, weight: .semibold))
-                .tracking(1.4)
-                .foregroundStyle(Flap.muted)
-            step("minus", by: -1)
-            Text("\(value)")
-                .font(.system(size: 15, weight: .bold).width(.condensed))
-                .monospacedDigit()
-                .foregroundStyle(.white.opacity(0.9))
-                .frame(minWidth: 22)
-            step("plus", by: 1)
-        }
-        .padding(.horizontal, 10)
-        .frame(height: 30)
-        .background(Capsule().fill(Flap.chip))
-    }
-
-    func step(_ symbol: String, by delta: Int) -> some View {
-        Button {
-            value = min(range.upperBound, max(range.lowerBound, value + delta))
-        } label: {
-            Image(systemName: symbol)
-                .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(.white.opacity(0.75))
-                .frame(width: 18, height: 18)
-                .background(Circle().fill(Color.white.opacity(0.08)))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 private struct FlapButton: ButtonStyle {
     let fill: Color
     let ink: Color
@@ -349,12 +364,13 @@ struct PomodoroView: View {
     let toggle: () -> Void
     let reset: () -> Void
     let skip: () -> Void
+    let openBoard: () -> Void
 
     private var tint: Color { Color(nsColor: PomodoroPalette.color(for: model.phase)) }
 
     private var heading: String {
         if case .paused = model.state { return "Paused" }
-        return model.phase == .focus ? "Focus" : "Break"
+        return model.phase.label
     }
 
     private var toggleTitle: String {
@@ -381,13 +397,17 @@ struct PomodoroView: View {
                 FlapCard(text: parts.last ?? "00", tint: tint)
             }
             .padding(.top, 16)
-            HStack(spacing: 8) {
-                MinuteChip(title: "Focus", value: $model.focusMinutes, range: 1...120)
-                MinuteChip(title: "Break", value: $model.breakMinutes, range: 1...60)
+            HStack(spacing: 7) {
+                let filled = model.phase == .long ? model.longEvery : model.streak
+                ForEach(0..<model.longEvery, id: \.self) { index in
+                    Circle()
+                        .fill(index < filled ? tint : Color.white.opacity(0.12))
+                        .frame(width: 6, height: 6)
+                        .shadow(color: index < filled ? tint.opacity(0.8) : .clear, radius: 4)
+                }
             }
-            .disabled(model.isRunning)
-            .opacity(model.isRunning ? 0.4 : 1)
-            .padding(.top, 22)
+            .help("Sessions until the long break")
+            .padding(.top, 20)
             HStack(spacing: 8) {
                 Button(action: reset) { Image(systemName: "arrow.counterclockwise") }
                     .buttonStyle(FlapButton(fill: Flap.chip, ink: .white.opacity(0.85)))
@@ -406,6 +426,19 @@ struct PomodoroView: View {
             .padding(.top, 14)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .topTrailing) {
+            Button(action: openBoard) {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Flap.muted)
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(Flap.chip))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Open the Pomodoro board in its own window")
+            .padding(12)
+        }
         .background(RadialGradient(colors: Flap.backdrop, center: UnitPoint(x: 0.5, y: 0.4), startRadius: 0, endRadius: 280))
         .ignoresSafeArea()
         .environment(\.colorScheme, .dark)
