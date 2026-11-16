@@ -75,13 +75,13 @@ struct BoardTheme: Identifiable, Equatable {
 
     static let bronze = BoardTheme(
         id: "bronze", name: "Bronze", isDark: true,
-        backdrop: Color(hex: 0x1D1E21), sidebar: Color(hex: 0x17181A), card: Color(hex: 0x26272B), line: Color(hex: 0x37383D),
-        ink: Color(hex: 0xEDE7DF), muted: Color(hex: 0x9C968E), faint: Color(hex: 0x5F5C58),
+        backdrop: Color(hex: 0x2B2C30), sidebar: Color(hex: 0x252629), card: Color(hex: 0x34353A), line: Color(hex: 0x46474D),
+        ink: Color(hex: 0xEDE7DF), muted: Color(hex: 0xA39D95), faint: Color(hex: 0x6E6B67),
         accent: Color(hex: 0xC8925A), accentInk: Color(hex: 0xD9A86C), shadow: Color.black.opacity(0.45),
-        pill: Color(hex: 0x34353A),
-        swatch: Color(hex: 0x2A2B2F), swatchEdge: Color(hex: 0xA8743F), swatchRing: Color(hex: 0xD9A86C),
+        pill: Color(hex: 0x404146),
+        swatch: Color(hex: 0x36373B), swatchEdge: Color(hex: 0xA8743F), swatchRing: Color(hex: 0xD9A86C),
         projectTints: [0xC08A52, 0xB8704A, 0xC9A55A, 0xD8C3A0, 0x9EA3A8, 0xC98F84, 0x8A949E, 0xD4AF37].map { Color(hex: $0) },
-        metal: [0x6E4421, 0xB07D45, 0xF3D2A2, 0xC8925A, 0x7A4E26, 0xA8743F].map { Color(hex: $0) }
+        metal: [0x8C6640, 0xA67C50, 0x9A7148, 0xB48A5C, 0xA27849, 0xB98F60, 0x9C734A, 0xAE8556, 0x936B43, 0xA97F52].map { Color(hex: $0) }
     )
 
     static let all = [
@@ -106,7 +106,7 @@ struct BoardTheme: Identifiable, Equatable {
 
     var accentInkStyle: AnyShapeStyle {
         guard let metal else { return AnyShapeStyle(accentInk) }
-        return AnyShapeStyle(LinearGradient(colors: metal, startPoint: .top, endPoint: .bottom))
+        return AnyShapeStyle(LinearGradient(colors: metal, startPoint: UnitPoint(x: 0, y: 0.2), endPoint: UnitPoint(x: 1, y: 0.8)))
     }
 
     var swatchStyle: AnyShapeStyle {
@@ -125,10 +125,11 @@ struct BoardTheme: Identifiable, Equatable {
     func sheen(_ tint: Color) -> AnyShapeStyle {
         guard metal != nil else { return AnyShapeStyle(tint) }
         return AnyShapeStyle(LinearGradient(stops: [
-            .init(color: Self.blend(tint, .black, 0.35), location: 0),
-            .init(color: Self.blend(tint, .white, 0.55), location: 0.35),
-            .init(color: tint, location: 0.6),
-            .init(color: Self.blend(tint, .black, 0.3), location: 1),
+            .init(color: Self.blend(tint, .black, 0.12), location: 0),
+            .init(color: Self.blend(tint, .white, 0.14), location: 0.3),
+            .init(color: Self.blend(tint, .black, 0.06), location: 0.55),
+            .init(color: Self.blend(tint, .white, 0.1), location: 0.8),
+            .init(color: Self.blend(tint, .black, 0.12), location: 1),
         ], startPoint: .top, endPoint: .bottom))
     }
 }
@@ -148,5 +149,28 @@ final class BoardThemeStore: ObservableObject {
     private init() {
         let saved = UserDefaults.standard.string(forKey: Self.key)
         theme = BoardTheme.all.first { $0.id == saved } ?? BoardTheme.all[0]
+    }
+}
+
+struct BrushedGrain: View {
+    var body: some View {
+        Canvas { context, size in
+            var seed: UInt64 = 0x9E3779B97F4A7C15
+            func next() -> Double {
+                seed = seed &* 6364136223846793005 &+ 1442695040888963407
+                return Double(seed >> 33) / Double(UInt64(1) << 31)
+            }
+            var y: CGFloat = 0
+            while y < size.height {
+                let light = next() > 0.5
+                let alpha = 0.03 + next() * 0.07
+                let start = next() * size.width * 0.3
+                let length = size.width * (0.5 + next() * 0.5)
+                let rect = CGRect(x: start, y: y, width: length, height: 0.6)
+                context.fill(Path(rect), with: .color(light ? .white.opacity(alpha) : .black.opacity(alpha)))
+                y += 0.8 + next() * 1.2
+            }
+        }
+        .allowsHitTesting(false)
     }
 }

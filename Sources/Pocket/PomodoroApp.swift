@@ -414,6 +414,7 @@ private struct FlapCard: View {
 private struct FlapButton: ButtonStyle {
     let fill: AnyShapeStyle
     let ink: Color
+    var brushed = false
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -422,6 +423,11 @@ private struct FlapButton: ButtonStyle {
             .padding(.horizontal, 16)
             .frame(height: 32)
             .background(RoundedRectangle(cornerRadius: 8).fill(fill))
+            .overlay {
+                if brushed {
+                    BrushedGrain().clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .opacity(configuration.isPressed ? 0.85 : 1)
     }
@@ -485,7 +491,7 @@ struct PomodoroView: View {
                     .opacity(model.isIdle ? 0.4 : 1)
                     .help("Reset")
                 Button(action: toggle) { Text(toggleTitle).frame(minWidth: 70) }
-                    .buttonStyle(FlapButton(fill: tint, ink: Flap.cardTop))
+                    .buttonStyle(FlapButton(fill: tint, ink: Flap.cardTop, brushed: model.phase == .focus && Flap.theme.metal != nil))
                     .keyboardShortcut(.space, modifiers: [])
                 Button(action: skip) { Image(systemName: "forward.end.fill") }
                     .buttonStyle(FlapButton(fill: AnyShapeStyle(Flap.chip), ink: Flap.ink))
