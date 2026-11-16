@@ -50,6 +50,7 @@ struct BoardTheme: Identifiable, Equatable {
     let swatchRing: Color
     let projectTints: [Color]
     let metal: [Color]?
+    var embroidery: Embroidery? = nil
 
     static func == (lhs: BoardTheme, rhs: BoardTheme) -> Bool { lhs.id == rhs.id }
 
@@ -94,6 +95,9 @@ struct BoardTheme: Identifiable, Equatable {
         pastel("blush", "Blush", hue: 328, saturation: 0.9),
         pastel("stone", "Stone", hue: 32, saturation: 0.28),
         bronze,
+        saffronAzure,
+        goldVermilion,
+        whiteJade,
     ]
 
     var colorScheme: ColorScheme { isDark ? .dark : .light }
@@ -109,7 +113,12 @@ struct BoardTheme: Identifiable, Equatable {
         return AnyShapeStyle(LinearGradient(colors: metal, startPoint: UnitPoint(x: 0, y: 0.2), endPoint: UnitPoint(x: 1, y: 0.8)))
     }
 
+    var panel: Color { embroidery == nil ? sidebar : Color(hex: 0x111113, alpha: 0.96) }
+
     var swatchStyle: AnyShapeStyle {
+        if let embroidery {
+            return AnyShapeStyle(AngularGradient(colors: [embroidery.tigerThread, embroidery.tigerThread, embroidery.gold, embroidery.dragonThread, embroidery.dragonThread, embroidery.tigerThread], center: .center, startAngle: .degrees(135), endAngle: .degrees(495)))
+        }
         guard let metal else { return AnyShapeStyle(swatch) }
         return AnyShapeStyle(AngularGradient(colors: [swatch, swatch] + metal + [swatch], center: .center, startAngle: .degrees(200), endAngle: .degrees(560)))
     }

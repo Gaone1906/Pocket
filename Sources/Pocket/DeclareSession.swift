@@ -139,7 +139,7 @@ struct DeclareSessionCard: View {
         .padding(22)
         .frame(width: 400)
         .background(RoundedRectangle(cornerRadius: 18).fill(Board.column))
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Board.line, lineWidth: 1))
+        .boardEdge(18)
         .shadow(color: Board.shadow, radius: 24, y: 10)
         .onChange(of: from) { _, _ in syncMinutes() }
         .onChange(of: to) { _, _ in syncMinutes() }

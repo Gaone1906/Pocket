@@ -457,7 +457,7 @@ private struct BoardCalendar: View {
                         .padding(.horizontal, 16)
                         .frame(width: 260, height: 46)
                         .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Board.line, lineWidth: 1))
+                        .boardEdge(16)
                     }
                 }
                 if days.isEmpty {
@@ -483,7 +483,7 @@ private struct BoardCalendar: View {
                         .frame(width: 150, alignment: .topLeading)
                         .frame(maxHeight: .infinity, alignment: .topLeading)
                         .background(RoundedRectangle(cornerRadius: 16).fill(Board.sidebar))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Board.line, lineWidth: 1))
+                        .boardEdge(16)
                         ForEach(lanes) { lane in
                             let sessions = entry.sessions.filter { $0.project == lane.project?.id }
                             VStack(alignment: .leading) {
@@ -499,7 +499,7 @@ private struct BoardCalendar: View {
                             .frame(width: 260, alignment: .topLeading)
                             .frame(minHeight: 72, maxHeight: .infinity, alignment: .topLeading)
                             .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
-                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Board.line, lineWidth: 1))
+                            .boardEdge(16)
                         }
                     }
                     .fixedSize(horizontal: false, vertical: true)
@@ -572,7 +572,7 @@ private struct BoardColumn: View {
         .frame(width: 260)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(targeted ? tint.opacity(0.8) : Board.line, lineWidth: targeted ? 1.5 : 1))
+        .boardEdge(16, color: targeted ? tint.opacity(0.8) : Board.line, width: targeted ? 1.5 : 1)
         .contextMenu {
             Button("Declare a session…") { declare(project?.id) }
             if let project {
@@ -699,7 +699,7 @@ private struct BoardStats: View {
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Board.line, lineWidth: 1))
+            .boardEdge(16)
         }
         .padding(.top, 8)
     }
@@ -761,7 +761,7 @@ private struct BoardSettingsPanel: View {
         .padding(.bottom, 20)
         .frame(width: 280, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Board.sidebar)
+        .background(Board.theme.panel)
     }
 
     private func swatch(_ theme: BoardTheme) -> some View {
@@ -888,7 +888,7 @@ struct PomodoroBoardView: View {
             if showStats {
                 HStack(spacing: 0) {
                     BoardStats(store: store)
-                    Rectangle().fill(Board.line).frame(width: 1)
+                    Rectangle().fill(Board.line.opacity(Board.theme.embroidery == nil ? 1 : 0.2)).frame(width: 1)
                 }
                 .transition(.move(edge: .leading).combined(with: .opacity))
             }
@@ -939,6 +939,7 @@ struct PomodoroBoardView: View {
                                     }
                                     .foregroundStyle(Board.muted)
                                     .frame(width: 200, height: 110)
+                                    .background(RoundedRectangle(cornerRadius: 16).fill(Board.theme.embroidery == nil ? Color.clear : Board.column))
                                     .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Board.line, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5])))
                                     .contentShape(Rectangle())
                                 }
@@ -981,7 +982,7 @@ struct PomodoroBoardView: View {
         .animation(Board.glide, value: showPanel)
         .id(themes.theme.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Board.backdrop)
+        .background(BoardBackdrop(theme: themes.theme))
         .ignoresSafeArea()
         .environment(\.colorScheme, themes.theme.colorScheme)
     }
