@@ -118,23 +118,6 @@ enum ScratchFormat {
 final class ScratchTextView: NSTextView {
     var onChange: (() -> Void)?
 
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        guard window?.firstResponder === self else { return super.performKeyEquivalent(with: event) }
-        let mods = event.modifierFlags.intersection([.command, .shift, .option, .control])
-        let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
-        switch (mods, key) {
-        case ([.command], "b"): toggleTrait(.boldFontMask)
-        case ([.command], "i"): toggleTrait(.italicFontMask)
-        case ([.command], "u"): toggleAttribute(.underlineStyle)
-        case ([.command, .shift], "x"): toggleAttribute(.strikethroughStyle)
-        case ([.command, .shift], "8"), ([.command, .shift], "*"): toggleList(ScratchFormat.bullet)
-        case ([.command, .shift], "7"), ([.command, .shift], "&"): toggleList(ScratchFormat.numbered)
-        case ([.command, .option], "1"): toggleHeading()
-        default: return super.performKeyEquivalent(with: event)
-        }
-        return true
-    }
-
     func toggleTrait(_ trait: NSFontTraitMask) {
         let range = selectedRange()
         let manager = NSFontManager.shared
@@ -388,14 +371,14 @@ struct ScratchView: View {
 
     var toolbar: some View {
         HStack(spacing: 2) {
-            tool("bold", "Bold  ⌘B") { $0.toggleTrait(.boldFontMask) }
-            tool("italic", "Italic  ⌘I") { $0.toggleTrait(.italicFontMask) }
-            tool("underline", "Underline  ⌘U") { $0.toggleAttribute(.underlineStyle) }
-            tool("strikethrough", "Strikethrough  ⇧⌘X") { $0.toggleAttribute(.strikethroughStyle) }
+            tool("bold", "Bold") { $0.toggleTrait(.boldFontMask) }
+            tool("italic", "Italic") { $0.toggleTrait(.italicFontMask) }
+            tool("underline", "Underline") { $0.toggleAttribute(.underlineStyle) }
+            tool("strikethrough", "Strikethrough") { $0.toggleAttribute(.strikethroughStyle) }
             Divider().frame(height: 16).padding(.horizontal, 6)
-            tool("textformat.size", "Heading  ⌥⌘1, or type # and a space") { $0.toggleHeading() }
-            tool("list.bullet", "Bulleted list  ⇧⌘8, or type - and a space") { $0.toggleList(ScratchFormat.bullet) }
-            tool("list.number", "Numbered list  ⇧⌘7, or type 1. and a space") { $0.toggleList(ScratchFormat.numbered) }
+            tool("textformat.size", "Heading, or type # and a space") { $0.toggleHeading() }
+            tool("list.bullet", "Bulleted list, or type - and a space") { $0.toggleList(ScratchFormat.bullet) }
+            tool("list.number", "Numbered list, or type 1. and a space") { $0.toggleList(ScratchFormat.numbered) }
             tool("list.dash", "Dashed list") { $0.toggleList(ScratchFormat.check) }
             Spacer()
         }
