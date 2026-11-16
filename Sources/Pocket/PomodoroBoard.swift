@@ -153,19 +153,42 @@ final class MenuAction: NSObject {
 
 enum SessionMenu {
     static func show(_ session: PomodoroSession, store: PomodoroBoardStore) {
+        show([session], store: store)
+    }
+
+    static func show(_ sessions: [PomodoroSession], store: PomodoroBoardStore) {
         let menu = NSMenu()
         menu.autoenablesItems = false
-        let title = NSMenuItem(title: "\(session.minutes) min · \(session.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))", action: nil, keyEquivalent: "")
-        title.isEnabled = false
-        menu.addItem(title)
-        menu.addItem(.separator())
-        menu.addItem(item("Unassigned", on: session.project == nil) { store.assign(session.id, to: nil) })
-        for project in store.projects {
-            menu.addItem(item(project.name.isEmpty ? "Untitled" : project.name, on: session.project == project.id) { store.assign(session.id, to: project.id) })
+        if sessions.count == 1, let session = sessions.first {
+            items(for: session, store: store).forEach(menu.addItem)
+        } else {
+            for session in sessions {
+                let entry = NSMenuItem(title: label(session), action: nil, keyEquivalent: "")
+                let sub = NSMenu()
+                sub.autoenablesItems = false
+                items(for: session, store: store).dropFirst(2).forEach(sub.addItem)
+                entry.submenu = sub
+                menu.addItem(entry)
+            }
         }
-        menu.addItem(.separator())
-        menu.addItem(item("Delete session", on: false) { store.deleteSession(session.id) })
         menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+    }
+
+    private static func label(_ session: PomodoroSession) -> String {
+        "\(session.minutes) min · \(session.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))"
+    }
+
+    private static func items(for session: PomodoroSession, store: PomodoroBoardStore) -> [NSMenuItem] {
+        let title = NSMenuItem(title: label(session), action: nil, keyEquivalent: "")
+        title.isEnabled = false
+        var items = [title, .separator()]
+        items.append(item("Unassigned", on: session.project == nil) { store.assign(session.id, to: nil) })
+        for project in store.projects {
+            items.append(item(project.name.isEmpty ? "Untitled" : project.name, on: session.project == project.id) { store.assign(session.id, to: project.id) })
+        }
+        items.append(.separator())
+        items.append(item("Delete session", on: false) { store.deleteSession(session.id) })
+        return items
     }
 
     private static func item(_ title: String, on: Bool, _ run: @escaping () -> Void) -> NSMenuItem {
@@ -198,28 +221,52 @@ private struct GlowDot: View {
 struct TallyStick: Identifiable {
     static let fullMinutes = 25
 
-    let session: PomodoroSession
+    let sessions: [PomodoroSession]
     let index: Int
     let fraction: CGFloat
 
-    var id: String { "\(session.id.uuidString)-\(index)" }
+    var id: String { "\(index)-\(sessions.first?.id.uuidString ?? "")" }
 
     static func sticks(for sessions: [PomodoroSession]) -> [TallyStick] {
-        sessions.flatMap { session -> [TallyStick] in
+        var spans: [(session: PomodoroSession, start: Int, end: Int)] = []
+        var total = 0
+        for session in sessions {
             let minutes = max(1, session.minutes)
-            let full = minutes / fullMinutes
-            let rest = minutes % fullMinutes
-            var sticks = (0..<full).map { TallyStick(session: session, index: $0, fraction: 1) }
-            if rest > 0 { sticks.append(TallyStick(session: session, index: full, fraction: CGFloat(rest) / CGFloat(fullMinutes))) }
-            return sticks
+            spans.append((session, total, total + minutes))
+            total += minutes
         }
+        return stride(from: 0, to: total, by: fullMinutes).enumerated().map { index, start in
+            let end = min(start + fullMinutes, total)
+            let inside = spans.filter { $0.start < end && $0.end > start }.map(\.session)
+            return TallyStick(sessions: inside, index: index, fraction: CGFloat(end - start) / CGFloat(fullMinutes))
+        }
+    }
+
+    static func groups(for sticks: [TallyStick]) -> [[TallyStick]] {
+        var groups: [[TallyStick]] = []
+        var current: [TallyStick] = []
+        for stick in sticks {
+            if current.count == 4 {
+                let strikes = stick.fraction == 1 && current.allSatisfy { $0.fraction == 1 }
+                if strikes {
+                    groups.append(current + [stick])
+                    current = []
+                    continue
+                }
+                groups.append(current)
+                current = []
+            }
+            current.append(stick)
+        }
+        if !current.isEmpty { groups.append(current) }
+        return groups
     }
 }
 
 private struct TallyGroup: View {
     let sticks: [TallyStick]
     let tint: Color
-    let tap: (PomodoroSession) -> Void
+    let tap: ([PomodoroSession]) -> Void
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -245,9 +292,9 @@ private struct TallyGroup: View {
             .padding(.horizontal, 4)
             .padding(.bottom, 3)
             .contentShape(Rectangle())
-            .onTapGesture { tap(stick.session) }
-            .draggable(stick.session.id.uuidString)
-            .help("\(stick.session.minutes) min · \(stick.session.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))")
+            .onTapGesture { tap(stick.sessions) }
+            .draggable(stick.sessions.last?.id.uuidString ?? "")
+            .help(stick.sessions.map { "\($0.minutes) min · \($0.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))" }.joined(separator: "\n"))
     }
 }
 
@@ -312,7 +359,7 @@ private struct BoardColumn: View {
                     .padding(.top, 14)
                 } else {
                     let sticks = TallyStick.sticks(for: sessions)
-                    let groups = stride(from: 0, to: sticks.count, by: 5).map { Array(sticks[$0..<min($0 + 5, sticks.count)]) }
+                    let groups = TallyStick.groups(for: sticks)
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 44, maximum: 44), spacing: 20)], alignment: .leading, spacing: 16) {
                         ForEach(groups, id: \.first!.id) { group in
                             TallyGroup(sticks: group, tint: tint) { SessionMenu.show($0, store: store) }
