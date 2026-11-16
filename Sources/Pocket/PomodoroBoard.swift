@@ -158,10 +158,6 @@ enum Board {
         return nil
     }
 
-    static func dayLabel(_ day: Date) -> String {
-        dayTag(day).map { "\($0) · \(dayDate(day))" } ?? dayDate(day)
-    }
-
     static func duration(_ minutes: Int) -> String {
         if minutes < 60 { return "\(minutes)m" }
         return minutes % 60 == 0 ? "\(minutes / 60)h" : "\(minutes / 60)h \(minutes % 60)m"
@@ -485,23 +481,7 @@ private struct BoardColumn: View {
                 .foregroundStyle(Board.muted)
                 .padding(.leading, 15)
             ScrollView(.vertical, showsIndicators: false) {
-                LazyVStack(alignment: .leading, spacing: 18) {
-                    ForEach(Board.days(sessions), id: \.day) { entry in
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack(spacing: 6) {
-                                Text(Board.dayLabel(entry.day))
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(Board.ink.opacity(0.85))
-                                Rectangle().fill(Board.line).frame(height: 1)
-                                Text(Board.unitsLabel(Board.units(entry.sessions)))
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .monospacedDigit()
-                                    .foregroundStyle(Board.muted)
-                            }
-                            SessionMarks(sessions: entry.sessions, assigned: project != nil, tint: tint, store: store)
-                        }
-                    }
-                }
+                SessionMarks(sessions: sessions.sorted { $0.ended < $1.ended }, assigned: project != nil, tint: tint, store: store)
                 .padding(.top, 14)
             }
         }
@@ -699,24 +679,35 @@ private struct BoardModeToggle: View {
     private let options = [("Sessions", "sessions"), ("Calendar", "calendar")]
 
     var body: some View {
+        if #available(macOS 26, *) {
+            segments
+                .padding(4)
+                .glassEffect(.regular.interactive(), in: Capsule())
+        } else {
+            segments
+                .padding(4)
+                .background(Capsule().fill(.ultraThinMaterial))
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.14), lineWidth: 1))
+        }
+    }
+
+    private var segments: some View {
         HStack(spacing: 2) {
             ForEach(options, id: \.1) { title, value in
                 Button {
                     guard mode != value else { return }
                     note("pomodoro board view mode=\(value)")
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) { mode = value }
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) { mode = value }
                 } label: {
                     Text(title)
                         .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(mode == value ? Board.ink : Board.muted.opacity(0.6))
+                        .foregroundStyle(mode == value ? Board.ink : Board.muted.opacity(0.7))
                         .padding(.horizontal, 16)
                         .frame(height: 34)
                         .background {
                             if mode == value {
                                 Capsule()
-                                    .fill(LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.06)], startPoint: .top, endPoint: .bottom))
-                                    .overlay(Capsule().strokeBorder(LinearGradient(colors: [.white.opacity(0.45), .white.opacity(0.08), .white.opacity(0.2)], startPoint: .top, endPoint: .bottom), lineWidth: 0.8))
-                                    .shadow(color: .black.opacity(0.35), radius: 6, y: 2)
+                                    .fill(Color.white.opacity(0.14))
                                     .matchedGeometryEffect(id: "pill", in: pill)
                             }
                         }
@@ -725,16 +716,6 @@ private struct BoardModeToggle: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(3)
-        .background(Capsule().fill(.ultraThinMaterial))
-        .background(Capsule().fill(Color.white.opacity(0.03)))
-        .overlay(
-            Capsule().strokeBorder(
-                LinearGradient(colors: [.white.opacity(0.32), .white.opacity(0.05), .white.opacity(0.14)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                lineWidth: 1
-            )
-        )
-        .shadow(color: .black.opacity(0.4), radius: 12, y: 4)
     }
 }
 
