@@ -644,10 +644,7 @@ struct PomodoroBoardView: View {
                     }
                     .buttonStyle(.plain)
                     .help(showSettings ? "Hide timer settings" : "Show timer settings")
-                    HStack(alignment: .firstTextBaseline, spacing: 16) {
-                        modeButton("Sessions", "sessions")
-                        modeButton("Calendar", "calendar")
-                    }
+                    BoardModeToggle(mode: $mode)
                     Spacer()
                 }
                 .padding(.leading, showSettings ? 20 : 84)
@@ -693,19 +690,51 @@ struct PomodoroBoardView: View {
         .ignoresSafeArea()
         .environment(\.colorScheme, .dark)
     }
+}
 
-    private func modeButton(_ title: String, _ value: String) -> some View {
-        Button {
-            guard mode != value else { return }
-            note("pomodoro board view mode=\(value)")
-            withAnimation(.easeInOut(duration: 0.15)) { mode = value }
-        } label: {
-            Text(title)
-                .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(mode == value ? Board.ink : Board.muted.opacity(0.6))
-                .contentShape(Rectangle())
+private struct BoardModeToggle: View {
+    @Binding var mode: String
+    @Namespace private var pill
+
+    private let options = [("Sessions", "sessions"), ("Calendar", "calendar")]
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(options, id: \.1) { title, value in
+                Button {
+                    guard mode != value else { return }
+                    note("pomodoro board view mode=\(value)")
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) { mode = value }
+                } label: {
+                    Text(title)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(mode == value ? Board.ink : Board.muted.opacity(0.6))
+                        .padding(.horizontal, 16)
+                        .frame(height: 34)
+                        .background {
+                            if mode == value {
+                                Capsule()
+                                    .fill(LinearGradient(colors: [.white.opacity(0.16), .white.opacity(0.06)], startPoint: .top, endPoint: .bottom))
+                                    .overlay(Capsule().strokeBorder(LinearGradient(colors: [.white.opacity(0.45), .white.opacity(0.08), .white.opacity(0.2)], startPoint: .top, endPoint: .bottom), lineWidth: 0.8))
+                                    .shadow(color: .black.opacity(0.35), radius: 6, y: 2)
+                                    .matchedGeometryEffect(id: "pill", in: pill)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(3)
+        .background(Capsule().fill(.ultraThinMaterial))
+        .background(Capsule().fill(Color.white.opacity(0.03)))
+        .overlay(
+            Capsule().strokeBorder(
+                LinearGradient(colors: [.white.opacity(0.32), .white.opacity(0.05), .white.opacity(0.14)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                lineWidth: 1
+            )
+        )
+        .shadow(color: .black.opacity(0.4), radius: 12, y: 4)
     }
 }
 
