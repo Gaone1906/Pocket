@@ -20,7 +20,7 @@ final class PomodoroBoardStore: ObservableObject {
 
     @Published private(set) var projects: [PomodoroProject] = []
     @Published private(set) var sessions: [PomodoroSession] = []
-    private let file = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support/Pocket/Pomodoro/board.json")
+    private let file = PocketData.board
 
     private struct Saved: Codable {
         var projects: [PomodoroProject]
@@ -28,21 +28,58 @@ final class PomodoroBoardStore: ObservableObject {
     }
 
     private init() {
-        guard FileManager.default.fileExists(atPath: file.path) else { return }
+        let vault = DataVault.shared
+        if FileManager.default.fileExists(atPath: file.path) {
+            do {
+                let saved = try JSONDecoder().decode(Saved.self, from: Data(contentsOf: file))
+                projects = saved.projects
+                sessions = saved.sessions
+                note("pomodoro board loaded projects=\(projects.count) sessions=\(sessions.count)")
+                return
+            } catch {
+                note("pomodoro board load failed path=\(file.path) error=\(error.localizedDescription)")
+                vault.quarantine(file, name: "board")
+            }
+        }
+        guard let (saved, snap) = vault.recover("board", decode: { try JSONDecoder().decode(Saved.self, from: $0) }) else {
+            note("pomodoro board starting empty path=\(file.path) snapshots=0")
+            return
+        }
+        projects = saved.projects
+        sessions = saved.sessions
+        note("pomodoro board recovered from=\(snap.url.path) projects=\(projects.count) sessions=\(sessions.count)")
+        save()
+    }
+
+    var snapshots: [(snapshot: VaultSnapshot, sessions: Int, minutes: Int)] {
+        DataVault.shared.snapshots("board").compactMap { snap in
+            guard let saved = try? JSONDecoder().decode(Saved.self, from: Data(contentsOf: snap.url)) else { return nil }
+            return (snap, saved.sessions.count, saved.sessions.reduce(0) { $0 + $1.minutes })
+        }
+    }
+
+    func restore(_ snap: VaultSnapshot) {
         do {
-            let saved = try JSONDecoder().decode(Saved.self, from: Data(contentsOf: file))
+            let saved = try JSONDecoder().decode(Saved.self, from: Data(contentsOf: snap.url))
+            if let current = try? JSONEncoder().encode(Saved(projects: projects, sessions: sessions)) {
+                DataVault.shared.keepAside(current, name: "board", reason: "before-restore")
+            }
+            let before = sessions.count
             projects = saved.projects
             sessions = saved.sessions
-            note("pomodoro board loaded projects=\(projects.count) sessions=\(sessions.count)")
+            save()
+            note("pomodoro board restored from=\(snap.url.path) sessionsBefore=\(before) sessionsAfter=\(sessions.count)")
         } catch {
-            note("pomodoro board load failed path=\(file.path) error=\(error.localizedDescription)")
+            note("pomodoro board restore failed from=\(snap.url.path) error=\(error.localizedDescription)")
         }
     }
 
     private func save() {
         do {
+            let data = try JSONEncoder().encode(Saved(projects: projects, sessions: sessions))
             try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(Saved(projects: projects, sessions: sessions)).write(to: file, options: .atomic)
+            try data.write(to: file, options: .atomic)
+            DataVault.shared.snapshot(data, name: "board", count: sessions.count)
         } catch {
             note("pomodoro board save failed projects=\(projects.count) sessions=\(sessions.count) error=\(error.localizedDescription)")
         }
@@ -663,6 +700,8 @@ private struct BoardSettingsPanel: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            Rectangle().fill(Board.line).frame(height: 1).padding(.vertical, 4)
+            BoardBackupSection(store: PomodoroBoardStore.shared)
             Spacer()
         }
         .padding(.horizontal, 22)
@@ -688,6 +727,70 @@ private struct BoardSettingsPanel: View {
         }
         .buttonStyle(.plain)
         .help(theme.name)
+    }
+}
+
+private struct BoardBackupSection: View {
+    @ObservedObject var store: PomodoroBoardStore
+    @ObservedObject var vault = DataVault.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            BoardSectionTitle(text: "BACKUP")
+            line("Daily copy", vault.lastSnapshot.map { "saved \(Self.ago($0))" } ?? "none yet")
+            if vault.repoURL != nil {
+                line("GitHub", vault.syncProblem ?? vault.lastSync.map { "synced \(Self.ago($0))" } ?? "waiting to sync", warn: vault.syncProblem != nil)
+            }
+            if let folder = vault.mirrorFolder {
+                line("Copy", folder.lastPathComponent == "Pocket Backups" ? "Google Drive" : folder.lastPathComponent)
+            }
+            HStack(spacing: 8) {
+                Menu {
+                    let snaps = store.snapshots
+                    if snaps.isEmpty { Text("No daily copies yet") }
+                    ForEach(snaps, id: \.snapshot.id) { entry in
+                        Button("\(entry.snapshot.day.formatted(.dateTime.day().month(.abbreviated).year())) · \(entry.sessions) sessions · \(Board.duration(entry.minutes))") {
+                            confirm(entry.snapshot, sessions: entry.sessions)
+                        }
+                    }
+                } label: {
+                    Text("Restore…").font(.system(size: 12, weight: .medium))
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .foregroundStyle(Board.ink)
+                Spacer()
+                Button("Show backups") { vault.showInFinder() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Board.muted)
+            }
+        }
+    }
+
+    private func line(_ title: String, _ value: String, warn: Bool = false) -> some View {
+        HStack {
+            Text(title).font(.system(size: 12)).foregroundStyle(Board.muted)
+            Spacer()
+            Text(value).font(.system(size: 12, weight: .medium)).foregroundStyle(warn ? Color.red.opacity(0.8) : Board.ink).lineLimit(1)
+        }
+    }
+
+    private func confirm(_ snap: VaultSnapshot, sessions: Int) {
+        let alert = NSAlert()
+        alert.messageText = "Restore the board from \(snap.day.formatted(.dateTime.day().month(.wide).year()))?"
+        alert.informativeText = "The board goes back to \(sessions) sessions. Your current board (\(store.sessions.count) sessions) is kept as its own backup first, so this can be undone."
+        alert.addButton(withTitle: "Restore")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            note("pomodoro board restore cancelled from=\(snap.url.path)")
+            return
+        }
+        store.restore(snap)
+    }
+
+    private static func ago(_ date: Date) -> String {
+        date.timeIntervalSinceNow > -60 ? "just now" : date.formatted(.relative(presentation: .named))
     }
 }
 
