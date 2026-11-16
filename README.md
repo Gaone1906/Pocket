@@ -39,7 +39,7 @@ The first launch opens a setup window. In it you:
 - Right-click any icon to move it, rerun setup, or quit.
 - Each app has a keyboard shortcut that opens it from anywhere. The defaults are ⌥W WhatsApp, ⌥S Slack, ⌥M Spotify, ⌥G Gmail, ⌥O Outlook, ⌥D Calendar, ⌥T To-do, ⌥P Pomodoro, ⌥C Calculator and ⌥N Scratchpad. To change one, click it next to the app in setup and press the new keys; Delete clears it.
 - Esc or clicking elsewhere hides the panel.
-- Pages on `localhost` can drive the Pomodoro through `http://127.0.0.1:8977`: `GET /pomodoro` for the timer's state, `POST /pomodoro/start` with `{"project": "…"}` to start a focus session that gets logged under that project (add `"focus"` and `"rest"` in minutes to time that run differently from your settings), and `POST /pomodoro/stop`. Requests from other sites are refused.
+- Local tools and pages on `localhost` can drive the Pomodoro through `http://127.0.0.1:8977`: start, pause, resume and stop it with custom focus and break lengths, log sessions under a project, and read projects, sessions and totals. `GET /` lists the routes and [CLAUDE.md](CLAUDE.md) is the integration guide. Requests from other websites are refused.
 
 ## Performance
 
