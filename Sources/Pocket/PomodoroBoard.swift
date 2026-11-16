@@ -127,6 +127,8 @@ enum Board {
     static var shadow: Color { theme.shadow }
     static let hueCount = BoardTheme.projectOffsets.count
 
+    static let glide = Animation.spring(response: 0.5, dampingFraction: 0.9)
+
     static func hue(_ index: Int) -> Color { theme.projectTint(index) }
 
     static func units(_ sessions: [PomodoroSession]) -> Double {
@@ -691,14 +693,16 @@ struct PomodoroBoardView: View {
     var body: some View {
         HStack(spacing: 0) {
             if showStats {
-                BoardStats(store: store)
-                    .transition(.move(edge: .leading))
-                Rectangle().fill(Board.line).frame(width: 1)
+                HStack(spacing: 0) {
+                    BoardStats(store: store)
+                    Rectangle().fill(Board.line).frame(width: 1)
+                }
+                .transition(.move(edge: .leading).combined(with: .opacity))
             }
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 12) {
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) { showStats.toggle() }
+                        withAnimation(Board.glide) { showStats.toggle() }
                     } label: {
                         Image(systemName: "sidebar.left")
                             .font(.system(size: 13))
@@ -712,14 +716,17 @@ struct PomodoroBoardView: View {
                     Spacer()
                     BoardSettingsButton(open: showPanel) {
                         note("pomodoro board settings panel open=\(!showPanel)")
-                        withAnimation(.easeInOut(duration: 0.22)) { showPanel.toggle() }
+                        withAnimation(Board.glide) { showPanel.toggle() }
                     }
                 }
                 .padding(.leading, showStats ? 20 : 84)
                 .padding(.trailing, 20)
                 .padding(.top, 12)
+                ZStack(alignment: .topLeading) {
                 if mode == "calendar" {
                     BoardCalendar(store: store)
+                        .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
+                                                removal: .move(edge: .trailing).combined(with: .opacity)))
                 } else {
                     ScrollViewReader { reader in
                         ScrollView(.horizontal) {
@@ -750,14 +757,21 @@ struct PomodoroBoardView: View {
                             .frame(maxHeight: .infinity, alignment: .top)
                         }
                     }
+                    .transition(.asymmetric(insertion: .move(edge: .leading).combined(with: .opacity),
+                                            removal: .move(edge: .leading).combined(with: .opacity)))
                 }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .clipped()
             }
             if showPanel {
-                Rectangle().fill(Board.line).frame(width: 1)
-                BoardSettingsPanel(model: model, themes: themes) {
-                    withAnimation(.easeInOut(duration: 0.22)) { showPanel = false }
+                HStack(spacing: 0) {
+                    Rectangle().fill(Board.line).frame(width: 1)
+                    BoardSettingsPanel(model: model, themes: themes) {
+                        withAnimation(Board.glide) { showPanel = false }
+                    }
                 }
-                .transition(.move(edge: .trailing))
+                .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
         .id(themes.theme.id)
@@ -817,7 +831,7 @@ private struct BoardModeToggle: View {
                 Button {
                     guard mode != value else { return }
                     note("pomodoro board view mode=\(value)")
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) { mode = value }
+                    withAnimation(Board.glide) { mode = value }
                 } label: {
                     Text(title)
                         .font(.system(size: 17, weight: .bold))
