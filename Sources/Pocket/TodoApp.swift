@@ -18,6 +18,25 @@ final class TodoStore: ObservableObject {
 
     init() {
         fileURL = PocketData.todos
+        DataVault.shared.register("todos") { [weak self] data in self?.merge(data) }
+    }
+
+    func merge(_ data: Data) {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        do {
+            let incoming = try decoder.decode([TodoItem].self, from: data)
+            var added = 0
+            mutate { list in
+                let known = Set(list.map(\.id))
+                let fresh = incoming.filter { !known.contains($0.id) }
+                added = fresh.count
+                list += fresh
+            }
+            note("pocket todo merged added=\(added) count=\(items.count)")
+        } catch {
+            note("pocket todo merge failed bytes=\(data.count) error=\(error.localizedDescription)")
+        }
     }
 
     var open: [TodoItem] { items.filter { !$0.done } }

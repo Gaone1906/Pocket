@@ -29,6 +29,7 @@ final class PomodoroBoardStore: ObservableObject {
 
     private init() {
         let vault = DataVault.shared
+        vault.register("board") { [weak self] data in self?.merge(data) }
         if FileManager.default.fileExists(atPath: file.path) {
             do {
                 let saved = try JSONDecoder().decode(Saved.self, from: Data(contentsOf: file))
@@ -49,6 +50,25 @@ final class PomodoroBoardStore: ObservableObject {
         sessions = saved.sessions
         note("pomodoro board recovered from=\(snap.url.path) projects=\(projects.count) sessions=\(sessions.count)")
         save()
+    }
+
+    func merge(_ data: Data) {
+        do {
+            let incoming = try JSONDecoder().decode(Saved.self, from: data)
+            if let current = try? JSONEncoder().encode(Saved(projects: projects, sessions: sessions)) {
+                DataVault.shared.keepAside(current, name: "board", reason: "before-merge")
+            }
+            let knownProjects = Set(projects.map(\.id))
+            let knownSessions = Set(sessions.map(\.id))
+            let newProjects = incoming.projects.filter { !knownProjects.contains($0.id) }
+            let newSessions = incoming.sessions.filter { !knownSessions.contains($0.id) }
+            projects += newProjects
+            sessions = (sessions + newSessions).sorted { $0.ended < $1.ended }
+            save()
+            note("pomodoro board merged projectsAdded=\(newProjects.count) sessionsAdded=\(newSessions.count) sessions=\(sessions.count)")
+        } catch {
+            note("pomodoro board merge failed bytes=\(data.count) error=\(error.localizedDescription)")
+        }
     }
 
     var snapshots: [(snapshot: VaultSnapshot, sessions: Int, minutes: Int)] {
@@ -744,6 +764,20 @@ private struct BoardBackupSection: View {
             if let folder = vault.mirrorFolder {
                 line("Copy", folder.lastPathComponent == "Pocket Backups" ? "Google Drive" : folder.lastPathComponent)
             }
+            if !vault.incoming.isEmpty {
+                HStack(spacing: 8) {
+                    Button("Bring them in") { vault.bringIn() }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Board.accentInkStyle)
+                        .help("Adds what's on GitHub to this Mac, keeping everything here too")
+                    Spacer()
+                    Button("Keep this Mac's") { confirmKeep() }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Board.muted)
+                }
+            }
             HStack(spacing: 8) {
                 Menu {
                     let snaps = store.snapshots
@@ -787,6 +821,19 @@ private struct BoardBackupSection: View {
             return
         }
         store.restore(snap)
+    }
+
+    private func confirmKeep() {
+        let alert = NSAlert()
+        alert.messageText = "Replace the GitHub copy with this Mac's data?"
+        alert.informativeText = "GitHub has data this Mac doesn't have. Replacing drops it from the latest copy; it stays in the repo's history."
+        alert.addButton(withTitle: "Replace")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            note("pocket vault keep local cancelled")
+            return
+        }
+        vault.keepThisMac()
     }
 
     private static func ago(_ date: Date) -> String {
