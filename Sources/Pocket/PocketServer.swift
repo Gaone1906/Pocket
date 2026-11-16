@@ -116,7 +116,11 @@ final class PocketServer {
         case ("POST", "/pomodoro/start"):
             let json = (try? JSONSerialization.jsonObject(with: request.body)) as? [String: Any]
             let project = (json?["project"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            pomodoro.remoteStart(project: project?.isEmpty == false ? project : nil, source: source)
+            let focus = json?["focus"] as? Int
+            let rest = json?["rest"] as? Int
+            let plan = focus.flatMap { focus in rest.map { PomodoroPlan(focus: focus, rest: $0) } }
+                .flatMap { (1...180).contains($0.focus) && (1...60).contains($0.rest) ? $0 : nil }
+            pomodoro.remoteStart(project: project?.isEmpty == false ? project : nil, plan: plan, source: source)
             return Response(status: 200, body: pomodoro.remoteState())
         case ("POST", "/pomodoro/stop"):
             pomodoro.remoteStop(source: source)

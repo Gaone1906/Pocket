@@ -36,11 +36,17 @@ enum PomodoroPalette {
     static func color(for phase: PomodoroPhase) -> NSColor { phase == .focus ? gold : silver }
 }
 
+struct PomodoroPlan: Equatable {
+    let focus: Int
+    let rest: Int
+}
+
 final class PomodoroModel: ObservableObject {
     @Published var state: PomodoroState = .idle
     @Published var tick = Date()
     @Published var project: String?
     @Published var cycle = 0
+    @Published var plan: PomodoroPlan?
     @Published var focusMinutes: Int {
         didSet {
             UserDefaults.standard.set(focusMinutes, forKey: "pomodoro.focus")
@@ -84,10 +90,12 @@ final class PomodoroModel: ObservableObject {
     }
 
     func minutes(for phase: PomodoroPhase) -> Int {
-        switch phase {
-        case .focus: return focusMinutes
-        case .rest: return breakMinutes
-        case .long: return longBreakMinutes
+        switch (phase, plan) {
+        case (.focus, let plan?): return plan.focus
+        case (_, let plan?): return plan.rest
+        case (.focus, nil): return focusMinutes
+        case (.rest, nil): return breakMinutes
+        case (.long, nil): return longBreakMinutes
         }
     }
     func seconds(for phase: PomodoroPhase) -> TimeInterval { TimeInterval(minutes(for: phase) * 60) }
@@ -188,7 +196,8 @@ final class PomodoroApp: PocketApp {
             "phase": model.isIdle ? "idle" : model.phase == .focus ? "focus" : model.phase == .long ? "long" : "rest",
             "running": model.isRunning,
             "remaining": Int(model.remaining().rounded(.up)),
-            "focusMinutes": model.focusMinutes,
+            "focusMinutes": model.minutes(for: .focus),
+            "breakMinutes": model.minutes(for: .rest),
             "cycle": model.cycle,
             "project": model.project ?? NSNull(),
         ]
@@ -196,9 +205,10 @@ final class PomodoroApp: PocketApp {
         return state
     }
 
-    func remoteStart(project: String?, source: String) {
+    func remoteStart(project: String?, plan: PomodoroPlan?, source: String) {
         model.project = project
-        note("pomodoro remote start source=\(source) project=\(project ?? "none") state=\(model.isIdle ? "idle" : model.isRunning ? "running" : "paused") phase=\(model.phase.label)")
+        if model.isIdle { model.plan = plan }
+        note("pomodoro remote start source=\(source) project=\(project ?? "none") focus=\(model.minutes(for: .focus))m rest=\(model.minutes(for: .rest))m custom=\(model.plan != nil) state=\(model.isIdle ? "idle" : model.isRunning ? "running" : "paused") phase=\(model.phase.label)")
         if !model.isRunning { toggle() }
         changed()
     }
@@ -242,6 +252,7 @@ final class PomodoroApp: PocketApp {
         note("pomodoro phase end phase=\(phase.label) planned=\(model.minutes(for: phase))m reason=\(reason)")
         model.state = .idle
         model.project = nil
+        model.plan = nil
         stopTimer()
         refresh()
     }
@@ -284,7 +295,7 @@ final class PomodoroApp: PocketApp {
         if ends.timeIntervalSinceNow <= 0 {
             if phase == .focus {
                 let store = PomodoroBoardStore.shared
-                store.record(minutes: model.focusMinutes, ended: ends, project: model.project.map(store.projectId(named:)))
+                store.record(minutes: model.minutes(for: .focus), ended: ends, project: model.project.map(store.projectId(named:)))
             }
             advance(from: phase, reason: "finished", running: true)
             NSSound(named: "Glass")?.play()
