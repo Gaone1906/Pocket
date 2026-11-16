@@ -12,6 +12,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     lazy var tray = TrayApp()
     var otpRunning = false
     var awake: NSObjectProtocol?
+    var recordingShortcut = false {
+        didSet { sync() }
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         installEditMenu()
@@ -50,7 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             app.start()
         }
         bar.sync(layout.bar.filter { apps[$0] != nil })
-        hotKeys.register(layout.hotKeys ? wanted.compactMap(spec) : [])
+        hotKeys.register(layout.hotKeys && !recordingShortcut ? wanted.compactMap { id in layout.shortcuts[id].map { (id, $0) } } : [])
         syncOtp()
         syncAwake()
     }

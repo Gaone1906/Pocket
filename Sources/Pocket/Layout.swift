@@ -10,6 +10,7 @@ final class Layout: ObservableObject {
     @Published var setupDone: Bool { didSet { defaults.set(setupDone, forKey: "setup.done") } }
     @Published var hotKeys: Bool { didSet { defaults.set(hotKeys, forKey: "hotkeys.enabled"); onChange?() } }
     @Published var otp: Bool { didSet { defaults.set(otp, forKey: "otp.enabled"); onChange?() } }
+    @Published private(set) var shortcuts: [String: Shortcut]
     var onChange: (() -> Void)?
 
     init() {
@@ -19,6 +20,8 @@ final class Layout: ObservableObject {
         setupDone = defaults.bool(forKey: "setup.done")
         hotKeys = defaults.object(forKey: "hotkeys.enabled") as? Bool ?? true
         otp = defaults.bool(forKey: "otp.enabled")
+        shortcuts = defaults.data(forKey: "shortcuts").flatMap { try? JSONDecoder().decode([String: Shortcut].self, from: $0) }
+            ?? catalog.reduce(into: [:]) { map, app in if let key = app.hotKey { map[app.id] = .option(key) } }
     }
 
     var enabled: [String] { bar + tray }
@@ -45,5 +48,21 @@ final class Layout: ObservableObject {
             newTray.insert(id, at: target.flatMap { newTray.firstIndex(of: $0) } ?? newTray.endIndex)
         }
         apply(bar: newBar, tray: newTray)
+    }
+
+    func setShortcut(_ id: String, _ shortcut: Shortcut?) {
+        var next = shortcuts
+        if let shortcut {
+            for (other, taken) in next where other != id && taken == shortcut {
+                next[other] = nil
+                note("pocket shortcut taken over app=\(other) by=\(id) keys=\(shortcut.display)")
+            }
+        }
+        next[id] = shortcut
+        guard next != shortcuts else { return }
+        shortcuts = next
+        if let data = try? JSONEncoder().encode(next) { defaults.set(data, forKey: "shortcuts") }
+        note("pocket shortcut set app=\(id) keys=\(shortcut?.display ?? "none")")
+        onChange?()
     }
 }

@@ -5,11 +5,7 @@ final class HotKeys {
     var refs: [EventHotKeyRef] = []
     var ids: [String] = []
     var installed = false
-
-    static let letters: [UInt32: String] = [
-        UInt32(kVK_ANSI_W): "W", UInt32(kVK_ANSI_S): "S", UInt32(kVK_ANSI_M): "M", UInt32(kVK_ANSI_G): "G", UInt32(kVK_ANSI_O): "O",
-        UInt32(kVK_ANSI_C): "C", UInt32(kVK_ANSI_T): "T", UInt32(kVK_ANSI_P): "P", UInt32(kVK_ANSI_K): "K",
-    ]
+    var registered: [String]? = nil
 
     func install() {
         guard !installed else { return }
@@ -30,25 +26,25 @@ final class HotKeys {
         if status != noErr { note("pocket hotkey handler install failed status=\(status)") }
     }
 
-    func register(_ specs: [AppSpec]) {
-        let wanted = specs.filter { $0.hotKey != nil }.map(\.id)
-        guard wanted != ids || refs.isEmpty != wanted.isEmpty else { return }
+    func register(_ wanted: [(id: String, keys: Shortcut)]) {
+        let signature = wanted.map { "\($0.id)=\($0.keys.code):\($0.keys.mods)" }
+        guard signature != registered else { return }
         refs.forEach { UnregisterEventHotKey($0) }
         refs = []
         ids = []
+        registered = signature
         install()
-        for spec in specs {
-            guard let key = spec.hotKey else { continue }
+        for (id, keys) in wanted {
             var ref: EventHotKeyRef?
-            let status = RegisterEventHotKey(key, UInt32(optionKey), EventHotKeyID(signature: OSType(0x504B4554), id: UInt32(ids.count)),
+            let status = RegisterEventHotKey(keys.code, keys.mods, EventHotKeyID(signature: OSType(0x504B4554), id: UInt32(ids.count)),
                                              GetApplicationEventTarget(), 0, &ref)
             if status == noErr, let ref {
                 refs.append(ref)
-                ids.append(spec.id)
+                ids.append(id)
             } else {
-                note("pocket hotkey failed app=\(spec.id) key=option+\(HotKeys.letters[key] ?? "\(key)") status=\(status)")
+                note("pocket hotkey failed app=\(id) keys=\(keys.display) status=\(status)")
             }
         }
-        note("pocket hotkeys registered apps=\(ids.joined(separator: ","))")
+        note("pocket hotkeys registered \(wanted.filter { ids.contains($0.id) }.map { "\($0.id)=\($0.keys.display)" }.joined(separator: ","))")
     }
 }

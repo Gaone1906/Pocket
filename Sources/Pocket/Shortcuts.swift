@@ -1,0 +1,53 @@
+import AppKit
+import Carbon
+
+struct Shortcut: Codable, Equatable {
+    let code: UInt32
+    let mods: UInt32
+    let label: String
+
+    static let letters: [UInt32: String] = [
+        UInt32(kVK_ANSI_A): "A", UInt32(kVK_ANSI_B): "B", UInt32(kVK_ANSI_C): "C", UInt32(kVK_ANSI_D): "D",
+        UInt32(kVK_ANSI_E): "E", UInt32(kVK_ANSI_F): "F", UInt32(kVK_ANSI_G): "G", UInt32(kVK_ANSI_H): "H",
+        UInt32(kVK_ANSI_I): "I", UInt32(kVK_ANSI_J): "J", UInt32(kVK_ANSI_K): "K", UInt32(kVK_ANSI_L): "L",
+        UInt32(kVK_ANSI_M): "M", UInt32(kVK_ANSI_N): "N", UInt32(kVK_ANSI_O): "O", UInt32(kVK_ANSI_P): "P",
+        UInt32(kVK_ANSI_Q): "Q", UInt32(kVK_ANSI_R): "R", UInt32(kVK_ANSI_S): "S", UInt32(kVK_ANSI_T): "T",
+        UInt32(kVK_ANSI_U): "U", UInt32(kVK_ANSI_V): "V", UInt32(kVK_ANSI_W): "W", UInt32(kVK_ANSI_X): "X",
+        UInt32(kVK_ANSI_Y): "Y", UInt32(kVK_ANSI_Z): "Z",
+    ]
+
+    static let named: [UInt32: String] = [
+        UInt32(kVK_Space): "Space", UInt32(kVK_Return): "↩", UInt32(kVK_Tab): "⇥",
+        UInt32(kVK_LeftArrow): "←", UInt32(kVK_RightArrow): "→", UInt32(kVK_UpArrow): "↑", UInt32(kVK_DownArrow): "↓",
+        UInt32(kVK_F1): "F1", UInt32(kVK_F2): "F2", UInt32(kVK_F3): "F3", UInt32(kVK_F4): "F4", UInt32(kVK_F5): "F5",
+        UInt32(kVK_F6): "F6", UInt32(kVK_F7): "F7", UInt32(kVK_F8): "F8", UInt32(kVK_F9): "F9", UInt32(kVK_F10): "F10",
+        UInt32(kVK_F11): "F11", UInt32(kVK_F12): "F12",
+    ]
+
+    static func option(_ code: UInt32) -> Shortcut {
+        Shortcut(code: code, mods: UInt32(optionKey), label: letters[code] ?? "#\(code)")
+    }
+
+    static func from(_ event: NSEvent) -> Shortcut? {
+        let flags = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        guard !flags.intersection([.command, .option, .control]).isEmpty else { return nil }
+        var mods: UInt32 = 0
+        if flags.contains(.command) { mods |= UInt32(cmdKey) }
+        if flags.contains(.option) { mods |= UInt32(optionKey) }
+        if flags.contains(.control) { mods |= UInt32(controlKey) }
+        if flags.contains(.shift) { mods |= UInt32(shiftKey) }
+        let code = UInt32(event.keyCode)
+        let typed = (event.charactersIgnoringModifiers ?? "").uppercased()
+        let label = letters[code] ?? named[code] ?? (typed.unicodeScalars.allSatisfy { $0.properties.isAlphabetic || $0.properties.numericType != nil || $0.properties.isPatternSyntax } && !typed.isEmpty ? typed : "#\(code)")
+        return Shortcut(code: code, mods: mods, label: label)
+    }
+
+    var display: String {
+        var text = ""
+        if mods & UInt32(controlKey) != 0 { text += "⌃" }
+        if mods & UInt32(optionKey) != 0 { text += "⌥" }
+        if mods & UInt32(shiftKey) != 0 { text += "⇧" }
+        if mods & UInt32(cmdKey) != 0 { text += "⌘" }
+        return text + label
+    }
+}
