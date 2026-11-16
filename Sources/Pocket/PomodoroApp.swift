@@ -1,3 +1,4 @@
+import Combine
 import AppKit
 import SwiftUI
 import UserNotifications
@@ -142,6 +143,7 @@ final class PomodoroModel: ObservableObject {
 
 final class PomodoroApp: PocketApp {
     private let model = PomodoroModel()
+    private var themeWatch: AnyCancellable?
     private lazy var board = PomodoroBoardWindow(model: model)
     private var timer: Timer?
     private var authorizationRequested = false
@@ -163,7 +165,8 @@ final class PomodoroApp: PocketApp {
             openBoard: { [weak self] in self?.openBoard() }
         )
         let hosting = NSHostingView(rootView: view)
-        hosting.appearance = NSAppearance(named: .aqua)
+        hosting.appearance = BoardThemeStore.shared.theme.appearance
+        themeWatch = BoardThemeStore.shared.$theme.sink { [weak hosting] theme in hosting?.appearance = theme.appearance }
         return hosting
     }
 
@@ -375,12 +378,13 @@ private enum Flap {
     static var ink: Color { theme.ink }
     static var shadow: Color { theme.shadow }
 
-    static func tint(for phase: PomodoroPhase) -> Color { phase == .focus ? theme.accentInk : theme.muted }
+    static func tint(for phase: PomodoroPhase) -> AnyShapeStyle { phase == .focus ? theme.accentInkStyle : AnyShapeStyle(theme.muted) }
+    static func glow(for phase: PomodoroPhase) -> Color { phase == .focus ? theme.accent : theme.muted }
 }
 
 private struct FlapCard: View {
     let text: String
-    let tint: Color
+    let tint: AnyShapeStyle
     @State private var angle: Double = 0
 
     var body: some View {
@@ -408,7 +412,7 @@ private struct FlapCard: View {
 }
 
 private struct FlapButton: ButtonStyle {
-    let fill: Color
+    let fill: AnyShapeStyle
     let ink: Color
 
     func makeBody(configuration: Configuration) -> some View {
@@ -431,7 +435,7 @@ struct PomodoroView: View {
     let skip: () -> Void
     let openBoard: () -> Void
 
-    private var tint: Color { Flap.tint(for: model.phase) }
+    private var tint: AnyShapeStyle { Flap.tint(for: model.phase) }
 
     private var heading: String {
         if case .paused = model.state { return "Paused" }
@@ -467,16 +471,16 @@ struct PomodoroView: View {
                 let filled = model.phase == .long ? model.longEvery : model.streak
                 ForEach(0..<model.longEvery, id: \.self) { index in
                     Circle()
-                        .fill(index < filled ? tint : Flap.seam)
+                        .fill(index < filled ? tint : AnyShapeStyle(Flap.seam))
                         .frame(width: 6, height: 6)
-                        .shadow(color: index < filled ? tint.opacity(0.5) : .clear, radius: 3)
+                        .shadow(color: index < filled ? Flap.glow(for: model.phase).opacity(0.5) : .clear, radius: 3)
                 }
             }
             .help("Sessions until the long break")
             .padding(.top, 20)
             HStack(spacing: 8) {
                 Button(action: reset) { Image(systemName: "arrow.counterclockwise") }
-                    .buttonStyle(FlapButton(fill: Flap.chip, ink: Flap.ink))
+                    .buttonStyle(FlapButton(fill: AnyShapeStyle(Flap.chip), ink: Flap.ink))
                     .disabled(model.isIdle)
                     .opacity(model.isIdle ? 0.4 : 1)
                     .help("Reset")
@@ -484,7 +488,7 @@ struct PomodoroView: View {
                     .buttonStyle(FlapButton(fill: tint, ink: Flap.cardTop))
                     .keyboardShortcut(.space, modifiers: [])
                 Button(action: skip) { Image(systemName: "forward.end.fill") }
-                    .buttonStyle(FlapButton(fill: Flap.chip, ink: Flap.ink))
+                    .buttonStyle(FlapButton(fill: AnyShapeStyle(Flap.chip), ink: Flap.ink))
                     .disabled(model.isIdle)
                     .opacity(model.isIdle ? 0.4 : 1)
                     .help("Skip to the next phase")
@@ -508,6 +512,6 @@ struct PomodoroView: View {
         .background(RadialGradient(colors: Flap.backdrop, center: UnitPoint(x: 0.5, y: 0.4), startRadius: 0, endRadius: 280))
         .ignoresSafeArea()
         .id(themes.theme.id)
-        .environment(\.colorScheme, .light)
+        .environment(\.colorScheme, themes.theme.colorScheme)
     }
 }

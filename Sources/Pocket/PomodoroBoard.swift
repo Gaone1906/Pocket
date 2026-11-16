@@ -122,6 +122,8 @@ enum Board {
     static var faint: Color { theme.faint }
     static var accent: Color { theme.accent }
     static var accentInk: Color { theme.accentInk }
+    static var accentStyle: AnyShapeStyle { theme.accentStyle }
+    static var accentInkStyle: AnyShapeStyle { theme.accentInkStyle }
     static var shadow: Color { theme.shadow }
     static let hueCount = BoardTheme.projectOffsets.count
 
@@ -221,7 +223,7 @@ private struct GlowDot: View {
 
     var body: some View {
         Circle()
-            .fill(Board.accent)
+            .fill(Board.accentStyle)
             .frame(width: 10, height: 10)
             .shadow(color: Board.accent.opacity(bright ? 0.95 : 0.55), radius: bright ? 7 : 4)
             .shadow(color: Board.accent.opacity(0.35), radius: 12)
@@ -302,7 +304,8 @@ private struct TallyGroup: View {
 
     func mark(_ stick: TallyStick, length: CGFloat) -> some View {
         Capsule()
-            .fill(tint.opacity(stick.fraction < 1 ? 0.75 : 1))
+            .fill(Board.theme.sheen(tint))
+            .opacity(stick.fraction < 1 ? 0.75 : 1)
             .frame(width: 3, height: max(6, length * stick.fraction))
             .padding(.horizontal, 4)
             .padding(.bottom, 3)
@@ -585,7 +588,7 @@ private struct BoardStats: View {
                     Text(Board.unitsLabel(units))
                         .font(.system(size: 30, weight: .bold))
                         .monospacedDigit()
-                        .foregroundStyle(Board.accentInk)
+                        .foregroundStyle(Board.accentInkStyle)
                     Text(units == 1 ? "session" : "sessions")
                         .font(.system(size: 11))
                         .foregroundStyle(Board.muted)
@@ -646,16 +649,16 @@ private struct BoardSettingsPanel: View {
                 Spacer()
                 Text(themes.theme.name)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Board.accentInk)
+                    .foregroundStyle(Board.accentInkStyle)
             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 14) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5), spacing: 14) {
                 ForEach(BoardTheme.all) { theme in
                     let on = theme == themes.theme
                     Button {
                         withAnimation(.easeInOut(duration: 0.3)) { themes.theme = theme }
                     } label: {
                         Circle()
-                            .fill(theme.swatch)
+                            .fill(theme.swatchStyle)
                             .overlay(Circle().stroke(theme.swatchEdge, lineWidth: 1))
                             .frame(width: 32, height: 32)
                             .padding(3)
@@ -761,7 +764,7 @@ struct PomodoroBoardView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Board.backdrop)
         .ignoresSafeArea()
-        .environment(\.colorScheme, .light)
+        .environment(\.colorScheme, themes.theme.colorScheme)
     }
 }
 
@@ -772,7 +775,7 @@ private struct BoardSettingsButton: View {
     var body: some View {
         let icon = Image(systemName: "slider.horizontal.3")
             .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(open ? Board.accentInk : Board.muted)
+            .foregroundStyle(open ? Board.accentInkStyle : AnyShapeStyle(Board.muted))
             .frame(width: 40, height: 40)
             .contentShape(Circle())
         Button(action: action) {
@@ -824,7 +827,7 @@ private struct BoardModeToggle: View {
                         .background {
                             if mode == value {
                                 Capsule()
-                                    .fill(Color.white.opacity(0.85))
+                                    .fill(Board.theme.pill)
                                     .shadow(color: Board.shadow, radius: 4, y: 1)
                                     .matchedGeometryEffect(id: "pill", in: pill)
                             }
@@ -860,9 +863,12 @@ final class PomodoroBoardWindow: NSObject, NSWindowDelegate {
         window.title = "Pomodoro"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.appearance = NSAppearance(named: .aqua)
+        window.appearance = Board.theme.appearance
         window.backgroundColor = NSColor(Board.backdrop)
-        themeWatch = BoardThemeStore.shared.$theme.sink { [weak window] theme in window?.backgroundColor = NSColor(theme.backdrop) }
+        themeWatch = BoardThemeStore.shared.$theme.sink { [weak window] theme in
+            window?.appearance = theme.appearance
+            window?.backgroundColor = NSColor(theme.backdrop)
+        }
         window.minSize = NSSize(width: 640, height: 420)
         window.contentView = NSHostingView(rootView: PomodoroBoardView(model: model, store: .shared))
         window.isReleasedWhenClosed = false
