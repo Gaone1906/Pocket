@@ -187,36 +187,59 @@ private struct GlowDot: View {
     }
 }
 
+struct TallyStick: Identifiable {
+    static let fullMinutes = 25
+
+    let session: PomodoroSession
+    let index: Int
+    let fraction: CGFloat
+
+    var id: String { "\(session.id.uuidString)-\(index)" }
+
+    static func sticks(for sessions: [PomodoroSession]) -> [TallyStick] {
+        sessions.flatMap { session -> [TallyStick] in
+            let minutes = max(1, session.minutes)
+            let full = minutes / fullMinutes
+            let rest = minutes % fullMinutes
+            var sticks = (0..<full).map { TallyStick(session: session, index: $0, fraction: 1) }
+            if rest > 0 { sticks.append(TallyStick(session: session, index: full, fraction: CGFloat(rest) / CGFloat(fullMinutes))) }
+            return sticks
+        }
+    }
+}
+
 private struct TallyGroup: View {
-    let sessions: [PomodoroSession]
+    let sticks: [TallyStick]
     let tint: Color
     let tap: (PomodoroSession) -> Void
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            HStack(spacing: 0) {
-                ForEach(sessions.prefix(4)) { session in
-                    mark(session, length: 34)
+        ZStack(alignment: .bottomLeading) {
+            HStack(alignment: .bottom, spacing: 0) {
+                ForEach(sticks.prefix(4)) { stick in
+                    mark(stick, length: 34)
                 }
             }
-            if sessions.count == 5, let last = sessions.last {
+            .frame(height: 40, alignment: .bottom)
+            if sticks.count == 5, let last = sticks.last {
                 mark(last, length: 46)
                     .rotationEffect(.degrees(62))
-                    .frame(width: 44)
+                    .frame(width: 44, height: 40)
             }
         }
-        .frame(width: 44, height: 40, alignment: .leading)
+        .frame(width: 44, height: 40, alignment: .bottomLeading)
     }
 
-    func mark(_ session: PomodoroSession, length: CGFloat) -> some View {
+    func mark(_ stick: TallyStick, length: CGFloat) -> some View {
         Capsule()
-            .fill(tint)
-            .frame(width: 3, height: length)
+            .fill(tint.opacity(stick.fraction < 1 ? 0.75 : 1))
+            .frame(width: 3, height: max(6, length * stick.fraction))
             .padding(.horizontal, 4)
+            .padding(.bottom, 3)
             .contentShape(Rectangle())
-            .onTapGesture { tap(session) }
-            .draggable(session.id.uuidString)
-            .help(session.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))
+            .onTapGesture { tap(stick.session) }
+            .draggable(stick.session.id.uuidString)
+            .help("\(stick.session.minutes) min · \(stick.session.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))")
     }
 }
 
@@ -280,10 +303,11 @@ private struct BoardColumn: View {
                     }
                     .padding(.top, 14)
                 } else {
-                    let groups = stride(from: 0, to: sessions.count, by: 5).map { Array(sessions[$0..<min($0 + 5, sessions.count)]) }
+                    let sticks = TallyStick.sticks(for: sessions)
+                    let groups = stride(from: 0, to: sticks.count, by: 5).map { Array(sticks[$0..<min($0 + 5, sticks.count)]) }
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 44, maximum: 44), spacing: 20)], alignment: .leading, spacing: 16) {
                         ForEach(groups, id: \.first!.id) { group in
-                            TallyGroup(sessions: group, tint: tint) { SessionMenu.show($0, store: store) }
+                            TallyGroup(sticks: group, tint: tint) { SessionMenu.show($0, store: store) }
                         }
                     }
                     .padding(.top, 14)
