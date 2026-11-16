@@ -20,8 +20,22 @@ final class Layout: ObservableObject {
         setupDone = defaults.bool(forKey: "setup.done")
         hotKeys = defaults.object(forKey: "hotkeys.enabled") as? Bool ?? true
         otp = defaults.bool(forKey: "otp.enabled")
-        shortcuts = defaults.data(forKey: "shortcuts").flatMap { try? JSONDecoder().decode([String: Shortcut].self, from: $0) }
-            ?? catalog.reduce(into: [:]) { map, app in if let key = app.hotKey { map[app.id] = .option(key) } }
+        let stored = defaults.data(forKey: "shortcuts").flatMap { try? JSONDecoder().decode([String: Shortcut].self, from: $0) }
+        var map = stored ?? [:]
+        var offered = Set(defaults.stringArray(forKey: "shortcuts.offered") ?? Array(map.keys))
+        var added: [String] = []
+        for app in catalog where !offered.contains(app.id) {
+            offered.insert(app.id)
+            guard let key = app.hotKey, !map.values.contains(.option(key)) else { continue }
+            map[app.id] = .option(key)
+            added.append(app.id)
+        }
+        shortcuts = map
+        defaults.set(Array(offered).sorted(), forKey: "shortcuts.offered")
+        if stored == nil || !added.isEmpty, let data = try? JSONEncoder().encode(map) {
+            defaults.set(data, forKey: "shortcuts")
+            note("pocket shortcut defaults given apps=\(added.joined(separator: ","))")
+        }
     }
 
     var enabled: [String] { bar + tray }
