@@ -34,9 +34,9 @@ The first launch opens a setup window. In it you:
 
 ## Using it
 
-- The grid icon in the menu bar opens the dropdown. Drag icons between the **Menu bar** and **Dropdown** rows to rearrange them.
+- The thin line in the menu bar opens the dropdown. Drag icons between the **Menu bar** and **Dropdown** rows to rearrange them.
 - Right-click any icon to move it, rerun setup, or quit.
-- ⌥ + a letter opens an app from anywhere: W WhatsApp, S Slack, M Spotify, G Gmail, O Outlook, C Calendar, T To-do, P Pomodoro, K Calculator. You can turn this off in setup.
+- Each app has a keyboard shortcut that opens it from anywhere. The defaults are ⌥W WhatsApp, ⌥S Slack, ⌥M Spotify, ⌥G Gmail, ⌥O Outlook, ⌥D Calendar, ⌥T To-do, ⌥P Pomodoro and ⌥C Calculator. To change one, click it next to the app in setup and press the new keys; Delete clears it.
 - Esc or clicking elsewhere hides the panel.
 
 ## Performance
