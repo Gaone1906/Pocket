@@ -14,9 +14,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     var awake: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if layout.enabled.isEmpty && !layout.setupDone {
-            layout.apply(bar: ["whatsapp", "slack", "spotify"], tray: [])
-        }
         installEditMenu()
         let center = UNUserNotificationCenter.current()
         center.delegate = self
@@ -33,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                                                             name: Notification.Name("com.pranav.pocket.toggle"), object: nil)
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(remoteRestart(_:)),
                                                             name: Notification.Name("com.pranav.pocket.restart"), object: nil)
+        if !layout.setupDone { SetupController.shared.present() }
         note("pocket started apps=\(layout.enabled.joined(separator: ","))")
     }
 
@@ -120,7 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     @objc func presentSetup() {
         tray.hide(reason: "switched")
-        note("pocket setup requested apps=\(layout.enabled.joined(separator: ","))")
+        SetupController.shared.present()
     }
 
     @objc func remoteToggle(_ notification: Notification) {
