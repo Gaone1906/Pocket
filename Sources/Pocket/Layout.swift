@@ -15,9 +15,21 @@ final class Layout: ObservableObject {
 
     init() {
         let known = Set(catalog.map(\.id))
-        bar = (defaults.stringArray(forKey: "layout.bar") ?? []).filter(known.contains)
-        tray = (defaults.stringArray(forKey: "layout.tray") ?? []).filter(known.contains)
-        setupDone = defaults.bool(forKey: "setup.done")
+        let barIds = (defaults.stringArray(forKey: "layout.bar") ?? []).filter(known.contains)
+        bar = barIds
+        var trayIds = (defaults.stringArray(forKey: "layout.tray") ?? []).filter(known.contains)
+        let done = defaults.bool(forKey: "setup.done")
+        let store = UserDefaults.standard
+        let listed = Set(store.stringArray(forKey: "layout.offered") ?? catalog.filter { $0.link == nil }.map(\.id))
+        let fresh = catalog.map(\.id).filter { !listed.contains($0) && !barIds.contains($0) && !trayIds.contains($0) }
+        if done && !fresh.isEmpty {
+            trayIds += fresh
+            store.set(trayIds, forKey: "layout.tray")
+            note("pocket new apps added to dropdown apps=\(fresh.joined(separator: ","))")
+        }
+        store.set(catalog.map(\.id), forKey: "layout.offered")
+        tray = trayIds
+        setupDone = done
         hotKeys = defaults.object(forKey: "hotkeys.enabled") as? Bool ?? true
         otp = defaults.bool(forKey: "otp.enabled")
         let stored = defaults.data(forKey: "shortcuts").flatMap { try? JSONDecoder().decode([String: Shortcut].self, from: $0) }
