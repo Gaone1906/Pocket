@@ -368,8 +368,8 @@ final class PomodoroApp: PocketApp {
 
 private enum Flap {
     static var theme: BoardTheme { BoardThemeStore.shared.theme }
-    static var backdrop: [Color] { [theme.card, theme.sidebar] }
-    static var cardTop: Color { theme.card }
+    static var backdrop: [Color] { theme.embroidery == nil ? [theme.card, theme.sidebar] : [Color(hex: 0x19191C), BoardTheme.fabric] }
+    static var cardTop: Color { theme.embroidery == nil ? theme.card : Color(hex: 0x1A1A1D) }
     static var cardBottom: Color { theme.backdrop }
     static var seam: Color { theme.line }
     static var muted: Color { theme.muted }
