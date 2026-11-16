@@ -1,5 +1,6 @@
 func makeApp(_ spec: AppSpec) -> PocketApp? {
     if let site = spec.web { return WebApp(spec: spec, site: site) }
+    if let link = spec.link { return LinkApp(spec: spec, url: link) }
     switch spec.id {
     case "calendar": return CalendarApp(spec: spec)
     case "todo": return TodoApp(spec: spec)
