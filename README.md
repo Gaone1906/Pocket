@@ -11,7 +11,7 @@ Small apps that live in the macOS menu bar. Click an icon and the app drops down
 | Outlook | Outlook mail for work or personal Microsoft accounts |
 | Calendar | Month view of the events in your Mac's Calendar app |
 | To-do | A simple list; the next task shows in the menu bar |
-| Pomodoro | Focus and break timer; the countdown shows in the menu bar, gold while focusing and silver on a break |
+| Pomodoro | Focus, break and long-break timer; the countdown shows in the menu bar, gold while focusing and silver on a break. The expand button opens a board where finished sessions glow as dots until you file them as tally marks under a project |
 | Calculator | Type or tap a calculation and see the answer as you go |
 | Scratchpad | Notes in pages, with headings, bold, italic, underline, strikethrough and bulleted or numbered lists (type `- `, `1. ` or `# ` to start one) |
 | System Stats | CPU, memory, disk, network and battery at a glance |
