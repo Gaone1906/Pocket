@@ -163,7 +163,7 @@ final class PomodoroApp: PocketApp {
             openBoard: { [weak self] in self?.openBoard() }
         )
         let hosting = NSHostingView(rootView: view)
-        hosting.appearance = NSAppearance(named: .darkAqua)
+        hosting.appearance = NSAppearance(named: .aqua)
         return hosting
     }
 
@@ -364,13 +364,18 @@ final class PomodoroApp: PocketApp {
 }
 
 private enum Flap {
-    static let backdrop = [Color(red: 0.165, green: 0.169, blue: 0.184), Color(red: 0.071, green: 0.075, blue: 0.082)]
-    static let cardTop = Color(red: 0.149, green: 0.153, blue: 0.169)
-    static let cardBottom = Color(red: 0.118, green: 0.122, blue: 0.133)
-    static let seam = Color(red: 0.051, green: 0.051, blue: 0.059)
-    static let muted = Color(red: 0.545, green: 0.557, blue: 0.580)
-    static let colon = Color(red: 0.333, green: 0.341, blue: 0.361)
-    static let chip = Color.white.opacity(0.06)
+    static var theme: BoardTheme { BoardThemeStore.shared.theme }
+    static var backdrop: [Color] { [theme.card, theme.sidebar] }
+    static var cardTop: Color { theme.card }
+    static var cardBottom: Color { theme.backdrop }
+    static var seam: Color { theme.line }
+    static var muted: Color { theme.muted }
+    static var colon: Color { theme.faint }
+    static var chip: Color { theme.line.opacity(0.55) }
+    static var ink: Color { theme.ink }
+    static var shadow: Color { theme.shadow }
+
+    static func tint(for phase: PomodoroPhase) -> Color { phase == .focus ? theme.accentInk : theme.muted }
 }
 
 private struct FlapCard: View {
@@ -392,7 +397,8 @@ private struct FlapCard: View {
         }
         .frame(width: 112, height: 136)
         .clipShape(RoundedRectangle(cornerRadius: 10))
-        .shadow(color: .black.opacity(0.55), radius: 10, y: 6)
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Flap.seam, lineWidth: 1))
+        .shadow(color: Flap.shadow, radius: 10, y: 6)
         .rotation3DEffect(.degrees(angle), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
         .onChange(of: text) { _, _ in
             angle = 70
@@ -419,12 +425,13 @@ private struct FlapButton: ButtonStyle {
 
 struct PomodoroView: View {
     @ObservedObject var model: PomodoroModel
+    @ObservedObject var themes = BoardThemeStore.shared
     let toggle: () -> Void
     let reset: () -> Void
     let skip: () -> Void
     let openBoard: () -> Void
 
-    private var tint: Color { Color(nsColor: PomodoroPalette.color(for: model.phase)) }
+    private var tint: Color { Flap.tint(for: model.phase) }
 
     private var heading: String {
         if case .paused = model.state { return "Paused" }
@@ -460,24 +467,24 @@ struct PomodoroView: View {
                 let filled = model.phase == .long ? model.longEvery : model.streak
                 ForEach(0..<model.longEvery, id: \.self) { index in
                     Circle()
-                        .fill(index < filled ? tint : Color.white.opacity(0.12))
+                        .fill(index < filled ? tint : Flap.seam)
                         .frame(width: 6, height: 6)
-                        .shadow(color: index < filled ? tint.opacity(0.8) : .clear, radius: 4)
+                        .shadow(color: index < filled ? tint.opacity(0.5) : .clear, radius: 3)
                 }
             }
             .help("Sessions until the long break")
             .padding(.top, 20)
             HStack(spacing: 8) {
                 Button(action: reset) { Image(systemName: "arrow.counterclockwise") }
-                    .buttonStyle(FlapButton(fill: Flap.chip, ink: .white.opacity(0.85)))
+                    .buttonStyle(FlapButton(fill: Flap.chip, ink: Flap.ink))
                     .disabled(model.isIdle)
                     .opacity(model.isIdle ? 0.4 : 1)
                     .help("Reset")
                 Button(action: toggle) { Text(toggleTitle).frame(minWidth: 70) }
-                    .buttonStyle(FlapButton(fill: tint, ink: Flap.seam))
+                    .buttonStyle(FlapButton(fill: tint, ink: Flap.cardTop))
                     .keyboardShortcut(.space, modifiers: [])
                 Button(action: skip) { Image(systemName: "forward.end.fill") }
-                    .buttonStyle(FlapButton(fill: Flap.chip, ink: .white.opacity(0.85)))
+                    .buttonStyle(FlapButton(fill: Flap.chip, ink: Flap.ink))
                     .disabled(model.isIdle)
                     .opacity(model.isIdle ? 0.4 : 1)
                     .help("Skip to the next phase")
@@ -500,6 +507,7 @@ struct PomodoroView: View {
         }
         .background(RadialGradient(colors: Flap.backdrop, center: UnitPoint(x: 0.5, y: 0.4), startRadius: 0, endRadius: 280))
         .ignoresSafeArea()
-        .environment(\.colorScheme, .dark)
+        .id(themes.theme.id)
+        .environment(\.colorScheme, .light)
     }
 }
