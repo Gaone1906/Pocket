@@ -56,6 +56,15 @@ let catalog: [AppSpec] = [
             glyph: Glyphs.spotify, hotKey: UInt32(kVK_ANSI_M),
             web: WebSpec(url: URL(string: "https://open.spotify.com/")!, store: UUID(uuidString: "6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A03")!,
                          hosts: ["spotify.com", "scdn.co", "spotifycdn.com", "spotify.net", "spotify.link"], zoom: 0.85, agent: safariAgent, disguise: nil, realtime: false, unloadAfter: 1800)),
+    AppSpec(id: "gmail", name: "Gmail", summary: "Gmail with unread count and new-mail notifications", symbol: "envelope.fill",
+            glyph: Glyphs.gmail, hotKey: UInt32(kVK_ANSI_G),
+            web: WebSpec(url: URL(string: "https://mail.google.com/mail/")!, store: UUID(uuidString: "6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A04")!,
+                         hosts: ["mail.google.com", "google.com", "gstatic.com", "googleusercontent.com", "googleapis.com"], zoom: 0.85, agent: safariAgent, disguise: nil, realtime: false, unloadAfter: nil)),
+    AppSpec(id: "outlook", name: "Outlook", summary: "Outlook mail for work or personal Microsoft accounts", symbol: "tray.full.fill",
+            glyph: nil, hotKey: UInt32(kVK_ANSI_O),
+            web: WebSpec(url: URL(string: "https://outlook.office.com/mail/")!, store: UUID(uuidString: "6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A05")!,
+                         hosts: ["outlook.office.com", "outlook.office365.com", "outlook.live.com", "office.com", "office365.com", "office.net", "live.com", "outlook.com", "microsoft.com", "microsoftonline.com", "msauth.net", "msftauth.net", "live.net"],
+                         zoom: 0.85, agent: safariAgent, disguise: nil, realtime: false, unloadAfter: nil)),
 ]
 
 func spec(_ id: String) -> AppSpec? { catalog.first { $0.id == id } }
