@@ -6,6 +6,7 @@ func makeApp(_ spec: AppSpec) -> PocketApp? {
     case "pomodoro": return PomodoroApp(spec: spec)
     case "calculator": return CalculatorApp(spec: spec)
     case "stats": return StatsApp(spec: spec)
+    case "scratchpad": return ScratchpadApp(spec: spec)
     default: return nil
     }
 }
