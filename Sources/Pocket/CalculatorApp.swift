@@ -2,8 +2,8 @@ import AppKit
 import SwiftUI
 
 enum CalcEngine {
-    static func evaluate(_ text: String) -> Double? {
-        var parser = Parser(chars: Array(text.filter { !$0.isWhitespace }))
+    static func evaluate(_ text: String, ans: Double = 0, degrees: Bool = true) -> Double? {
+        var parser = Parser(chars: Array(text.filter { !$0.isWhitespace }), ans: ans, degrees: degrees)
         guard let value = parser.expression(), parser.atEnd, value.isFinite else { return nil }
         return value
     }
@@ -13,19 +13,29 @@ enum CalcEngine {
         return String(format: "%.10g", value)
     }
 
-    static func display(_ text: String) -> String? {
-        evaluate(text).map(format)
+    static func display(_ text: String, ans: Double = 0, degrees: Bool = true) -> String? {
+        evaluate(text, ans: ans, degrees: degrees).map(format)
     }
 
     struct Parser {
         let chars: [Character]
+        let ans: Double
+        let degrees: Bool
         var index = 0
 
-        init(chars: [Character]) { self.chars = chars }
+        init(chars: [Character], ans: Double, degrees: Bool) {
+            self.chars = chars
+            self.ans = ans
+            self.degrees = degrees
+        }
 
         var atEnd: Bool { index >= chars.count }
 
         func peek() -> Character? { index < chars.count ? chars[index] : nil }
+
+        func startsOperand(_ c: Character) -> Bool {
+            (c.isASCII && (c.isNumber || c.isLetter)) || "(.π√∛".contains(c)
+        }
 
         mutating func expression() -> Double? {
             guard var left = term() else { return nil }
@@ -39,14 +49,21 @@ enum CalcEngine {
 
         mutating func term() -> Double? {
             guard var left = unary() else { return nil }
-            while let op = peek(), "*×/÷".contains(op) {
-                index += 1
-                guard let right = unary() else { return nil }
-                if "*×".contains(op) {
+            while let op = peek() {
+                if "*×/÷".contains(op) {
+                    index += 1
+                    guard let right = unary() else { return nil }
+                    if "*×".contains(op) {
+                        left *= right
+                    } else {
+                        if right == 0 { return nil }
+                        left /= right
+                    }
+                } else if startsOperand(op) {
+                    guard let right = power() else { return nil }
                     left *= right
                 } else {
-                    if right == 0 { return nil }
-                    left /= right
+                    break
                 }
             }
             return left
@@ -74,9 +91,22 @@ enum CalcEngine {
 
         mutating func postfix() -> Double? {
             guard var value = primary() else { return nil }
-            while peek() == "%" {
+            while let c = peek() {
+                switch c {
+                case "%": value /= 100
+                case "²": value *= value
+                case "³": value = value * value * value
+                case "!":
+                    guard value >= 0, value <= 170 else { return nil }
+                    value = tgamma(value + 1)
+                case "⁻":
+                    guard index + 1 < chars.count, chars[index + 1] == "¹", value != 0 else { return nil }
+                    index += 1
+                    value = 1 / value
+                default:
+                    return value
+                }
                 index += 1
-                value /= 100
             }
             return value
         }
@@ -85,12 +115,61 @@ enum CalcEngine {
             guard let c = peek() else { return nil }
             if c == "(" {
                 index += 1
-                guard let value = expression(), peek() == ")" else { return nil }
-                index += 1
+                guard let value = expression() else { return nil }
+                if peek() == ")" { index += 1 }
                 return value
+            }
+            if c == "π" {
+                index += 1
+                return .pi
+            }
+            if c == "√" || c == "∛" {
+                index += 1
+                guard let value = postfix() else { return nil }
+                if c == "√" { return value < 0 ? nil : value.squareRoot() }
+                return cbrt(value)
+            }
+            if c.isASCII && c.isLetter {
+                let start = index
+                while let next = peek(), next.isASCII, next.isLetter { index += 1 }
+                return named(String(chars[start..<index]).lowercased())
             }
             return number()
         }
+
+        mutating func named(_ name: String) -> Double? {
+            switch name {
+            case "ans": return ans
+            case "e": return M_E
+            case "pi": return .pi
+            default: break
+            }
+            guard peek() == "(" else { return nil }
+            index += 1
+            guard let x = expression() else { return nil }
+            if peek() == ")" { index += 1 }
+            let toRadians = degrees ? Double.pi / 180 : 1
+            let fromRadians = degrees ? 180 / Double.pi : 1
+            switch name {
+            case "sin": return snap(sin(x * toRadians))
+            case "cos": return snap(cos(x * toRadians))
+            case "tan":
+                guard abs(cos(x * toRadians)) > 1e-12 else { return nil }
+                return snap(tan(x * toRadians))
+            case "asin": return (-1...1).contains(x) ? asin(x) * fromRadians : nil
+            case "acos": return (-1...1).contains(x) ? acos(x) * fromRadians : nil
+            case "atan": return atan(x) * fromRadians
+            case "log": return x > 0 ? log10(x) : nil
+            case "ln": return x > 0 ? log(x) : nil
+            case "sqrt": return x < 0 ? nil : x.squareRoot()
+            case "cbrt": return cbrt(x)
+            case "abs": return abs(x)
+            case "exp": return exp(x)
+            default: return nil
+            }
+        }
+
+        func snap(_ value: Double) -> Double { abs(value) < 1e-12 ? 0 : value }
 
         mutating func number() -> Double? {
             let start = index
