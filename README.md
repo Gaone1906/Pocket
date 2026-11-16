@@ -11,7 +11,7 @@ Small apps that live in the macOS menu bar. Click an icon and the app drops down
 | Outlook | Outlook mail for work or personal Microsoft accounts |
 | Calendar | Month view of the events in your Mac's Calendar app |
 | To-do | A simple list; the next task shows in the menu bar |
-| Pomodoro | Focus, break and long-break timer; the countdown shows in the menu bar, gold while focusing and silver on a break. The expand button opens a board where finished sessions glow as dots until you file them as tally marks under a project |
+| Pomodoro | Focus, break and long-break timer; the countdown shows in the menu bar, gold while focusing and silver on a break. The expand button opens a board where finished sessions glow as dots until you file them as tally marks under a project; each full stick is 25 minutes and a shorter stick holds the remainder |
 | Calculator | Type or tap a calculation and see the answer as you go |
 | Scratchpad | Notes in pages, with headings, bold, italic, underline, strikethrough and bulleted or numbered lists (type `- `, `1. ` or `# ` to start one) |
 | System Stats | CPU, memory, disk, network and battery at a glance |
@@ -39,7 +39,7 @@ The first launch opens a setup window. In it you:
 - Right-click any icon to move it, rerun setup, or quit.
 - Each app has a keyboard shortcut that opens it from anywhere. The defaults are ⌥W WhatsApp, ⌥S Slack, ⌥M Spotify, ⌥G Gmail, ⌥O Outlook, ⌥D Calendar, ⌥T To-do, ⌥P Pomodoro, ⌥C Calculator and ⌥N Scratchpad. To change one, click it next to the app in setup and press the new keys; Delete clears it.
 - Esc or clicking elsewhere hides the panel.
-- Pages on `localhost` can drive the Pomodoro through `http://127.0.0.1:8977`: `GET /pomodoro` for the timer's state, `POST /pomodoro/start` with `{"project": "…"}` to start a focus session that gets logged under that project, and `POST /pomodoro/stop`. Requests from other sites are refused.
+- Pages on `localhost` can drive the Pomodoro through `http://127.0.0.1:8977`: `GET /pomodoro` for the timer's state, `POST /pomodoro/start` with `{"project": "…"}` to start a focus session that gets logged under that project (add `"focus"` and `"rest"` in minutes to time that run differently from your settings), and `POST /pomodoro/stop`. Requests from other sites are refused.
 
 ## Performance
 
