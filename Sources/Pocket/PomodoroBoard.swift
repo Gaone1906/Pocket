@@ -139,6 +139,24 @@ enum Board {
         units.formatted(.number.precision(.fractionLength(0...1)))
     }
 
+    static func days(_ sessions: [PomodoroSession]) -> [(day: Date, sessions: [PomodoroSession])] {
+        let calendar = Calendar.current
+        return Dictionary(grouping: sessions) { calendar.startOfDay(for: $0.ended) }
+            .map { (day: $0.key, sessions: $0.value.sorted { $0.ended < $1.ended }) }
+            .sorted { $0.day > $1.day }
+    }
+
+    static func dayLabel(_ day: Date) -> String {
+        let calendar = Calendar.current
+        let sameYear = calendar.isDate(day, equalTo: Date(), toGranularity: .year)
+        let date = sameYear
+            ? day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
+            : day.formatted(.dateTime.day().month(.abbreviated).year())
+        if calendar.isDateInToday(day) { return "Today · \(date)" }
+        if calendar.isDateInYesterday(day) { return "Yesterday · \(date)" }
+        return date
+    }
+
     static func duration(_ minutes: Int) -> String {
         if minutes < 60 { return "\(minutes)m" }
         return minutes % 60 == 0 ? "\(minutes / 60)h" : "\(minutes / 60)h \(minutes % 60)m"
@@ -347,26 +365,40 @@ private struct BoardColumn: View {
                 .foregroundStyle(Board.muted)
                 .padding(.leading, 15)
             ScrollView(.vertical, showsIndicators: false) {
-                if project == nil {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 22, maximum: 22), spacing: 8)], alignment: .leading, spacing: 8) {
-                        ForEach(sessions) { session in
-                            GlowDot()
-                                .onTapGesture { SessionMenu.show(session, store: store) }
-                                .draggable(session.id.uuidString)
-                                .help(session.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))
+                LazyVStack(alignment: .leading, spacing: 18) {
+                    ForEach(Board.days(sessions), id: \.day) { entry in
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 6) {
+                                Text(Board.dayLabel(entry.day))
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Board.ink.opacity(0.85))
+                                Rectangle().fill(Board.line).frame(height: 1)
+                                Text(Board.unitsLabel(Board.units(entry.sessions)))
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(Board.muted)
+                            }
+                            if project == nil {
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 22, maximum: 22), spacing: 8)], alignment: .leading, spacing: 8) {
+                                    ForEach(entry.sessions) { session in
+                                        GlowDot()
+                                            .onTapGesture { SessionMenu.show(session, store: store) }
+                                            .draggable(session.id.uuidString)
+                                            .help(session.ended.formatted(.dateTime.day().month(.abbreviated).hour().minute()))
+                                    }
+                                }
+                            } else {
+                                let groups = TallyStick.groups(for: TallyStick.sticks(for: entry.sessions))
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 44, maximum: 44), spacing: 20)], alignment: .leading, spacing: 16) {
+                                    ForEach(groups, id: \.first!.id) { group in
+                                        TallyGroup(sticks: group, tint: tint) { SessionMenu.show($0, store: store) }
+                                    }
+                                }
+                            }
                         }
                     }
-                    .padding(.top, 14)
-                } else {
-                    let sticks = TallyStick.sticks(for: sessions)
-                    let groups = TallyStick.groups(for: sticks)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 44, maximum: 44), spacing: 20)], alignment: .leading, spacing: 16) {
-                        ForEach(groups, id: \.first!.id) { group in
-                            TallyGroup(sticks: group, tint: tint) { SessionMenu.show($0, store: store) }
-                        }
-                    }
-                    .padding(.top, 14)
                 }
+                .padding(.top, 14)
             }
         }
         .padding(16)
