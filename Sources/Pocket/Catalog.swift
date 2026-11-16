@@ -73,6 +73,8 @@ let catalog: [AppSpec] = [
             glyph: nil, hotKey: UInt32(kVK_ANSI_P), web: nil),
     AppSpec(id: "calculator", name: "Calculator", summary: "Type or tap a calculation, see the answer live", symbol: "plusminus.circle",
             glyph: nil, hotKey: UInt32(kVK_ANSI_K), web: nil),
+    AppSpec(id: "stats", name: "System Stats", summary: "CPU, memory, disk, network and battery at a glance", symbol: "gauge.with.dots.needle.33percent",
+            glyph: nil, hotKey: nil, web: nil),
 ]
 
 func spec(_ id: String) -> AppSpec? { catalog.first { $0.id == id } }
