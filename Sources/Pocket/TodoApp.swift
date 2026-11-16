@@ -249,7 +249,10 @@ struct TodoView: View {
 }
 
 final class TodoApp: PocketApp {
+    private static let rotateEvery: TimeInterval = 60
     private let store = TodoStore()
+    private var rotation = 0
+    private var rotator: Timer?
 
     override init(spec: AppSpec) {
         super.init(spec: spec)
@@ -262,6 +265,16 @@ final class TodoApp: PocketApp {
     override func start() {
         store.load()
         changed()
+        let timer = Timer(timeInterval: Self.rotateEvery, repeats: true) { [weak self] _ in self?.rotate() }
+        RunLoop.main.add(timer, forMode: .common)
+        rotator = timer
+        note("todo bar rotation started every=\(Int(Self.rotateEvery))s open=\(store.open.count)")
+    }
+
+    private func rotate() {
+        guard store.open.count > 1 else { return }
+        rotation = (rotation + 1) % store.open.count
+        changed()
     }
 
     override func makeContent() -> NSView {
@@ -273,8 +286,9 @@ final class TodoApp: PocketApp {
     }
 
     override func barTitle() -> NSAttributedString? {
-        guard let next = store.next else { return nil }
-        let title = next.title.replacingOccurrences(of: "\n", with: " ")
+        let open = store.open
+        guard !open.isEmpty else { return nil }
+        let title = open[rotation % open.count].title.replacingOccurrences(of: "\n", with: " ")
         let shown = title.count > 28 ? String(title.prefix(27)).trimmingCharacters(in: .whitespaces) + "…" : title
         return NSAttributedString(string: shown, attributes: [.font: NSFont.menuBarFont(ofSize: 0)])
     }
