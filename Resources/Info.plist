@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key><string>com.pranav.pocket</string>
+  <key>CFBundleName</key><string>Pocket</string>
+  <key>CFBundleDisplayName</key><string>Pocket</string>
+  <key>CFBundleExecutable</key><string>Pocket</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>2.0</string>
+  <key>CFBundleVersion</key><string>2</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <key>LSUIElement</key><true/>
+  <key>NSMicrophoneUsageDescription</key><string>Calls in WhatsApp, Slack and other web apps use your microphone.</string>
+  <key>NSCameraUsageDescription</key><string>Video calls in WhatsApp, Slack and other web apps use your camera.</string>
+</dict>
+</plist>
