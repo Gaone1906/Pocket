@@ -25,8 +25,6 @@ let notificationShim = """
 })();
 """
 
-let tickScript = "window.__pocketTicks = 0; setInterval(() => { window.__pocketTicks += 1; }, 1000);"
-
 let mediaScript = """
 (() => {
   const seen = new Set();
@@ -42,13 +40,13 @@ let playingProbe = "typeof window.__pocketPlaying === 'function' && window.__poc
 
 final class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, WKDownloadDelegate {
     let site: WebSpec
-    var web: WKWebView!
+    let container = NSView()
+    var web: WKWebView?
     var titleWatch: NSKeyValueObservation?
     var choosingFile = false
-    var lastTicks = -1
     var healthTimer: Timer?
+    var unloadWork: DispatchWorkItem?
     var popups: [ObjectIdentifier: (view: WKWebView, window: NSWindow)] = [:]
-    var lastActive = Date()
     var unread = 0 {
         didSet {
             guard unread != oldValue else { return }
@@ -64,30 +62,41 @@ final class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessa
 
     override func barImage() -> NSImage? { AppIcon.render(spec, unread: unread) }
 
+    override func makeContent() -> NSView { container }
+
     override func start() {
+        _ = panel
+        guard site.unloadAfter == nil else { return note("pocket deferred app=\(spec.id) until first open") }
+        load(reason: "startup")
+    }
+
+    func load(reason: String) {
+        guard web == nil else { return }
         let config = WKWebViewConfiguration()
         config.websiteDataStore = WKWebsiteDataStore(forIdentifier: site.store)
         config.mediaTypesRequiringUserActionForPlayback = []
         config.preferences.javaScriptCanOpenWindowsAutomatically = true
         config.preferences.isElementFullscreenEnabled = true
-        config.preferences.inactiveSchedulingPolicy = .none
-        for key in ["pageVisibilityBasedProcessSuppressionEnabled", "hiddenPageDOMTimerThrottlingEnabled", "hiddenPageDOMTimerThrottlingAutoIncreases"]
-        where config.preferences.responds(to: NSSelectorFromString("_set\(key.prefix(1).uppercased())\(key.dropFirst()):")) {
-            config.preferences.setValue(false, forKey: key)
+        config.preferences.inactiveSchedulingPolicy = site.realtime ? .none : .throttle
+        if site.realtime {
+            for key in ["pageVisibilityBasedProcessSuppressionEnabled", "hiddenPageDOMTimerThrottlingEnabled", "hiddenPageDOMTimerThrottlingAutoIncreases"]
+            where config.preferences.responds(to: NSSelectorFromString("_set\(key.prefix(1).uppercased())\(key.dropFirst()):")) {
+                config.preferences.setValue(false, forKey: key)
+            }
         }
-        config.userContentController.addUserScript(WKUserScript(source: tickScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         config.userContentController.addUserScript(WKUserScript(source: mediaScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         if let disguise = site.disguise {
             config.userContentController.addUserScript(WKUserScript(source: disguise, injectionTime: .atDocumentStart, forMainFrameOnly: false))
         }
         config.userContentController.addUserScript(WKUserScript(source: notificationShim, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         config.userContentController.add(self, name: "pocketNotify")
-        web = WKWebView(frame: .zero, configuration: config)
+        let web = WKWebView(frame: container.bounds, configuration: config)
+        web.autoresizingMask = [.width, .height]
         web.customUserAgent = site.agent
         web.allowsBackForwardNavigationGestures = false
         web.pageZoom = site.zoom
         if #available(macOS 13.3, *) { web.isInspectable = true }
-        if web.responds(to: NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")) {
+        if site.realtime, web.responds(to: NSSelectorFromString("_setWindowOcclusionDetectionEnabled:")) {
             web.setValue(false, forKey: "windowOcclusionDetectionEnabled")
         }
         web.navigationDelegate = self
@@ -95,50 +104,57 @@ final class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessa
         titleWatch = web.observe(\.title, options: [.new]) { [weak self] view, _ in
             self?.unread = WebApp.unreadCount(view.title ?? "")
         }
-        _ = panel
+        container.addSubview(web)
+        self.web = web
         web.load(URLRequest(url: site.url))
-        note("pocket loading app=\(spec.id) url=\(site.url.absoluteString)")
+        healthTimer?.invalidate()
         healthTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in self?.checkHealth() }
+        healthTimer?.tolerance = 60
+        note("pocket loading app=\(spec.id) reason=\(reason) realtime=\(site.realtime) url=\(site.url.absoluteString)")
+    }
+
+    func unload(reason: String) {
+        guard let web else { return }
+        healthTimer?.invalidate()
+        healthTimer = nil
+        titleWatch = nil
+        popups.values.forEach { closePopup($0.view, reason: reason) }
+        web.configuration.userContentController.removeScriptMessageHandler(forName: "pocketNotify")
+        web.stopLoading()
+        web.removeFromSuperview()
+        self.web = nil
+        unread = 0
+        note("pocket unloaded app=\(spec.id) reason=\(reason)")
     }
 
     override func stop() {
-        healthTimer?.invalidate()
-        titleWatch = nil
-        popups.values.forEach { closePopup($0.view, reason: "app disabled") }
-        web?.configuration.userContentController.removeScriptMessageHandler(forName: "pocketNotify")
-        web?.stopLoading()
-        web = nil
+        unloadWork?.cancel()
+        unload(reason: "app disabled")
         super.stop()
         note("pocket stopped app=\(spec.id)")
     }
 
-    override func makeContent() -> NSView { web }
-
     func checkHealth() {
+        guard let web else { return }
         var answered = false
-        web.evaluateJavaScript("[document.visibilityState, window.__pocketTicks || 0, \(playingProbe)].join(',')") { [weak self] result, error in
+        web.evaluateJavaScript("document.visibilityState") { [weak self] _, error in
             guard let self else { return }
             answered = true
-            if let error {
-                note("pocket health failed app=\(self.spec.id) cause=\(error.localizedDescription); reloading")
-                self.web.load(URLRequest(url: self.site.url)); return
-            }
-            let parts = (result as? String ?? "").split(separator: ",")
-            let ticks = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
-            let delta = self.lastTicks < 0 || ticks < self.lastTicks ? -1 : ticks - self.lastTicks
-            self.lastTicks = ticks
-            let playing = parts.count > 2 && parts[2] == "true"
-            if playing { self.lastActive = Date() }
-            note("pocket health app=\(self.spec.id) visibility=\(parts.first ?? "-") ticks=\(delta) of 300 playing=\(playing) idle=\(Int(Date().timeIntervalSince(self.lastActive)))s host=\(self.web.url?.host ?? "-")")
+            guard let error else { return }
+            note("pocket health failed app=\(self.spec.id) cause=\(error.localizedDescription); reloading")
+            self.web?.load(URLRequest(url: self.site.url))
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
-            guard let self, !answered else { return }
+            guard let self, !answered, self.web != nil else { return }
             self.restart(reason: "health timed out")
         }
     }
 
+    static let unreadPattern = try! Regex(#"\(([\d,]+)\)"#)
+
     static func unreadCount(_ title: String) -> Int {
-        if let match = title.firstMatch(of: try! Regex(#"^\((\d+)\)"#)), let digits = match.output[1].substring, let count = Int(digits) { return count }
+        if let match = title.firstMatch(of: unreadPattern), let digits = match.output[1].substring,
+           let count = Int(digits.replacingOccurrences(of: ",", with: "")) { return count }
         if title.hasPrefix("*") || title.hasPrefix("!") { return -1 }
         return 0
     }
@@ -155,26 +171,27 @@ final class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessa
     }
 
     override func didShow() {
+        unloadWork?.cancel()
+        load(reason: "opened")
         panel.makeFirstResponder(web)
-        refreshIfStale()
     }
 
-    override func didHide() { lastActive = Date() }
+    override func didHide() { scheduleUnload() }
 
-    func refreshIfStale() {
-        guard let limit = site.staleAfter else { return }
-        let idle = Date().timeIntervalSince(lastActive)
-        guard idle > limit, !web.isLoading else { return }
-        web.evaluateJavaScript(playingProbe) { [weak self] result, error in
-            guard let self else { return }
-            let playing = result as? Bool ?? false
-            self.lastActive = Date()
-            if playing {
-                return note("pocket stale check app=\(self.spec.id) idle=\(Int(idle))s playing=true; kept")
+    func scheduleUnload() {
+        guard let limit = site.unloadAfter else { return }
+        unloadWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, let web = self.web, !self.isShown else { return }
+            if self.inCall { return self.scheduleUnload() }
+            web.evaluateJavaScript(playingProbe) { [weak self] result, _ in
+                guard let self else { return }
+                if result as? Bool == true { return self.scheduleUnload() }
+                self.unload(reason: "idle \(Int(limit))s")
             }
-            note("pocket stale reload app=\(self.spec.id) idle=\(Int(idle))s limit=\(Int(limit))s probeError=\(error?.localizedDescription ?? "-") host=\(self.web.url?.host ?? "-")")
-            self.ownsHost(self.web.url?.host) ? self.web.reload() : self.web.load(URLRequest(url: self.site.url))
         }
+        unloadWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + limit, execute: work)
     }
 
     override func menuItems() -> [NSMenuItem] {
@@ -185,15 +202,15 @@ final class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessa
     }
 
     @objc func reload() {
-        note("pocket reload app=\(spec.id) source=menu")
-        web.load(URLRequest(url: site.url))
+        note("pocket reload app=\(spec.id) source=menu loaded=\(web != nil)")
+        web?.load(URLRequest(url: site.url))
     }
 
     @objc func restartFromMenu() { restart(reason: "menu") }
 
     func restart(reason: String) {
+        guard let web else { return }
         let pid = web.responds(to: NSSelectorFromString("_webProcessIdentifier")) ? (web.value(forKey: "_webProcessIdentifier") as? Int ?? 0) : 0
-        lastTicks = -1
         guard pid > 0 else {
             note("pocket restart fell back to reload app=\(spec.id) reason=\(reason) cause=no web process id")
             web.load(URLRequest(url: site.url))
@@ -365,7 +382,6 @@ final class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessa
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if webView === web { lastActive = Date() }
         note("pocket loaded app=\(spec.id) host=\(webView.url?.host ?? "-")")
     }
 

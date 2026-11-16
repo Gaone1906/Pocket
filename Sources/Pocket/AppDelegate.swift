@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     lazy var mail = MailWatcher(otp: otp)
     var apps: [String: PocketApp] = [:]
     var otpRunning = false
+    var awake: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if layout.enabled.isEmpty && !layout.setupDone {
@@ -52,6 +53,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         bar.sync(layout.bar.filter { apps[$0] != nil })
         hotKeys.register(layout.hotKeys ? wanted.compactMap(spec) : [])
         syncOtp()
+        syncAwake()
+    }
+
+    func syncAwake() {
+        let needed = apps.values.contains { ($0 as? WebApp)?.site.realtime == true }
+        guard needed != (awake != nil) else { return }
+        if needed {
+            awake = ProcessInfo.processInfo.beginActivity(options: [.userInitiatedAllowingIdleSystemSleep], reason: "keep realtime web apps connected")
+        } else if let awake {
+            ProcessInfo.processInfo.endActivity(awake)
+            self.awake = nil
+        }
+        note("pocket app nap \(needed ? "blocked for realtime apps" : "allowed")")
     }
 
     func syncOtp() {

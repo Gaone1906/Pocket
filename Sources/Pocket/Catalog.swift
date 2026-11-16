@@ -8,7 +8,8 @@ struct WebSpec {
     let zoom: Double
     let agent: String
     let disguise: String?
-    let staleAfter: TimeInterval?
+    let realtime: Bool
+    let unloadAfter: TimeInterval?
 }
 
 struct AppSpec {
@@ -46,15 +47,15 @@ let catalog: [AppSpec] = [
     AppSpec(id: "whatsapp", name: "WhatsApp", summary: "WhatsApp Web, kept connected for messages and calls", symbol: "message.fill",
             glyph: Glyphs.whatsapp, hotKey: UInt32(kVK_ANSI_W),
             web: WebSpec(url: URL(string: "https://web.whatsapp.com/")!, store: UUID(uuidString: "6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A01")!,
-                         hosts: ["whatsapp.com", "whatsapp.net"], zoom: 0.8, agent: safariAgent, disguise: nil, staleAfter: nil)),
+                         hosts: ["whatsapp.com", "whatsapp.net"], zoom: 0.8, agent: safariAgent, disguise: nil, realtime: true, unloadAfter: nil)),
     AppSpec(id: "slack", name: "Slack", summary: "Slack in a panel, with notifications and huddles", symbol: "number",
             glyph: Glyphs.slack, hotKey: UInt32(kVK_ANSI_S),
             web: WebSpec(url: URL(string: "https://app.slack.com/client")!, store: UUID(uuidString: "6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A02")!,
-                         hosts: ["slack.com", "slack-edge.com", "slack-imgs.com", "slackb.com"], zoom: 0.85, agent: chromeAgent, disguise: chromeDisguise, staleAfter: nil)),
+                         hosts: ["slack.com", "slack-edge.com", "slack-imgs.com", "slackb.com"], zoom: 0.85, agent: chromeAgent, disguise: chromeDisguise, realtime: true, unloadAfter: nil)),
     AppSpec(id: "spotify", name: "Spotify", summary: "Spotify web player that keeps playing when hidden", symbol: "music.note",
             glyph: Glyphs.spotify, hotKey: UInt32(kVK_ANSI_M),
             web: WebSpec(url: URL(string: "https://open.spotify.com/")!, store: UUID(uuidString: "6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A03")!,
-                         hosts: ["spotify.com", "scdn.co", "spotifycdn.com", "spotify.net", "spotify.link"], zoom: 0.85, agent: safariAgent, disguise: nil, staleAfter: 1800)),
+                         hosts: ["spotify.com", "scdn.co", "spotifycdn.com", "spotify.net", "spotify.link"], zoom: 0.85, agent: safariAgent, disguise: nil, realtime: false, unloadAfter: 1800)),
 ]
 
 func spec(_ id: String) -> AppSpec? { catalog.first { $0.id == id } }
