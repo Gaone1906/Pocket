@@ -106,8 +106,8 @@ final class PomodoroApp: PocketApp {
         super.init(spec: spec)
     }
 
-    override var defaultSize: NSSize { NSSize(width: 340, height: 428) }
-    override var minSize: NSSize { NSSize(width: 340, height: 428) }
+    override var defaultSize: NSSize { NSSize(width: 340, height: 360) }
+    override var minSize: NSSize { NSSize(width: 340, height: 360) }
     override var resizable: Bool { false }
 
     override func makeContent() -> NSView {
@@ -252,179 +252,93 @@ final class PomodoroApp: PocketApp {
     }
 }
 
-private enum Forest {
-    static let sky = [Color(red: 0.05, green: 0.11, blue: 0.10), Color(red: 0.08, green: 0.19, blue: 0.15), Color(red: 0.11, green: 0.25, blue: 0.18)]
-    static let far = Color(red: 0.13, green: 0.30, blue: 0.21)
-    static let mid = Color(red: 0.08, green: 0.21, blue: 0.15)
-    static let near = Color(red: 0.04, green: 0.12, blue: 0.09)
-    static let moss = Color(red: 0.55, green: 0.70, blue: 0.47)
-    static let mist = Color(red: 0.84, green: 0.90, blue: 0.82)
+private enum Flap {
+    static let backdrop = [Color(red: 0.165, green: 0.169, blue: 0.184), Color(red: 0.071, green: 0.075, blue: 0.082)]
+    static let cardTop = Color(red: 0.149, green: 0.153, blue: 0.169)
+    static let cardBottom = Color(red: 0.118, green: 0.122, blue: 0.133)
+    static let seam = Color(red: 0.051, green: 0.051, blue: 0.059)
+    static let muted = Color(red: 0.545, green: 0.557, blue: 0.580)
+    static let colon = Color(red: 0.333, green: 0.341, blue: 0.361)
+    static let chip = Color.white.opacity(0.06)
 }
 
-private struct Seeded {
-    var state: UInt64
-    mutating func next() -> Double {
-        state = state &* 6364136223846793005 &+ 1442695040888963407
-        return Double(state >> 33) / Double(1 << 31)
-    }
-}
-
-private struct PineRidge: Shape {
-    let seed: UInt64
-    let count: Int
-    let heights: ClosedRange<Double>
-
-    func path(in rect: CGRect) -> Path {
-        var random = Seeded(state: seed)
-        var path = Path()
-        path.addRect(CGRect(x: rect.minX, y: rect.maxY - 6, width: rect.width, height: 6))
-        let step = rect.width / Double(count)
-        for index in 0...count {
-            let x = rect.minX + Double(index) * step + (random.next() - 0.5) * step * 0.7
-            let height = heights.lowerBound + random.next() * (heights.upperBound - heights.lowerBound)
-            let width = height * (0.42 + random.next() * 0.12)
-            let base = rect.maxY - 4
-            for tier in 0..<3 {
-                let top = base - height + Double(tier) * height * 0.24
-                let bottom = base - Double(2 - tier) * height * 0.2
-                let half = width / 2 * (0.62 + Double(tier) * 0.19)
-                path.move(to: CGPoint(x: x, y: top))
-                path.addLine(to: CGPoint(x: x + half, y: bottom))
-                path.addLine(to: CGPoint(x: x - half, y: bottom))
-                path.closeSubpath()
-            }
-            path.addRect(CGRect(x: x - 1.5, y: base - height * 0.2, width: 3, height: height * 0.2 + 4))
-        }
-        return path
-    }
-}
-
-private struct ForestBackdrop: View {
-    let glow: Color
-    let progress: Double
-    let running: Bool
-    let resting: Bool
-    let tick: Date
+private struct FlapCard: View {
+    let text: String
+    let tint: Color
+    @State private var angle: Double = 0
 
     var body: some View {
-        GeometryReader { geo in
-            let size = geo.size
-            ZStack(alignment: .topLeading) {
-                LinearGradient(colors: Forest.sky, startPoint: .top, endPoint: .bottom)
-                RadialGradient(colors: [glow.opacity(0.22), .clear], center: UnitPoint(x: 0.5, y: 0.36), startRadius: 10, endRadius: 210)
-                stars(size)
-                Image(systemName: "moon.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Forest.mist.opacity(0.75))
-                    .position(x: size.width - 34, y: 30)
-                birds(size)
-                PineRidge(seed: 7, count: 9, heights: 46...70).fill(Forest.far).frame(height: 96).offset(y: size.height - 96)
-                PineRidge(seed: 19, count: 7, heights: 40...62).fill(Forest.mid).frame(height: 76).offset(y: size.height - 76)
-                fireflies(size)
-                critter(size)
-                PineRidge(seed: 41, count: 4, heights: 30...48).fill(Forest.near).frame(height: 50).offset(y: size.height - 50)
+        ZStack {
+            VStack(spacing: 0) {
+                Flap.cardTop
+                Flap.cardBottom
             }
+            Text(text)
+                .font(.system(size: 92, weight: .bold).width(.condensed))
+                .monospacedDigit()
+                .foregroundStyle(tint)
+            Flap.seam.frame(height: 2)
         }
-    }
-
-    func stars(_ size: CGSize) -> some View {
-        var random = Seeded(state: 3)
-        let points = (0..<16).map { _ in (CGPoint(x: random.next() * size.width, y: random.next() * size.height * 0.28), 0.8 + random.next() * 1.4, random.next()) }
-        return ForEach(points.indices, id: \.self) { index in
-            let point = points[index]
-            Circle()
-                .fill(Forest.mist.opacity(0.25 + point.2 * 0.35))
-                .frame(width: point.1, height: point.1)
-                .position(point.0)
+        .frame(width: 112, height: 136)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.55), radius: 10, y: 6)
+        .rotation3DEffect(.degrees(angle), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
+        .onChange(of: text) { _, _ in
+            angle = 70
+            withAnimation(.easeOut(duration: 0.35)) { angle = 0 }
         }
-    }
-
-    func birds(_ size: CGSize) -> some View {
-        ForEach(0..<3, id: \.self) { index in
-            Image(systemName: "bird.fill")
-                .font(.system(size: [9, 7, 6][index]))
-                .foregroundStyle(Forest.mist.opacity(0.28))
-                .position(x: 30 + Double(index) * 16, y: 26 + Double(index % 2) * 9)
-        }
-    }
-
-    func fireflies(_ size: CGSize) -> some View {
-        var random = Seeded(state: 11)
-        let spots = (0..<9).map { _ in CGPoint(x: 16 + random.next() * (size.width - 32), y: size.height - 30 - random.next() * 70) }
-        let beat = Int(tick.timeIntervalSince1970)
-        return ForEach(spots.indices, id: \.self) { index in
-            let lit = running && (beat + index * 2) % 3 != 0
-            Circle()
-                .fill(Color(red: 0.93, green: 0.92, blue: 0.55))
-                .frame(width: 3, height: 3)
-                .shadow(color: Color(red: 0.95, green: 0.9, blue: 0.4), radius: lit ? 4 : 0)
-                .opacity(lit ? 0.9 : 0.18)
-                .position(spots[index])
-                .animation(.easeInOut(duration: 0.9), value: lit)
-        }
-    }
-
-    func critter(_ size: CGSize) -> some View {
-        let x = 22 + progress * (size.width - 44)
-        return Image(systemName: resting ? "tortoise.fill" : "hare.fill")
-            .font(.system(size: 15))
-            .foregroundStyle(Forest.mist.opacity(0.85))
-            .position(x: x, y: size.height - 46)
-            .animation(.linear(duration: 0.9), value: progress)
-            .help(resting ? "The tortoise strolls through your break" : "The hare crosses the forest as you focus")
     }
 }
 
-private struct MinutePill: View {
+private struct MinuteChip: View {
     let title: String
-    let icon: String
     @Binding var value: Int
     let range: ClosedRange<Int>
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: icon).font(.system(size: 10)).foregroundStyle(Forest.moss)
-            Text(title).font(.system(size: 11, weight: .medium)).foregroundStyle(Forest.mist.opacity(0.7))
-            nudge("minus", by: -1)
+            Text(title.uppercased())
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(1.4)
+                .foregroundStyle(Flap.muted)
+            step("minus", by: -1)
             Text("\(value)")
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(size: 15, weight: .bold).width(.condensed))
                 .monospacedDigit()
-                .foregroundStyle(Forest.mist)
-                .frame(minWidth: 20)
-            nudge("plus", by: 1)
+                .foregroundStyle(.white.opacity(0.9))
+                .frame(minWidth: 22)
+            step("plus", by: 1)
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Capsule().fill(Color.black.opacity(0.28)))
-        .overlay(Capsule().stroke(Forest.moss.opacity(0.25), lineWidth: 1))
+        .frame(height: 30)
+        .background(Capsule().fill(Flap.chip))
     }
 
-    func nudge(_ symbol: String, by delta: Int) -> some View {
+    func step(_ symbol: String, by delta: Int) -> some View {
         Button {
             value = min(range.upperBound, max(range.lowerBound, value + delta))
         } label: {
             Image(systemName: symbol)
                 .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(Forest.mist.opacity(0.8))
+                .foregroundStyle(.white.opacity(0.75))
                 .frame(width: 18, height: 18)
-                .background(Circle().fill(Forest.moss.opacity(0.18)))
+                .background(Circle().fill(Color.white.opacity(0.08)))
         }
         .buttonStyle(.plain)
     }
 }
 
-private struct ForestButton: ButtonStyle {
+private struct FlapButton: ButtonStyle {
     let fill: Color
     let ink: Color
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            .font(.system(size: 13, weight: .semibold))
             .foregroundStyle(ink)
             .padding(.horizontal, 16)
             .frame(height: 32)
-            .background(Capsule().fill(fill))
-            .overlay(Capsule().stroke(Forest.mist.opacity(0.12), lineWidth: 1))
+            .background(RoundedRectangle(cornerRadius: 8).fill(fill))
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .opacity(configuration.isPressed ? 0.85 : 1)
     }
@@ -439,9 +353,8 @@ struct PomodoroView: View {
     private var tint: Color { Color(nsColor: PomodoroPalette.color(for: model.phase)) }
 
     private var heading: String {
-        if model.isIdle { return "Into the woods" }
-        if case .paused = model.state { return "Resting in the clearing" }
-        return model.phase == .focus ? "Focus" : "Break by the stream"
+        if case .paused = model.state { return "Paused" }
+        return model.phase == .focus ? "Focus" : "Break"
     }
 
     private var toggleTitle: String {
@@ -452,66 +365,48 @@ struct PomodoroView: View {
         }
     }
 
-    private var toggleIcon: String { model.isRunning ? "pause.fill" : "play.fill" }
-
     var body: some View {
-        let now = model.tick
-        let progress = model.isIdle ? 0 : model.progress(at: now)
+        let parts = PomodoroModel.format(model.remaining(at: model.tick)).split(separator: ":").map(String.init)
         VStack(spacing: 0) {
-            HStack(spacing: 6) {
-                Image(systemName: model.phase == .focus ? "leaf.fill" : "drop.fill").font(.system(size: 10))
-                Text(heading.uppercased()).font(.system(size: 10, weight: .semibold)).tracking(1.6)
+            Text(heading.uppercased())
+                .font(.system(size: 11, weight: .semibold))
+                .tracking(3.6)
+                .foregroundStyle(Flap.muted)
+            HStack(spacing: 8) {
+                FlapCard(text: parts.first ?? "00", tint: tint)
+                Text(":")
+                    .font(.system(size: 60, weight: .bold).width(.condensed))
+                    .foregroundStyle(Flap.colon)
+                    .offset(y: -4)
+                FlapCard(text: parts.last ?? "00", tint: tint)
             }
-            .foregroundStyle(Forest.moss)
-            .padding(.top, 26)
-            ZStack {
-                Circle().fill(Color.black.opacity(0.22))
-                Circle().stroke(Forest.moss.opacity(0.16), lineWidth: 6)
-                Circle()
-                    .trim(from: 0, to: progress)
-                    .stroke(tint, style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .shadow(color: tint.opacity(0.5), radius: 6)
-                    .animation(.linear(duration: 0.4), value: progress)
-                VStack(spacing: 2) {
-                    Text(PomodoroModel.format(model.remaining(at: now)))
-                        .font(.system(size: 46, weight: .light, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(tint)
-                    Text(model.phase == .focus ? "\(model.focusMinutes) min focus" : "\(model.breakMinutes) min break")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Forest.mist.opacity(0.5))
-                }
-            }
-            .frame(width: 176, height: 176)
             .padding(.top, 16)
             HStack(spacing: 8) {
-                MinutePill(title: "Focus", icon: "leaf.fill", value: $model.focusMinutes, range: 1...120)
-                MinutePill(title: "Break", icon: "drop.fill", value: $model.breakMinutes, range: 1...60)
+                MinuteChip(title: "Focus", value: $model.focusMinutes, range: 1...120)
+                MinuteChip(title: "Break", value: $model.breakMinutes, range: 1...60)
             }
             .disabled(model.isRunning)
-            .opacity(model.isRunning ? 0.45 : 1)
-            .padding(.top, 20)
+            .opacity(model.isRunning ? 0.4 : 1)
+            .padding(.top, 22)
             HStack(spacing: 8) {
                 Button(action: reset) { Image(systemName: "arrow.counterclockwise") }
-                    .buttonStyle(ForestButton(fill: Color.black.opacity(0.3), ink: Forest.mist))
+                    .buttonStyle(FlapButton(fill: Flap.chip, ink: .white.opacity(0.85)))
                     .disabled(model.isIdle)
                     .opacity(model.isIdle ? 0.4 : 1)
                     .help("Reset")
-                Button(action: toggle) { Label(toggleTitle, systemImage: toggleIcon) }
-                    .buttonStyle(ForestButton(fill: tint, ink: Forest.near))
+                Button(action: toggle) { Text(toggleTitle).frame(minWidth: 70) }
+                    .buttonStyle(FlapButton(fill: tint, ink: Flap.seam))
                     .keyboardShortcut(.space, modifiers: [])
                 Button(action: skip) { Image(systemName: "forward.end.fill") }
-                    .buttonStyle(ForestButton(fill: Color.black.opacity(0.3), ink: Forest.mist))
+                    .buttonStyle(FlapButton(fill: Flap.chip, ink: .white.opacity(0.85)))
                     .disabled(model.isIdle)
                     .opacity(model.isIdle ? 0.4 : 1)
                     .help("Skip to the next phase")
             }
-            .padding(.top, 16)
-            Spacer(minLength: 0)
+            .padding(.top, 14)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ForestBackdrop(glow: tint, progress: progress, running: model.isRunning, resting: model.phase == .rest, tick: now))
+        .background(RadialGradient(colors: Flap.backdrop, center: UnitPoint(x: 0.5, y: 0.4), startRadius: 0, endRadius: 280))
         .ignoresSafeArea()
         .environment(\.colorScheme, .dark)
     }
