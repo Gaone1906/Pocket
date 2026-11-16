@@ -131,6 +131,14 @@ enum Board {
 
     static func hue(_ index: Int) -> Color { hues[((index % hues.count) + hues.count) % hues.count] }
 
+    static func units(_ sessions: [PomodoroSession]) -> Double {
+        (Double(sessions.reduce(0) { $0 + $1.minutes }) / Double(TallyStick.fullMinutes) * 10).rounded() / 10
+    }
+
+    static func unitsLabel(_ units: Double) -> String {
+        units.formatted(.number.precision(.fractionLength(0...1)))
+    }
+
     static func duration(_ minutes: Int) -> String {
         if minutes < 60 { return "\(minutes)m" }
         return minutes % 60 == 0 ? "\(minutes / 60)h" : "\(minutes / 60)h \(minutes % 60)m"
@@ -271,7 +279,7 @@ private struct BoardColumn: View {
                         .foregroundStyle(Board.ink)
                 }
                 Spacer(minLength: 4)
-                Text("\(sessions.count)")
+                Text(Board.unitsLabel(Board.units(sessions)))
                     .font(.system(size: 12, weight: .semibold))
                     .monospacedDigit()
                     .foregroundStyle(Board.muted)
@@ -402,14 +410,14 @@ private struct BoardSettings: View {
                 .tracking(1.6)
                 .foregroundStyle(Board.muted)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("\(today.count)")
+                Text(Board.unitsLabel(Board.units(today)))
                     .font(.system(size: 28, weight: .bold).width(.condensed))
                     .foregroundStyle(Board.gold)
-                Text(today.count == 1 ? "session" : "sessions")
+                Text(Board.units(today) == 1 ? "session" : "sessions")
                     .font(.system(size: 12))
                     .foregroundStyle(Board.muted)
             }
-            Text("\(Board.duration(today.reduce(0) { $0 + $1.minutes })) focused · \(store.sessions.count) all time")
+            Text("\(Board.duration(today.reduce(0) { $0 + $1.minutes })) focused · \(Board.unitsLabel(Board.units(store.sessions))) all time")
                 .font(.system(size: 11))
                 .foregroundStyle(Board.muted)
             Spacer()
