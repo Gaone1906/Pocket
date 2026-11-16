@@ -9,13 +9,23 @@ final class BarController: NSObject {
         launcher = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
         if let button = launcher.button {
-            button.image = NSImage(systemSymbolName: traySpec.symbol, accessibilityDescription: "Pocket apps")
-            button.image?.isTemplate = true
+            button.image = BarController.divider()
             button.target = self
             button.action = #selector(launcherClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.toolTip = "Pocket: more apps and layout"
         }
+    }
+
+    static func divider() -> NSImage {
+        let image = NSImage(size: NSSize(width: 9, height: 18), flipped: false) { rect in
+            NSColor.black.setFill()
+            NSBezierPath(roundedRect: NSRect(x: rect.midX - 0.75, y: 2, width: 1.5, height: rect.height - 4), xRadius: 0.75, yRadius: 0.75).fill()
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = "Pocket apps"
+        return image
     }
 
     @objc func launcherClicked() {
