@@ -67,6 +67,8 @@ let catalog: [AppSpec] = [
                          zoom: 0.85, agent: safariAgent, disguise: nil, realtime: false, unloadAfter: nil)),
     AppSpec(id: "calendar", name: "Calendar", summary: "Month view of the events in your Mac's Calendar app", symbol: "calendar",
             glyph: nil, hotKey: UInt32(kVK_ANSI_C), web: nil),
+    AppSpec(id: "todo", name: "To-do", summary: "A simple list; the next task shows in the menu bar", symbol: "checklist",
+            glyph: nil, hotKey: UInt32(kVK_ANSI_T), web: nil),
 ]
 
 func spec(_ id: String) -> AppSpec? { catalog.first { $0.id == id } }
