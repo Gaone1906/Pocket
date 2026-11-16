@@ -79,8 +79,12 @@ the Pocket code repo; it is public.
 
 ### Moving to another Mac (the owner, or anyone restoring their own data)
 
-Order matters. Sync copies local files over the repo, so if sync is turned on before the data is restored, the first
-change on the new machine pushes a near-empty board over the good one. Git history still holds it, but avoid that.
+Sync will not overwrite the repo with less: if the repo holds sessions or to-dos this Mac has never seen, it holds that
+file back, and board settings → Backup says "GitHub has N sessions this Mac doesn't" with **Bring them in** (merge by id,
+keeping everything local; the current board is kept aside first) and **Keep this Mac's** (overwrite, after a confirm).
+"Seen" means present locally or pushed from this Mac before, tracked by id in `$ROOT/sync-state.json`, so deleting a
+session here still syncs normally. So on a new Mac the shortest path is: install, run step 5, open Pocket, press
+**Bring them in**. The manual steps below are for when you'd rather put the files in place yourself.
 
 1. Install Pocket (`scripts/install.sh`), then quit it from the menu-bar icon's right-click menu.
 2. Get the data: `gh auth login`, then `gh repo clone <owner>/pocket-data /tmp/pocket-data`. Without git, download the
@@ -123,6 +127,8 @@ change on the new machine pushes a near-empty board over the good one. Git histo
   write to the repo. Sync never prompts; it uses `gh auth token -u <login>` with `GIT_TERMINAL_PROMPT=0`.
 - `pull failed` usually means two Macs pushed at once. Fix it in `$ROOT/DataRepo` (`git pull --rebase`, keep the copy with
   more sessions), or delete `$ROOT/DataRepo` and Pocket will clone it again.
+- "GitHub has N … this Mac doesn't": another Mac (or an older install) pushed data this one lacks. Use the buttons
+  described above; the log line `pocket vault sync held name=<board|todos> unseen=<n>` gives the counts.
 - To turn sync off: `defaults delete com.pranav.pocket pocket.backup.repo`.
 
 ## Changing Pocket itself

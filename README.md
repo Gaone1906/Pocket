@@ -48,7 +48,7 @@ Pomodoro sessions and to-dos live in `~/Library/Application Support/Pocket`. Poc
 - **Daily copies.** Every save also writes a dated copy to `Backups/`. The last 30 days are kept, plus the first copy of every month, forever.
 - **Safe loading.** If a file can't be read, Pocket moves it aside as `*.broken-*.json` and loads the newest good copy instead of starting empty.
 - **Restore.** Board settings → Backup lists every copy. Restoring first keeps the current board aside, so it can be undone.
-- **Off-machine copies.** Set `defaults write com.pranav.pocket pocket.backup.repo <private git url>` (and `pocket.backup.githubUser <login>` to use that `gh` account) and Pocket pushes the data to that repo about 90 seconds after each change. Keep that repo private. With Google Drive for Desktop installed, copies are also mirrored to `My Drive/Pocket Backups`; set `pocket.backup.folder` to mirror elsewhere.
+- **Off-machine copies.** Set `defaults write com.pranav.pocket pocket.backup.repo <private git url>` (and `pocket.backup.githubUser <login>` to use that `gh` account) and Pocket pushes the data to that repo about 90 seconds after each change. Keep that repo private. If the repo has sessions this Mac has never had (a new Mac, or a second one), Pocket won't overwrite them: Backup settings offer to bring them in or, after a confirm, replace them. With Google Drive for Desktop installed, copies are also mirrored to `My Drive/Pocket Backups`; set `pocket.backup.folder` to mirror elsewhere.
 
 ## Performance
 
