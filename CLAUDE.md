@@ -62,6 +62,69 @@ Rules that matter:
 Reference integration: the CAT question bank at `~/Desktop/workspace/personal/cat-sectionals/app.js` (search `POCKET`) starts
 40/8 sessions under "Quant Question Bank" and loads 22 questions per focus.
 
+## Backups: setting up and restoring data
+
+Pocket's data is two JSON files under `~/Library/Application Support/Pocket` (`$ROOT` below): `Pomodoro/board.json`
+(projects and sessions) and `todos.json`. Everything else there can be rebuilt. Where copies live:
+
+| Copy | Location |
+| --- | --- |
+| Daily snapshots | `$ROOT/Backups/board/board-YYYY-MM-DD.json`, `$ROOT/Backups/todos/todos-YYYY-MM-DD.json` |
+| Kept-aside and broken files | `board-before-restore-*.json` in the same folder; unreadable originals as `$ROOT/Pomodoro/board.broken-*.json` |
+| Git repo (optional) | `board.json` and `todos.json` at the root of the private repo in `pocket.backup.repo`, cloned to `$ROOT/DataRepo` |
+| Mirror folder (optional) | `pocket.backup.folder`, or `My Drive/Pocket Backups/<name>/` when Google Drive for Desktop is installed |
+
+The owner's data repo is the private `Gaone1906/pocket-data`, synced with the `gh` account `Gaone1906`. Never put data in
+the Pocket code repo; it is public.
+
+### Moving to another Mac (the owner, or anyone restoring their own data)
+
+Order matters. Sync copies local files over the repo, so if sync is turned on before the data is restored, the first
+change on the new machine pushes a near-empty board over the good one. Git history still holds it, but avoid that.
+
+1. Install Pocket (`scripts/install.sh`), then quit it from the menu-bar icon's right-click menu.
+2. Get the data: `gh auth login`, then `gh repo clone <owner>/pocket-data /tmp/pocket-data`. Without git, download the
+   newest `board-*.json` and `todos-*.json` from the Drive folder.
+3. Put it in place:
+   ```bash
+   mkdir -p ~/Library/Application\ Support/Pocket/Pomodoro
+   cp /tmp/pocket-data/board.json ~/Library/Application\ Support/Pocket/Pomodoro/board.json
+   cp /tmp/pocket-data/todos.json ~/Library/Application\ Support/Pocket/todos.json
+   ```
+4. Check it parses: `python3 -m json.tool < ~/Library/Application\ Support/Pocket/Pomodoro/board.json | head`.
+5. Only now turn on sync:
+   ```bash
+   defaults write com.pranav.pocket pocket.backup.repo https://github.com/<owner>/pocket-data.git
+   defaults write com.pranav.pocket pocket.backup.githubUser <gh login>
+   ```
+6. Open Pocket. `~/Library/Logs/pocket.log` should show `pocket vault started ... repo=<url>` and, within about two
+   minutes, `pocket vault synced ... sessions=<n>` or `sync unchanged`. Compare `n` with the session count in the repo.
+
+### Setting up backups for a new user
+
+1. They create their own **private** repo with one commit (e.g. a README), so it can be cloned:
+   `gh repo create <login>/pocket-data --private --add-readme`.
+2. They run step 5 above with their repo and login. Pocket clones it into `$ROOT/DataRepo` on its own.
+3. For Drive, they install Google Drive for Desktop; no setting needed. For any other folder (iCloud, Dropbox):
+   `defaults write com.pranav.pocket pocket.backup.folder "~/Library/Mobile Documents/com~apple~CloudDocs/Pocket Backups"`.
+4. Snapshots need no setup and start with the first launch.
+
+### Restoring on the same Mac
+
+- From a daily snapshot: board settings → Backup → Restore…, pick a day. The current board is kept aside first.
+- By hand, or for to-dos (no restore menu): quit Pocket, copy the snapshot over `board.json` or `todos.json`, reopen.
+- From an older git version: `git -C "$ROOT/DataRepo" log --oneline -- board.json`, then
+  `git -C "$ROOT/DataRepo" show <sha>:board.json > /tmp/board.json`, check it, and copy it in with Pocket quit.
+
+### Troubleshooting sync
+
+- Settings → Backup shows the last error, and the log has the detail: `grep "pocket vault" ~/Library/Logs/pocket.log | tail`.
+- `git clone failed` / `push failed`: check `gh auth status` has the login in `pocket.backup.githubUser` and that it can
+  write to the repo. Sync never prompts; it uses `gh auth token -u <login>` with `GIT_TERMINAL_PROMPT=0`.
+- `pull failed` usually means two Macs pushed at once. Fix it in `$ROOT/DataRepo` (`git pull --rebase`, keep the copy with
+  more sessions), or delete `$ROOT/DataRepo` and Pocket will clone it again.
+- To turn sync off: `defaults delete com.pranav.pocket pocket.backup.repo`.
+
 ## Changing Pocket itself
 
 - Routes live in `Sources/Pocket/PocketServer.swift`, `route(_:)`. Add new routes to the `routes` table, which `GET /` serves,
