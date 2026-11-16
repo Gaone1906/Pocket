@@ -65,6 +65,8 @@ let catalog: [AppSpec] = [
             web: WebSpec(url: URL(string: "https://outlook.office.com/mail/")!, store: UUID(uuidString: "6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A05")!,
                          hosts: ["outlook.office.com", "outlook.office365.com", "outlook.live.com", "office.com", "office365.com", "office.net", "live.com", "outlook.com", "microsoft.com", "microsoftonline.com", "msauth.net", "msftauth.net", "live.net"],
                          zoom: 0.85, agent: safariAgent, disguise: nil, realtime: false, unloadAfter: nil)),
+    AppSpec(id: "calendar", name: "Calendar", summary: "Month view of the events in your Mac's Calendar app", symbol: "calendar",
+            glyph: nil, hotKey: UInt32(kVK_ANSI_C), web: nil),
 ]
 
 func spec(_ id: String) -> AppSpec? { catalog.first { $0.id == id } }
