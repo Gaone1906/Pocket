@@ -85,7 +85,7 @@ struct DeclareSessionCard: View {
 
             section("TIME", optional: true) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Toggle(isOn: $withTime.animation(.smooth(duration: 0.25))) {
+                    Toggle(isOn: $withTime.animation(.smooth(duration: 0.15))) {
                         Text("I know when I worked")
                             .font(.system(size: 12))
                             .foregroundStyle(Board.ink)

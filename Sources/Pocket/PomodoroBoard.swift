@@ -196,7 +196,7 @@ enum Board {
     static var shadow: Color { theme.shadow }
     static let hueCount = BoardTheme.projectOffsets.count
 
-    static let glide = Animation.smooth(duration: 0.55)
+    static let glide = Animation.smooth(duration: 0.3)
 
     static func hue(_ index: Int) -> Color { theme.projectTint(index) }
 
@@ -767,7 +767,7 @@ private struct BoardSettingsPanel: View {
     private func swatch(_ theme: BoardTheme) -> some View {
         let on = theme == themes.theme
         return Button {
-            withAnimation(.easeInOut(duration: 0.3)) { themes.theme = theme }
+            withAnimation(.easeInOut(duration: 0.15)) { themes.theme = theme }
         } label: {
             Circle()
                 .fill(theme.swatchStyle)
@@ -929,7 +929,7 @@ struct PomodoroBoardView: View {
                                 }
                                 Button {
                                     let id = store.addProject()
-                                    DispatchQueue.main.async { withAnimation { reader.scrollTo(id, anchor: .trailing) } }
+                                    DispatchQueue.main.async { withAnimation(.smooth(duration: 0.2)) { reader.scrollTo(id, anchor: .trailing) } }
                                 } label: {
                                     VStack(spacing: 8) {
                                         Image(systemName: "plus")
@@ -975,7 +975,7 @@ struct PomodoroBoardView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
             }
         }
-        .animation(.smooth(duration: 0.3), value: declaring?.id)
+        .animation(.smooth(duration: 0.15), value: declaring?.id)
         .animation(Board.glide, value: mode)
         .animation(Board.glide, value: showStats)
         .animation(Board.glide, value: showPanel)

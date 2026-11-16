@@ -406,7 +406,7 @@ private struct FlapCard: View {
         .rotation3DEffect(.degrees(angle), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
         .onChange(of: text) { _, _ in
             angle = 70
-            withAnimation(.easeOut(duration: 0.35)) { angle = 0 }
+            withAnimation(.easeOut(duration: 0.18)) { angle = 0 }
         }
     }
 }
