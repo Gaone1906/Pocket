@@ -10,7 +10,7 @@ Small apps that live in the macOS menu bar. Click an icon and the app drops down
 | Gmail | Unread count in the menu bar, new-mail notifications |
 | Outlook | Outlook mail for work or personal Microsoft accounts |
 | Calendar | Month view of the events in your Mac's Calendar app |
-| To-do | A simple list; the next task shows in the menu bar |
+| To-do | A simple list; the menu bar shows one open task at a time, moving to the next every minute |
 | Pomodoro | Focus, break and long-break timer; the countdown shows in the menu bar, gold while focusing and silver on a break. The expand button opens a board where finished sessions glow as dots until you file them as tally marks under a project; each project counts one stick per 25 minutes focused, struck through every five, with a shorter stick for the remainder. The heading switches to a Calendar table with a row per day and a cell per project. The left sidebar shows sessions and time focused today and all time; the settings button at the top right holds the timer lengths and eight pastel themes (Sage, Rose, Butter, Apricot, Sky, Lavender, Blush, Stone) and a dark Bronze theme with metallic accents, which tint the whole board and the timer |
 | Calculator | Type or tap a calculation and see the answer as you go |
 | Scratchpad | Notes in pages, with headings, bold, italic, underline, strikethrough and bulleted or numbered lists (type `- `, `1. ` or `# ` to start one) |
