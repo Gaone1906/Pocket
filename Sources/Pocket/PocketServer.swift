@@ -120,7 +120,7 @@ final class PocketServer {
     private static let routes = [
         "GET /": "this list",
         "GET /pomodoro": "timer state",
-        "POST /pomodoro/start": "start or resume focus; body {project?, focus?, rest?, long?} in minutes",
+        "POST /pomodoro/start": "start or resume focus; body {project?, focus?, rest?, long?} in minutes, hold? to wait for a start after each break",
         "POST /pomodoro/pause": "pause a running phase",
         "POST /pomodoro/resume": "resume a paused phase",
         "POST /pomodoro/stop": "stop and reset to idle",
@@ -151,7 +151,7 @@ final class PocketServer {
                     rest: try Self.minutes(json, "rest", 1...90),
                     long: try Self.minutes(json, "long", 1...120)
                 )
-                pomodoro.remoteStart(project: project, plan: plan, source: source)
+                pomodoro.remoteStart(project: project, plan: plan, hold: try Self.flag(json, "hold"), source: source)
                 return Response(status: 200, body: pomodoro.remoteState())
             case ("POST", "/pomodoro/pause"):
                 pomodoro.remotePause(source: source)
@@ -216,6 +216,12 @@ final class PocketServer {
         guard let text = value as? String else { throw Invalid(message: "\(key) must be a string") }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private static func flag(_ json: [String: Any], _ key: String) throws -> Bool? {
+        guard let value = json[key], !(value is NSNull) else { return nil }
+        guard let flag = value as? Bool else { throw Invalid(message: "\(key) must be true or false") }
+        return flag
     }
 
     private static func minutes(_ json: [String: Any], _ key: String, _ range: ClosedRange<Int>) throws -> Int? {

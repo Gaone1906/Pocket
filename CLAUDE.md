@@ -18,7 +18,7 @@ Who may call:
 | Route | Does |
 | --- | --- |
 | `GET /pomodoro` | Current state (below) |
-| `POST /pomodoro/start` | Starts focus from idle, or resumes a paused phase. Body, all optional: `{"project": "Name", "focus": 40, "rest": 8, "long": 15}` |
+| `POST /pomodoro/start` | Starts focus from idle, or resumes a paused phase. Body, all optional: `{"project": "Name", "focus": 40, "rest": 8, "long": 15, "hold": true}` |
 | `POST /pomodoro/pause` | Pauses a running phase; no-op otherwise |
 | `POST /pomodoro/resume` | Resumes a paused phase; no-op otherwise |
 | `POST /pomodoro/stop` | Back to idle. The focus in progress is discarded, not logged |
@@ -51,6 +51,9 @@ Rules that matter:
   `/pomodoro/stats` does, rounded to one decimal.
 - **Breaks.** Pocket moves to the break and back to focus on its own; you cannot skip phases through the API. Show your own
   break screen while `phase` is `rest` or `long`.
+- **Hold after break.** With `"hold": true` on a start from idle, each break ends with focus paused at full length and
+  `waiting: true` instead of starting on its own; `cycle` has already gone up. `POST /pomodoro/resume` (or Start in the
+  menu bar) begins it. Like custom durations, `hold` lasts until the run is stopped.
 
 ### Pattern: tie your app's work to a focus session
 
