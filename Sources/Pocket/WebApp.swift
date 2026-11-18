@@ -38,7 +38,7 @@ let mediaScript = """
 
 let playingProbe = "typeof window.__pocketPlaying === 'function' && window.__pocketPlaying() === true"
 
-final class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, WKDownloadDelegate {
+class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, WKDownloadDelegate {
     let site: WebSpec
     let container = NSView()
     var web: WKWebView?
