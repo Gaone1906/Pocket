@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     lazy var tray = TrayApp()
     var otpRunning = false
     var awake: NSObjectProtocol?
+    var termSource: DispatchSourceSignal?
     var recordingShortcut = false {
         didSet { sync() }
     }
@@ -35,8 +36,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(remoteRestart(_:)),
                                                             name: Notification.Name("com.pranav.pocket.restart"), object: nil)
         PocketServer.shared.start()
+        signal(SIGTERM, SIG_IGN)
+        let term = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        term.setEventHandler {
+            note("pocket received SIGTERM; terminating")
+            NSApp.terminate(nil)
+        }
+        term.resume()
+        termSource = term
         if !layout.setupDone { SetupController.shared.present() }
         note("pocket started apps=\(layout.enabled.joined(separator: ","))")
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        note("pocket terminating apps=\(apps.keys.sorted().joined(separator: ","))")
+        apps.values.forEach { $0.stop() }
     }
 
     func sync() {
