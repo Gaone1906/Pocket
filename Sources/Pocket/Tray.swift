@@ -200,7 +200,7 @@ struct ShelfList: View {
         VStack(alignment: .leading, spacing: 16) {
             ShelfSection(layout: layout, spot: .bar, title: "Menu bar", symbol: "menubar.rectangle", apps: layout.bar, editing: editing, open: open)
             ForEach(layout.customShelves) { shelf in
-                ShelfSection(layout: layout, spot: .shelf(shelf.id), title: shelf.name, symbol: "square.stack", apps: shelf.apps, editing: editing, open: open)
+                ShelfSection(layout: layout, spot: .shelf(shelf.id), title: shelf.name, symbol: "rectangle.stack", apps: shelf.apps, editing: editing, open: open)
             }
             if editing {
                 NewShelfButton { layout.addShelf() }
@@ -272,7 +272,7 @@ struct ShelfSection: View {
                     .frame(width: 14, height: 22)
                     .contentShape(Rectangle())
                     .draggable("shelf:\(shelfId)") {
-                        Label("Shelf", systemImage: "square.stack").padding(6)
+                        Label("Shelf", systemImage: "rectangle.stack").padding(6)
                     }
                     .help("Drag to reorder")
             }
