@@ -27,7 +27,8 @@ Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs)
 | `schedule.routine` | UUID | the routine, with `plan`, plus `_pos` | `schedule.json` `routines` |
 | `schedule.check` | `routine\|day\|slot\|step` | the check | `schedule.json` `checks` |
 | `schedule.settings` | `book` | `{nightFrom, dayFrom}` | `schedule.json` top-level scalars |
-| `settings.prefs` | `prefs` | `{theme}` | web only |
+| `settings.prefs` | `prefs` | `{theme}` | web only (main app) |
+| `settings.prefs` | `orario` | `{theme}` | web only (`web/orario/`, default Butter) |
 
 `_pos` keeps list order (projects, routines). It exists only in the cloud; the Mac strips it when it writes a file and puts its own index back when it reads one. `CloudDocument.all` in `CloudSync.swift` is the mapping; a new vault file gets one row there.
 
