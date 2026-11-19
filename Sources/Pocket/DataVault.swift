@@ -17,6 +17,20 @@ enum PocketData {
     static var syncState: URL { root.appendingPathComponent("sync-state.json") }
 }
 
+private struct VaultFile {
+    let name: String
+    let source: URL
+    let noun: String
+
+    static var all: [VaultFile] {
+        [VaultFile(name: "board", source: PocketData.board, noun: "session"),
+         VaultFile(name: "todos", source: PocketData.todos, noun: "to-do"),
+         VaultFile(name: "schedule", source: PocketData.schedule, noun: "check-off")]
+    }
+
+    static func noun(_ name: String) -> String { all.first { $0.name == name }?.noun ?? "item" }
+}
+
 struct VaultSnapshot: Identifiable {
     let url: URL
     let day: Date
@@ -73,9 +87,9 @@ final class DataVault: ObservableObject {
 
     func start() {
         note("pocket vault started root=\(PocketData.root.path) mirror=\(mirrorFolder?.path ?? "none") repo=\(repoURL ?? "none")")
-        for (file, name) in [(PocketData.board, "board"), (PocketData.todos, "todos")] {
-            guard let data = try? Data(contentsOf: file), (try? JSONSerialization.jsonObject(with: data)) != nil else { continue }
-            snapshot(data, name: name, count: -1)
+        for file in VaultFile.all {
+            guard let data = try? Data(contentsOf: file.source), (try? JSONSerialization.jsonObject(with: data)) != nil else { continue }
+            snapshot(data, name: file.name, count: -1)
         }
         scheduleSync(after: 20)
     }
@@ -247,9 +261,11 @@ final class DataVault: ObservableObject {
         var known = loadSyncState()
         var blocked: [String: Int] = [:]
         var pushed: [String: Set<String>] = [:]
-        for (source, name) in [(PocketData.board, "board.json"), (PocketData.todos, "todos.json")] {
+        for file in VaultFile.all {
+            let source = file.source
+            let key = file.name
+            let name = "\(key).json"
             let target = repo.appendingPathComponent(name)
-            let key = (name as NSString).deletingPathExtension
             let local = Self.ids(in: try? Data(contentsOf: source), name: key)
             let remote = Self.ids(in: try? Data(contentsOf: target), name: key)
             let unseen = remote.subtracting(local).subtracting(known[key] ?? [])
@@ -267,7 +283,7 @@ final class DataVault: ObservableObject {
                 finish(problem: "copy \(name) failed: \(error.localizedDescription)")
                 return
             }
-            if name == "board.json", let data = try? Data(contentsOf: source),
+            if key == "board", let data = try? Data(contentsOf: source),
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 sessions = (json["sessions"] as? [Any])?.count ?? 0
             }
@@ -291,7 +307,7 @@ final class DataVault: ObservableObject {
     }
 
     private static func heldMessage(_ blocked: [String: Int]) -> String {
-        let parts = blocked.sorted { $0.key < $1.key }.map { "\($0.value) \($0.key == "board" ? "session" : "to-do")\($0.value == 1 ? "" : "s")" }
+        let parts = blocked.sorted { $0.key < $1.key }.map { "\($0.value) \(VaultFile.noun($0.key))\($0.value == 1 ? "" : "s")" }
         return "GitHub has \(parts.joined(separator: " and ")) this Mac doesn't"
     }
 
@@ -317,13 +333,14 @@ final class DataVault: ObservableObject {
 
     static func ids(in data: Data?, name: String) -> Set<String> {
         guard let data, let json = try? JSONSerialization.jsonObject(with: data) else { return [] }
-        let list: [Any]?
-        if name == "board" {
-            list = (json as? [String: Any])?["sessions"] as? [Any]
-        } else {
-            list = json as? [Any]
+        let object = json as? [String: Any]
+        let list: [Any]
+        switch name {
+        case "board": list = object?["sessions"] as? [Any] ?? []
+        case "schedule": list = (object?["checks"] as? [Any] ?? []) + (object?["routines"] as? [Any] ?? [])
+        default: list = json as? [Any] ?? []
         }
-        return Set((list ?? []).compactMap { ($0 as? [String: Any])?["id"] as? String })
+        return Set(list.compactMap { ($0 as? [String: Any])?["id"] as? String })
     }
 
     private func finish(problem: String?) {
