@@ -15,19 +15,28 @@ final class Layout: ObservableObject {
 
     init() {
         let known = Set(catalog.map(\.id))
-        let barIds = (defaults.stringArray(forKey: "layout.bar") ?? []).filter(known.contains)
-        bar = barIds
+        var barIds = (defaults.stringArray(forKey: "layout.bar") ?? []).filter(known.contains)
         var trayIds = (defaults.stringArray(forKey: "layout.tray") ?? []).filter(known.contains)
         let done = defaults.bool(forKey: "setup.done")
         let store = UserDefaults.standard
         let listed = Set(store.stringArray(forKey: "layout.offered") ?? catalog.filter { $0.link == nil }.map(\.id))
         let fresh = catalog.map(\.id).filter { !listed.contains($0) && !barIds.contains($0) && !trayIds.contains($0) }
         if done && !fresh.isEmpty {
-            trayIds += fresh
-            store.set(trayIds, forKey: "layout.tray")
-            note("pocket new apps added to dropdown apps=\(fresh.joined(separator: ","))")
+            let pinned = fresh.filter { id in catalog.contains { $0.id == id && $0.pinnedByDefault } }
+            let dropped = fresh.filter { !pinned.contains($0) }
+            if !pinned.isEmpty {
+                barIds += pinned
+                store.set(barIds, forKey: "layout.bar")
+                note("pocket new apps added to menu bar apps=\(pinned.joined(separator: ","))")
+            }
+            if !dropped.isEmpty {
+                trayIds += dropped
+                store.set(trayIds, forKey: "layout.tray")
+                note("pocket new apps added to dropdown apps=\(dropped.joined(separator: ","))")
+            }
         }
         store.set(catalog.map(\.id), forKey: "layout.offered")
+        bar = barIds
         tray = trayIds
         setupDone = done
         hotKeys = defaults.object(forKey: "hotkeys.enabled") as? Bool ?? true
@@ -38,7 +47,13 @@ final class Layout: ObservableObject {
         var added: [String] = []
         for app in catalog where !offered.contains(app.id) {
             offered.insert(app.id)
-            guard let key = app.hotKey, !map.values.contains(.option(key)) else { continue }
+            guard let key = app.hotKey else { continue }
+            let holders = map.filter { $0.value == .option(key) }.map(\.key).sorted()
+            if !holders.isEmpty {
+                guard app.claimsHotKey else { continue }
+                holders.forEach { map[$0] = nil }
+                note("pocket shortcut claimed app=\(app.id) from=\(holders.joined(separator: ",")) keys=\(Shortcut.option(key).display)")
+            }
             map[app.id] = .option(key)
             added.append(app.id)
         }
