@@ -28,25 +28,29 @@ function pastel(id, name, hue, factor) {
   };
 }
 
-const bronze = {
-  id: "bronze",
-  name: "Bronze",
-  dark: true,
-  backdrop: "#2B2C30",
-  sidebar: "#252629",
-  card: "#34353A",
-  line: "#46474D",
-  ink: "#EDE7DF",
-  muted: "#A39D95",
-  faint: "#6E6B67",
-  accent: "#C8925A",
-  accentInk: "#D9A86C",
-  shadow: "rgba(0,0,0,0.45)",
-  pill: "#404146",
-  swatch: "#36373B",
-  swatchRing: "#D9A86C",
-  tints: ["#C08A52", "#B8704A", "#C9A55A", "#D8C3A0", "#9EA3A8", "#C98F84", "#8A949E", "#D4AF37"],
-};
+function dusk(id, name, ground, glow, depth = 1) {
+  const base = (sat, l, a = 1) => hsl(ground, Math.min(100, sat * depth), l, a);
+  const lit = (sat, l, a = 1) => hsl(glow, sat, l, a);
+  return {
+    id,
+    name,
+    dark: true,
+    backdrop: base(46, 11),
+    sidebar: base(48, 8.5),
+    card: base(36, 15.5),
+    line: base(28, 23),
+    ink: lit(40, 93),
+    muted: base(18, 70),
+    faint: base(14, 48),
+    accent: lit(62, 76),
+    accentInk: lit(70, 81),
+    shadow: "rgba(0,0,0,0.45)",
+    pill: base(32, 20),
+    swatch: base(46, 14),
+    swatchRing: lit(70, 81),
+    tints: OFFSETS.map((o) => hsl(glow + o, 55, 74)),
+  };
+}
 
 export const THEMES = [
   pastel("sage", "Sage", 145, 1),
@@ -57,11 +61,18 @@ export const THEMES = [
   pastel("lavender", "Lavender", 262, 0.95),
   pastel("blush", "Blush", 328, 0.9),
   pastel("stone", "Stone", 32, 0.28),
-  bronze,
+  dusk("moonlit-sage", "Moonlit Sage", 160, 140),
+  dusk("harbour", "Harbour", 218, 24),
+  dusk("aurora", "Aurora", 268, 158),
+  dusk("nocturne", "Nocturne", 256, 272),
+  dusk("candlelight", "Candlelight", 336, 44),
+  dusk("mint-cocoa", "Mint Cocoa", 28, 156, 0.7),
+  dusk("coral-reef", "Coral Reef", 178, 12),
+  dusk("plum-blossom", "Plum Blossom", 302, 334),
 ];
 
 export function theme(id) {
-  return THEMES.find((t) => t.id === id) || (id && id !== "sage" ? bronze : THEMES[0]);
+  return THEMES.find((t) => t.id === id) || THEMES[0];
 }
 
 export function apply(id) {
@@ -79,6 +90,7 @@ export function apply(id) {
     "--accent-ink": t.accentInk,
     "--shadow": t.shadow,
     "--pill": t.pill,
+    "--on-accent": t.dark ? t.backdrop : "#fff",
   };
   for (const k in map) root.setProperty(k, map[k]);
   t.tints.forEach((c, i) => root.setProperty(`--tint-${i}`, c));

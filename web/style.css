@@ -436,16 +436,13 @@ small {
 
 .primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent, #fff);
   padding: 11px 26px;
   border-radius: 999px;
   font-weight: 600;
   box-shadow: 0 6px 16px -8px var(--accent);
 }
 
-[data-dark="1"] .primary {
-  color: #1e1f22;
-}
 
 .primary.wide {
   width: 100%;
@@ -541,7 +538,7 @@ h3 .link {
 
 .icon.accent {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent, #fff);
 }
 
 .icon.quiet {
@@ -556,7 +553,7 @@ h3 .link {
   display: grid;
   place-items: center;
   flex: none;
-  color: #fff;
+  color: var(--on-accent, #fff);
 }
 
 .tick svg {
@@ -757,7 +754,7 @@ h3 .link {
 
 .cell.on b {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent, #fff);
 }
 
 .dots {

@@ -493,7 +493,7 @@ function viewSettings() {
     <div class="card list">
       <h3>Theme</h3>
       <div class="themes">
-        ${THEMES.map((t) => `<button class="swatch ${p.theme === t.id ? "on" : ""}" data-theme="${t.id}" style="--sw:${t.swatch};--ring:${t.swatchRing};--bg:${t.backdrop}"><i></i><span>${t.name}</span></button>`).join("")}
+        ${THEMES.map((t) => `<button class="swatch ${p.theme === t.id ? "on" : ""}" data-theme="${t.id}" style="--sw:${t.dark ? t.accent : t.swatch};--ring:${t.swatchRing};--bg:${t.backdrop}"><i></i><span>${t.name}</span></button>`).join("")}
       </div>
     </div>
     <div class="card list">
