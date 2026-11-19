@@ -816,34 +816,6 @@ button:disabled {
   color: var(--faint);
 }
 
-.summary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
-  margin-bottom: 12px;
-}
-
-.mini {
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.eyebrow {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--faint);
-  font-weight: 600;
-}
-
-.mini b {
-  font-size: 15px;
-  font-weight: 600;
-}
-
 .title-row {
   display: flex;
   align-items: center;
@@ -975,20 +947,6 @@ button:disabled {
   margin-bottom: 12px;
   color: var(--muted);
   text-align: left;
-}
-
-.notes p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.note {
-  padding: 4px 16px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 
 .wday {
@@ -1540,4 +1498,30 @@ button:disabled {
 
 .manual input + input {
   margin-top: 10px;
+}
+
+.products .product .grow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.products .product b {
+  font-weight: 600;
+}
+
+.products .times {
+  color: var(--accent-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.amount {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.step.done .amount {
+  color: inherit;
 }
