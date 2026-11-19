@@ -15,7 +15,7 @@ const ui = {
 };
 
 function prefs() {
-  return { theme: "sage", ...(store.get("settings.prefs", "prefs") || {}) };
+  return { theme: "butter", ...(store.get("settings.prefs", "orario") || {}) };
 }
 
 function viewSettings() {
@@ -145,7 +145,7 @@ document.addEventListener("click", async (e) => {
     if (r) return;
   }
   if (d.theme) {
-    store.put("settings.prefs", "prefs", { ...prefs(), theme: d.theme });
+    store.put("settings.prefs", "orario", { ...prefs(), theme: d.theme });
   } else if (d.night) {
     orario.setNightFrom(Number(d.night));
   } else if (d.sync !== undefined) {
