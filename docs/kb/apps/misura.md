@@ -58,4 +58,4 @@ Design canvas: https://claude.ai/artifact/G4JvGyFuyzKR5jwCZbdbRS
 
 ## Web
 
-`web/terra/`: Day (week strip, ring, entries, Meal / Workout / Weight buttons), Week, Month and Settings, plus sheets to add or edit a meal or workout and to weigh in (with a 14-day trend). First run asks for the setup link, then the plan.
+`web/terra/`: Day (week strip, ring, entries, a + button that fans out Meal, Workout and Weight), Week, Month and Settings, plus sheets to add or edit a meal or workout and to weigh in (with a 14-day trend). First run asks for the setup link, then the plan.

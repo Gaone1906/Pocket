@@ -19,6 +19,7 @@ const ui = {
   toast: "",
   draft: null,
   weigh: null,
+  fab: false,
 };
 
 const fmt = (n) => {
@@ -93,11 +94,6 @@ function viewDay() {
     <div class="card list">
       ${items.length ? items.map((e) => `<button class="it" data-edit="${esc(e.id)}"><span>${esc(e.title)}</span><b class="${e.kind === "workout" ? "good" : ""}">${e.kind === "workout" ? fmt(-e.kcal * m.plan.watchShare) : fmt(e.kcal)}</b></button>`).join("") : `<div class="empty">Nothing logged</div>`}
       <button class="it" data-sheet="weigh"><span>Weight</span><b>${kg != null ? kg.toFixed(1) + " kg" : "–"}</b></button>
-    </div>
-    <div class="dock">
-      <button class="primary" data-sheet="meal">Meal</button>
-      <button class="soft food-soft" data-sheet="workout">Workout</button>
-      <button class="soft" data-sheet="weigh">Weight</button>
     </div>
   </main>`;
 }
@@ -361,7 +357,15 @@ function render() {
     } else sheet = sheetEntry(ui.sheet);
     if (sheet) sheet = `<div class="dim" data-close></div>${sheet}`;
   }
-  app.innerHTML = views[ui.view]() + sheet + (ui.toast ? `<div class="toast">${esc(ui.toast)}</div>` : "");
+  app.innerHTML = views[ui.view]() + (ui.view === "settings" ? "" : fab()) + sheet + (ui.toast ? `<div class="toast">${esc(ui.toast)}</div>` : "");
+}
+
+function fab() {
+  return `<div class="fabs${ui.fab ? " open" : ""}"><div class="fab-dim" data-fab></div><div class="fab-menu">
+    <button class="fab-opt" data-sheet="weigh"><span>Weight</span></button>
+    <button class="fab-opt burn" data-sheet="workout"><span>Workout</span></button>
+    <button class="fab-opt meal" data-sheet="meal"><span>Meal</span></button>
+  </div><button class="fab" data-fab aria-label="Add" aria-expanded="${ui.fab ? "true" : "false"}">${ICONS.plus}</button></div>`;
 }
 
 function toast(text) {
@@ -376,6 +380,7 @@ function toast(text) {
 
 function go(view) {
   ui.view = view;
+  ui.fab = false;
   ui.sheet = null;
   ui.setupError = "";
   if (view !== "settings") writeLocal("misura.view", view);
@@ -389,9 +394,17 @@ function savePlan(next) {
 }
 
 document.addEventListener("click", async (e) => {
-  const t = e.target.closest("[data-go],[data-day],[data-pick],[data-sheet],[data-edit],[data-close],[data-delete],[data-kg],[data-share],[data-sync],[data-export],[data-signout]");
+  const t = e.target.closest("[data-fab],[data-go],[data-day],[data-pick],[data-sheet],[data-edit],[data-close],[data-delete],[data-kg],[data-share],[data-sync],[data-export],[data-signout]");
   if (!t) return;
   const d = t.dataset;
+  if (d.fab !== undefined) {
+    const box = document.querySelector(".fabs");
+    const open = !box.classList.contains("open");
+    ui.fab = open;
+    box.classList.toggle("open", open);
+    box.querySelector(".fab").setAttribute("aria-expanded", String(open));
+    return;
+  }
   if (d.go) return go(d.go);
   if (d.day) {
     ui.day = d.day === P.today() ? null : d.day;
@@ -402,6 +415,7 @@ document.addEventListener("click", async (e) => {
     return go("day");
   }
   if (d.sheet) {
+    ui.fab = false;
     ui.sheet = d.sheet;
     ui.weigh = null;
     render();
