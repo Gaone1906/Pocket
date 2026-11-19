@@ -52,8 +52,7 @@ Web (`store.js`): edits go to a local outbox in `localStorage` and are pushed wi
 
 Built for an iPhone 14 screen first (390 pt wide, Home Screen app), with a sidebar layout on laptops.
 
-- **Hair only** (Pranav, 2026-11-19): this is the app shared with Pranav's parents, so it shows only the Orario routine whose name contains "hair". Day, Week and Month views, today's morning and night checklists with tips, Mark all done / Undo all, the week strip and month marks, and **Change the schedule** for that routine's steps (add, edit, reorder and delete per weekday and slot). It can't add, rename or delete routines, Pomodoro isn't shown, and no app or routine name appears (the tab, page title and Home Screen name read "Routine"). Every other record in the table, other routines and Pomodoro included, is synced and kept untouched. A separate Orario app with every routine and a separate Pomodoro web app are planned.
-- **Settings**: theme (shared with every device), night start hour, sync status, Download a copy, Disconnect.
+- **Hair only, read only** (Pranav, 2026-11-19): this is the app shared with Pranav's parents. It shows only the Orario routine whose name contains "hair", in Day, Week and Month views with tips, and never writes: no ticking, no Mark all done, no schedule editor, no settings, no bottom bar. A sync button at the top pulls the latest; the theme and night start hour come from the synced data. No app or routine name appears (the page title and Home Screen name read "Routine"). Ticking and editing happen in the Orario master app (`web/orario/`) or on the Mac.
 
 ## Setting it up (owner, once)
 
