@@ -10,6 +10,7 @@ struct WebSpec {
     let disguise: String?
     let realtime: Bool
     let unloadAfter: TimeInterval?
+    var watch: String? = nil
 }
 
 struct AppSpec {
@@ -59,7 +60,7 @@ let catalog: [AppSpec] = [
     AppSpec(id: "spotify", name: "Spotify", summary: "Spotify web player that keeps playing when hidden", symbol: "music.note",
             glyph: Glyphs.spotify, hotKey: UInt32(kVK_ANSI_M),
             web: WebSpec(url: URL(string: "https://open.spotify.com/")!, store: UUID(uuidString: "6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A03")!,
-                         hosts: ["spotify.com", "scdn.co", "spotifycdn.com", "spotify.net", "spotify.link"], zoom: 0.85, agent: safariAgent, disguise: nil, realtime: false, unloadAfter: 1800)),
+                         hosts: ["spotify.com", "scdn.co", "spotifycdn.com", "spotify.net", "spotify.link"], zoom: 0.85, agent: safariAgent, disguise: nil, realtime: true, unloadAfter: 1800, watch: playbackWatch)),
     AppSpec(id: "gmail", name: "Gmail", summary: "Gmail with unread count and new-mail notifications", symbol: "envelope.fill",
             glyph: Glyphs.gmail, hotKey: UInt32(kVK_ANSI_G),
             web: WebSpec(url: URL(string: "https://mail.google.com/mail/")!, store: UUID(uuidString: "6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A04")!,

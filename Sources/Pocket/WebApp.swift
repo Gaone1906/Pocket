@@ -36,6 +36,51 @@ let mediaScript = """
 })();
 """
 
+let playbackWatch = """
+(() => {
+  const counts = {};
+  const report = (kind, detail, cap = 30) => {
+    counts[kind] = (counts[kind] || 0) + 1;
+    if (counts[kind] > cap) return;
+    try { window.webkit.messageHandlers.pocketWatch.postMessage({ kind: String(kind), detail: String(detail ?? "").slice(0, 300) }); } catch (e) {}
+  };
+  const watched = /connect-state|track-playback|playback|license|widevine|fairplay|melody|gabo|dealer|spclient/i;
+  const bare = url => String(url || "").split("?")[0];
+  const nativeFetch = window.fetch;
+  window.fetch = function (input, init) {
+    const url = typeof input === "string" ? input : (input && input.url) || "";
+    return nativeFetch.apply(this, arguments).then(
+      response => { if (!response.ok && watched.test(url)) report("http " + response.status, bare(url)); return response; },
+      error => { if (watched.test(url)) report("fetch failed", bare(url) + " " + error); throw error; });
+  };
+  const NativeSocket = window.WebSocket;
+  window.WebSocket = class extends NativeSocket {
+    constructor(url, protocols) {
+      super(url, protocols);
+      const host = bare(url);
+      this.addEventListener("open", () => report("socket open", host, 100));
+      this.addEventListener("close", event => report("socket closed", host + " code=" + event.code + " clean=" + event.wasClean, 100));
+      this.addEventListener("error", () => report("socket error", host, 100));
+    }
+  };
+  if (navigator.requestMediaKeySystemAccess) {
+    const ask = navigator.requestMediaKeySystemAccess.bind(navigator);
+    navigator.requestMediaKeySystemAccess = (system, configs) => ask(system, configs).then(
+      access => { report("drm granted", system, 5); return access; },
+      error => { report("drm refused", system + " " + error, 10); throw error; });
+  }
+  for (const type of ["error", "stalled", "abort", "emptied"]) {
+    document.addEventListener(type, event => {
+      if (event.target instanceof HTMLMediaElement) report("media " + type, event.target.error ? event.target.error.code + " " + event.target.error.message : "");
+    }, true);
+  }
+  window.addEventListener("unhandledrejection", event => report("rejection", event.reason && (event.reason.message || event.reason)));
+  window.addEventListener("error", event => report("script error", event.message));
+  const nativeError = console.error;
+  console.error = function (...args) { report("console", args.map(a => a && a.message ? a.message : a).join(" ")); return nativeError.apply(this, args); };
+})();
+"""
+
 let playingProbe = "typeof window.__pocketPlaying === 'function' && window.__pocketPlaying() === true"
 
 class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, WKDownloadDelegate {
@@ -90,6 +135,10 @@ class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHand
         }
         config.userContentController.addUserScript(WKUserScript(source: notificationShim, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         config.userContentController.add(self, name: "pocketNotify")
+        if let watch = site.watch {
+            config.userContentController.addUserScript(WKUserScript(source: watch, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+            config.userContentController.add(self, name: "pocketWatch")
+        }
         let web = WKWebView(frame: container.bounds, configuration: config)
         web.autoresizingMask = [.width, .height]
         web.customUserAgent = site.agent
@@ -120,6 +169,7 @@ class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHand
         titleWatch = nil
         popups.values.forEach { closePopup($0.view, reason: reason) }
         web.configuration.userContentController.removeScriptMessageHandler(forName: "pocketNotify")
+        if site.watch != nil { web.configuration.userContentController.removeScriptMessageHandler(forName: "pocketWatch") }
         web.stopLoading()
         web.removeFromSuperview()
         self.web = nil
@@ -413,6 +463,9 @@ class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHand
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         guard let body = message.body as? [String: String] else { return }
+        if message.name == "pocketWatch" {
+            return note("pocket web watch app=\(spec.id) kind=\(body["kind"] ?? "-") shown=\(isShown) detail=\(body["detail"] ?? "-")")
+        }
         if isShown && panel.isKeyWindow { return }
         let content = UNMutableNotificationContent()
         content.title = body["title"]?.isEmpty == false ? body["title"]! : spec.name
