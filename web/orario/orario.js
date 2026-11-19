@@ -50,12 +50,20 @@ function firstDay() {
   return all.length ? all.map((r) => r.starts).sort()[0] : START_DAY;
 }
 
+function runs(r, day) {
+  return r.starts <= day && (!r.ends || day <= r.ends);
+}
+
+function stepsOn(r, day, slot) {
+  const dated = r.dated && r.dated[`${day}-${slot}`];
+  return dated || (r.plan && r.plan[`${weekday(day)}-${slot}`]) || [];
+}
+
 function items(day, slot, pool, done) {
-  const wd = weekday(day);
   return pool
-    .filter((r) => r.starts <= day)
+    .filter((r) => runs(r, day))
     .flatMap((r) =>
-      ((r.plan && r.plan[`${wd}-${slot}`]) || []).map((step) => {
+      stepsOn(r, day, slot).map((step) => {
         const id = `${r.id}|${day}|${slot}|${step.id}`;
         return { id, routine: r, step, slot, day, done: done.has(id) };
       })

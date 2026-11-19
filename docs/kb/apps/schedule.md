@@ -105,6 +105,8 @@ Two private structs share the name `ScheduleSlotCard`, one in `ScheduleApp.swift
 
 **Book settings**
 - **Repeats are weekly only, by design.** There is no biweekly and no every-N-days. A repeat is entered on each weekday separately; the editor footer says "Weeks repeat; put a step on each day you want it."
+- **Fixed-length programs.** A routine can carry `ends` (last day, inclusive) and `dated` (`"<yyyy-MM-dd>-<slot>"` to a step list). `ScheduleRoutine.runs(on:)` hides the routine outside `starts…ends`, and `steps(on:_:)` uses a `dated` list when that day has one, otherwise the weekly cell. The Orario web app mirrors this in `runs` and `stepsOn`. The editor does not edit `dated` lists.
+- **Fitness (seeded once).** `ScheduleSeed.fitness()` is a 21-morning program from 20 Nov to 10 Dec 2026 (10 days of home exercises, then run/walk up to 1 km and jump rope up to 1000). `addFitnessIfDue()` adds it once per Mac, guarded by the `schedule.seeded.fitness-2026-11` default, and only if the program hasn't ended and no routine is already named Fitness.
 - **`nightFrom`** (default 16): the hour the night slot begins. It is set in Preferences, clamped to `dayFrom+1 … 23` (`setNightFrom`).
 - **`dayFrom`** (default 4): the day rolls over at 4 AM. **No UI changes it.**
 
