@@ -735,23 +735,8 @@ private struct BoardSettingsPanel: View {
             SettingRow(title: "Long break", value: $model.longBreakMinutes, range: 1...90, unit: "min")
             SettingRow(title: "Long break after", value: $model.longEvery, range: 2...12, unit: "sessions")
             Rectangle().fill(Board.line).frame(height: 1).padding(.vertical, 4)
-            HStack(alignment: .firstTextBaseline) {
-                BoardSectionTitle(text: "THEME")
-                Spacer()
-                Text(themes.theme.name)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Board.accentInkStyle)
-            }
-            Grid(horizontalSpacing: 8, verticalSpacing: 14) {
-                ForEach(Array(stride(from: 0, to: BoardTheme.all.count, by: 5)), id: \.self) { start in
-                    GridRow {
-                        ForEach(BoardTheme.all[start..<min(start + 5, BoardTheme.all.count)]) { theme in
-                            swatch(theme)
-                        }
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            BoardSectionTitle(text: "THEME")
+            ThemeLinkRow(source: "pomodoro")
             Rectangle().fill(Board.line).frame(height: 1).padding(.vertical, 4)
             BoardBackupSection(store: PomodoroBoardStore.shared)
             Spacer()
@@ -762,23 +747,6 @@ private struct BoardSettingsPanel: View {
         .frame(width: 280, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Board.theme.panel)
-    }
-
-    private func swatch(_ theme: BoardTheme) -> some View {
-        let on = theme == themes.theme
-        return Button {
-            withAnimation(.easeInOut(duration: 0.15)) { themes.theme = theme }
-        } label: {
-            Circle()
-                .fill(theme.swatchStyle)
-                .overlay(Circle().stroke(theme.swatchEdge, lineWidth: 1))
-                .frame(width: 32, height: 32)
-                .padding(3)
-                .overlay(Circle().stroke(on ? theme.swatchRing : .clear, lineWidth: 1.5))
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .help(theme.name)
     }
 }
 

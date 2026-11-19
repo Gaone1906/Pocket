@@ -213,7 +213,7 @@ final class StatsApp: PocketApp {
     override var resizable: Bool { false }
 
     override func makeContent() -> NSView {
-        NSHostingView(rootView: StatsView(model: model))
+        ThemedHostingView(rootView: StatsView(model: model))
     }
 
     override func start() {
@@ -337,7 +337,7 @@ private func thermalLabel(_ state: ProcessInfo.ThermalState) -> String {
 }
 
 private func meterColor(_ fraction: Double) -> Color {
-    fraction >= 0.9 ? .red : fraction >= 0.7 ? .orange : .green
+    fraction >= 0.9 ? Color(hue: 4, saturation: 62, lightness: 58) : fraction >= 0.7 ? Color(hue: 30, saturation: 70, lightness: 58) : Board.accent
 }
 
 private struct Meter: View {
@@ -347,7 +347,7 @@ private struct Meter: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.primary.opacity(0.1))
+                Capsule().fill(Board.ink.opacity(0.1))
                 Capsule()
                     .fill(tint ?? meterColor(fraction))
                     .frame(width: max(3, proxy.size.width * min(1, max(0, fraction))))
@@ -366,13 +366,13 @@ private struct MeterRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Text(label).font(.system(size: 13, weight: .medium))
+                Text(label).font(.system(size: 13, weight: .medium)).foregroundStyle(Board.ink)
                 Spacer()
-                Text(value).font(.system(size: 13, weight: .semibold).monospacedDigit())
+                Text(value).font(.system(size: 13, weight: .semibold).monospacedDigit()).foregroundStyle(Board.ink)
             }
             Meter(fraction: fraction)
             if let detail {
-                Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(detail).font(.system(size: 11)).foregroundStyle(Board.muted)
             }
         }
     }
@@ -380,6 +380,7 @@ private struct MeterRow: View {
 
 private struct StatsView: View {
     @ObservedObject var model: StatsModel
+    @ObservedObject var themes = BoardThemeStore.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -400,6 +401,7 @@ private struct StatsView: View {
                 Text("\u{2193} \(formatRate(model.down))   \u{2191} \(formatRate(model.up))")
                     .font(.system(size: 13, weight: .semibold).monospacedDigit())
             }
+            .foregroundStyle(Board.ink)
             if let battery = model.battery {
                 MeterRow(label: "Battery",
                          value: "\(battery.percent)%",
@@ -407,21 +409,26 @@ private struct StatsView: View {
                          detail: battery.charging ? "Charging" : battery.onAC ? "On power" : "On battery")
             }
             Spacer(minLength: 0)
-            Divider()
+            Rectangle().fill(Board.line.opacity(themes.theme.embroidery == nil ? 1 : 0.35)).frame(height: 1)
             Toggle("Show CPU in menu bar", isOn: $model.cpuInBar)
                 .toggleStyle(.switch)
                 .font(.system(size: 12))
+                .foregroundStyle(Board.ink)
             HStack {
                 Text("Uptime \(formatUptime(model.uptime))")
                 Spacer()
                 Text("Thermal \(thermalLabel(model.thermal))")
             }
             .font(.system(size: 11))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(Board.muted)
         }
         .padding(.horizontal, 20)
         .padding(.top, 28)
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .id(themes.theme.id)
+        .background(BoardBackdrop(theme: themes.theme).ignoresSafeArea())
+        .environment(\.colorScheme, themes.theme.colorScheme)
+        .tint(themes.theme.accent)
     }
 }

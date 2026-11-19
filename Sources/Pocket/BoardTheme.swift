@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 extension Color {
@@ -100,6 +101,7 @@ struct BoardTheme: Identifiable, Equatable {
         whiteJade,
     ]
 
+    var family: String { embroidery != nil ? "Embroidered" : metal != nil ? "Metal" : "Pastel" }
     var colorScheme: ColorScheme { isDark ? .dark : .light }
     var appearance: NSAppearance? { NSAppearance(named: isDark ? .darkAqua : .aqua) }
 
@@ -151,7 +153,7 @@ final class BoardThemeStore: ObservableObject {
         didSet {
             guard theme != oldValue else { return }
             UserDefaults.standard.set(theme.id, forKey: Self.key)
-            note("pomodoro board theme=\(theme.id) previous=\(oldValue.id)")
+            note("pocket theme changed theme=\(theme.id) previous=\(oldValue.id)")
         }
     }
 
@@ -159,6 +161,19 @@ final class BoardThemeStore: ObservableObject {
         let saved = UserDefaults.standard.string(forKey: Self.key)
         theme = BoardTheme.all.first { $0.id == saved } ?? BoardTheme.all[0]
     }
+}
+
+final class ThemedHostingView<Content: View>: NSHostingView<Content> {
+    private var themeWatch: AnyCancellable?
+
+    required init(rootView: Content) {
+        super.init(rootView: rootView)
+        appearance = BoardThemeStore.shared.theme.appearance
+        themeWatch = BoardThemeStore.shared.$theme.sink { [weak self] theme in self?.appearance = theme.appearance }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { nil }
 }
 
 struct BrushedGrain: View {

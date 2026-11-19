@@ -121,6 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             move.representedObject = id
             menu.addItem(move)
         }
+        menu.addItem(withTitle: "Pocket Settings…", action: #selector(PocketSettings.showFromMenu), keyEquivalent: ",").target = PocketSettings.shared
         menu.addItem(withTitle: "Set up Pocket…", action: #selector(presentSetup), keyEquivalent: "").target = self
         menu.addItem(.separator())
         if layout.otp && mail.available {

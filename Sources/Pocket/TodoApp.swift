@@ -142,6 +142,7 @@ final class TodoStore: ObservableObject {
 struct TodoRow: View {
     let item: TodoItem
     @ObservedObject var store: TodoStore
+    @ObservedObject var themes = BoardThemeStore.shared
     @State private var hovering = false
     @State private var editing = false
     @State private var draft = ""
@@ -152,13 +153,14 @@ struct TodoRow: View {
             Button { store.toggle(item.id) } label: {
                 Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 17))
-                    .foregroundStyle(item.done ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(item.done ? Board.accentInkStyle : AnyShapeStyle(Board.faint))
             }
             .buttonStyle(.plain)
 
             if editing {
                 TextField("Task", text: $draft)
                     .textFieldStyle(.plain)
+                    .foregroundStyle(Board.ink)
                     .focused($editFocused)
                     .onSubmit(commit)
                     .onExitCommand { editing = false }
@@ -168,7 +170,7 @@ struct TodoRow: View {
             } else {
                 Text(item.title)
                     .strikethrough(item.done)
-                    .foregroundStyle(item.done ? Color.secondary : Color.primary)
+                    .foregroundStyle(item.done ? Board.muted : Board.ink)
                     .opacity(item.done ? 0.6 : 1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
@@ -178,7 +180,7 @@ struct TodoRow: View {
             Spacer(minLength: 0)
 
             Button { store.remove(item.id) } label: {
-                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                Image(systemName: "xmark.circle.fill").foregroundStyle(Board.faint)
             }
             .buttonStyle(.plain)
             .opacity(hovering ? 1 : 0)
@@ -204,13 +206,20 @@ struct TodoRow: View {
 
 struct TodoView: View {
     @ObservedObject var store: TodoStore
+    @ObservedObject var themes = BoardThemeStore.shared
     @State private var text = ""
     @FocusState private var addFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             TextField("Add a task", text: $text)
-                .textFieldStyle(.roundedBorder)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .foregroundStyle(Board.ink)
+                .padding(.horizontal, 12)
+                .frame(height: 34)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Board.column))
+                .boardEdge(12)
                 .focused($addFocused)
                 .onSubmit {
                     store.add(text)
@@ -224,12 +233,14 @@ struct TodoView: View {
             if store.items.isEmpty {
                 Spacer()
                 Text("Nothing to do. Add a task above.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Board.muted)
                 Spacer()
             } else {
                 List {
                     ForEach(store.open) { item in
                         TodoRow(item: item, store: store)
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                     }
                     .onMove { store.moveOpen(from: $0, to: $1) }
 
@@ -238,6 +249,8 @@ struct TodoView: View {
                         if store.showDone {
                             ForEach(store.finished) { item in
                                 TodoRow(item: item, store: store)
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
                             }
                         }
                     }
@@ -247,6 +260,9 @@ struct TodoView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(BoardBackdrop(theme: themes.theme).ignoresSafeArea())
+        .environment(\.colorScheme, themes.theme.colorScheme)
+        .tint(themes.theme.accent)
         .onAppear { addFocused = true }
         .onChange(of: store.focusTick) { _, _ in addFocused = true }
     }
@@ -260,17 +276,19 @@ struct TodoView: View {
                     Text("Done (\(store.finished.count))")
                         .font(.system(size: 12, weight: .semibold))
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Board.muted)
             }
             .buttonStyle(.plain)
             Spacer()
             Button("Clear done") { store.clearDone() }
                 .buttonStyle(.plain)
                 .font(.system(size: 12))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Board.muted)
         }
         .padding(.top, 8)
         .moveDisabled(true)
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
     }
 }
 
@@ -304,7 +322,7 @@ final class TodoApp: PocketApp {
     }
 
     override func makeContent() -> NSView {
-        NSHostingView(rootView: TodoView(store: store))
+        ThemedHostingView(rootView: TodoView(store: store))
     }
 
     override func didShow() {

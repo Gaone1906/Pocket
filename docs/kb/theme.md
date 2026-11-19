@@ -1,6 +1,6 @@
 # Theme
 
-The board themes tint Pomodoro (dropdown timer and board window) and Schedule (dropdown, board window, editor). The `DeclareSession` sheet also uses the tokens. The code is in `Sources/Pocket/BoardTheme.swift` (palette, store, helpers) and `Sources/Pocket/Embroidery.swift` (the three embroidered themes, their backdrop and `.boardEdge`). The `Board` token enum lives in `Sources/Pocket/PomodoroBoard.swift`.
+One theme covers every native Pocket app: Pomodoro (dropdown timer and board window), Schedule (dropdown, board window, editor), To-do, Scratchpad, System Stats, Calculator and the Pocket Settings window. The `DeclareSession` sheet also uses the tokens. Web apps (Gmail, WhatsApp, Slack, Spotify, Outlook, Matinee) and link apps (Preparo) are not themed. The theme is picked only in Pocket Settings → Appearance (`SettingsWindow.swift`, `PocketSettings.shared.show(section:)`, also "Pocket Settings…" in every status item's right-click menu); the Pomodoro and Schedule settings panels show a `ThemeLinkRow` that opens it. The code is in `Sources/Pocket/BoardTheme.swift` (palette, store, helpers) and `Sources/Pocket/Embroidery.swift` (the three embroidered themes, their backdrop and `.boardEdge`). The `Board` token enum lives in `Sources/Pocket/PomodoroBoard.swift`.
 
 Related: [apps/pomodoro.md](apps/pomodoro.md), [apps/schedule.md](apps/schedule.md), [architecture.md](architecture.md), [data-and-backups.md](data-and-backups.md), [operations.md](operations.md) (install and bundling).
 
@@ -20,7 +20,7 @@ The style is clean, minimal and elegant. Keep new UI inside these rules:
 - **Text.** Use the system font only. Ink is `Board.ink`, secondary text `Board.muted`, tertiary `Board.faint`, and emphasis `Board.accentInkStyle`. Numbers in stats are 30pt bold.
 - **Panels.** The settings panel is 280pt wide, on `Board.theme.panel`. The stats sidebar is 220pt, on `Board.sidebar`. Dividers are 1pt `Board.line` rectangles; embroidered themes dim them to 0.2–0.35 opacity.
 - **Motion.** `Board.glide = .smooth(duration: 0.3)`. Theme switches animate with `.easeInOut(duration: 0.15)`.
-- **Out of scope.** Calculator is deliberately not themed: it forces `.light` and `.aqua`.
+- **Out of scope.** Web apps and link apps. Calculator keeps its CAT-exam layout; only its colours come from the theme (`CatStyle` proxies the tokens).
 
 ## `BoardTheme` (`BoardTheme.swift`)
 
@@ -84,7 +84,7 @@ Derived members:
 `final class BoardThemeStore: ObservableObject`, `static let shared`.
 - `@Published var theme` persists `theme.id` to UserDefaults **`pomodoro.board.theme`** on change, and logs `pomodoro board theme=<id> previous=<id>`.
 - At init, it loads the saved id. An unknown or missing id falls back to `BoardTheme.all[0]` (Sage).
-- There is one theme for the whole app: the Pomodoro and Schedule settings panels both write the same store, and each draws its own copy of the swatch grid.
+- There is one theme for the whole app, written only by the Appearance gallery in Pocket Settings (`ThemeGallery`, grouped by `BoardTheme.family`: Pastel, Metal, Embroidered).
 
 Who reacts to a change:
 - **SwiftUI views** observe `BoardThemeStore.shared` and set `.environment(\.colorScheme, theme.colorScheme)`. `PomodoroView` also uses `.id(theme.id)` to rebuild on a switch.
@@ -177,12 +177,13 @@ None of this is committed or pushed. When it lands, update this page: drop the `
   - Observe `BoardThemeStore.shared`.
   - Set `.environment(\.colorScheme, …)`.
   - Use `BoardBackdrop` for full-window backgrounds.
-  - For an AppKit window or panel, set `appearance` and subscribe to `$theme`, as `ScheduleApp` and `PomodoroBoard` do.
+  - For a panel, return `ThemedHostingView(rootView:)` from `makeContent()`; it keeps `appearance` in step with the theme. For a window, set `appearance` and `backgroundColor` and subscribe to `$theme`, as `PocketSettings`, `ScheduleBoardWindow` and the Pomodoro board do.
 - **Gate macOS 26 APIs** (`glassEffect`) with `#available(macOS 26, *)`, and keep the `.ultraThinMaterial` fallback.
 
 ## Logging
 
-- `pomodoro board theme=<id> previous=<id>`, from `BoardThemeStore`.
+- `pocket theme changed theme=<id> previous=<id>`, from `BoardThemeStore`.
+- `pocket settings opened|refocused|closed …` and `pocket settings section=<id> previous=<id>`, from `PocketSettings`.
 - `board embroidery art missing name=<image> bundle=<path>`, from `EmbroideryArt`. It is logged on every miss, because misses aren't cached.
 
 ## Gotchas
