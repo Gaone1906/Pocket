@@ -1,6 +1,6 @@
 {
-  "name": "Pocket",
-  "short_name": "Pocket",
+  "name": "Routine",
+  "short_name": "Routine",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
