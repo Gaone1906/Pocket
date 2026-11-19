@@ -12,7 +12,8 @@ Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs)
 | Mac sync | `Sources/Pocket/CloudSync.swift` | Two-way sync of `board` and `schedule` with the table |
 | Web app | `web/` (`index.html`, `app.js`, `store.js`, `orario.js`, `util.js`, `themes.js`, `style.css`, `sw.js`) | Orario's Hair routine only, Settings and themes |
 | Orario (all routines) | `web/orario/` | A separate, self-contained web app with every routine: Day, Week and Month, the routine filter, Change the schedule, and Settings. Same table and setup link; its own local copy (`orario.cloud.v1`), service worker and Home Screen entry. In a browser that already holds the main app's link, it connects without asking |
-| Hosting | `.github/workflows/pages.yml` | Publishes `web/` (without `web/dev`) to GitHub Pages on pushes to `main`; `web/orario/` lands at `https://gaone1906.github.io/Pocket/orario/` |
+| Pomodoro | `web/pomodoro/` | A separate, view-only web app for focus sessions (no timer): a project picker, Daily, Weekly and Monthly tabs, a card comparing this day, week or month with your average, project totals, a stacked day-by-day bar chart (Weekly), a 6am to 10pm timeline (Daily, Weekly) or a daily line graph (Monthly) with arrows and swipe for earlier periods, and Settings (theme, sync). Its own local copy (`pomodoro.cloud.v1`), service worker and Home Screen entry; it connects without asking in a browser that holds the main or Orario app's link |
+| Hosting | `.github/workflows/pages.yml` | Publishes `web/` (without `web/dev`) to GitHub Pages on pushes to `main`; `web/orario/` lands at `https://gaone1906.github.io/Pocket/orario/` and `web/pomodoro/` at `https://gaone1906.github.io/Pocket/pomodoro/` |
 | Dev backend | `web/dev/server.mjs` | A local stand-in for the Supabase REST API, for testing without a cloud project |
 | Setup link | `web/dev/link.mjs` | Prints a link that fills in the database URL and key on a new device |
 
