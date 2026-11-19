@@ -282,6 +282,7 @@ struct KairosEntry: Codable, Identifiable, Equatable {
     var km: Double?
     var notes: String?
     var feel: String?
+    var prompts: [String]?
     var updated: String?
 
     static func id(routine: UUID, day: String, slot: ScheduleSlot, step: String) -> String {
@@ -371,6 +372,24 @@ final class KairosJournal: ObservableObject {
     }
 
     func entry(_ id: String) -> KairosEntry? { entries.first { $0.id == id } }
+
+    static func isDaily(_ entry: KairosEntry) -> Bool { !["feel", "manual", "template"].contains(entry.tag ?? "") }
+
+    var templates: [KairosEntry] {
+        entries.filter { $0.tag == "template" }.sorted { ($0.title ?? "").localizedCaseInsensitiveCompare($1.title ?? "") == .orderedAscending }
+    }
+
+    var manual: [KairosEntry] {
+        entries.filter { $0.tag == "manual" }.sorted { a, b in
+            a.day != b.day ? a.day > b.day : (a.updated ?? "") > (b.updated ?? "")
+        }
+    }
+
+    static func fresh(_ kind: String, title: String, prompts: [String], day: String) -> KairosEntry {
+        let step = UUID().uuidString
+        return KairosEntry(id: "\(kind)|\(step)", routine: kind, day: day, slot: "", step: step, title: title, tag: kind,
+                           lines: kind == "template" ? prompts : nil, prompts: kind == "manual" && !prompts.isEmpty ? prompts : nil)
+    }
 
     func put(_ entry: KairosEntry) {
         var entry = entry
@@ -474,6 +493,49 @@ struct KairosSession: Identifiable {
 
     static func title(_ routine: ScheduleRoutine, on day: String) -> String {
         dayNumber(routine, on: day).map { "\(routine.name) · Day \($0.n)" } ?? routine.name
+    }
+}
+
+struct KairosStats: Identifiable {
+    let routine: ScheduleRoutine
+    let done: Int
+    let skipped: Int
+    let streak: Int
+    let best: Int
+
+    var id: UUID { routine.id }
+
+    static func all() -> [KairosStats] {
+        let store = ScheduleStore.shared
+        return store.routines.filter(guided).map { make($0, store) }
+    }
+
+    static func guided(_ routine: ScheduleRoutine) -> Bool {
+        let lists = Array(routine.plan.values) + Array((routine.dated ?? [:]).values)
+        return lists.contains { $0.contains(where: KairosPlan.isGuided) }
+    }
+
+    private static func make(_ routine: ScheduleRoutine, _ store: ScheduleStore) -> KairosStats {
+        let last = min(routine.ends ?? store.today, store.today)
+        var day = routine.starts
+        var done = 0, skipped = 0, streak = 0, best = 0
+        while day <= last {
+            switch store.status(on: day, in: [routine]) {
+            case .done:
+                done += 1
+                streak += 1
+                best = max(best, streak)
+            case .missed, .partial:
+                skipped += 1
+                streak = 0
+            default:
+                break
+            }
+            let next = ScheduleDays.shift(day, by: 1)
+            guard next != day else { break }
+            day = next
+        }
+        return KairosStats(routine: routine, done: done, skipped: skipped, streak: streak, best: best)
     }
 }
 

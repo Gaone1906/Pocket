@@ -641,15 +641,16 @@ function viewBefore() {
 function viewJournal() {
   document.body.dataset.mood = "";
   const q = ui.query.trim().toLowerCase();
-  const list = R.entries().filter((e) => e.tag !== "feel" && (ui.tag === "all" || e.tag === ui.tag) && (!q || JSON.stringify([e.text, e.lines, e.notes, e.title]).toLowerCase().includes(q)));
+  const list = R.entries().filter((e) => e.tag !== "feel" && e.tag !== "template" && (ui.tag === "all" || e.tag === ui.tag) && (!q || JSON.stringify([e.text, e.lines, e.notes, e.title]).toLowerCase().includes(q)));
   let lastKey = "";
   const items = list
     .map((e) => {
       const key = e.day + e.slot;
-      const head = key !== lastKey ? `<span class="kicker plain">${esc(dayTitle(e.day, { weekday: "long", day: "numeric", month: "long" }))} · ${e.slot === "morning" ? "morning" : "night"}</span>` : "";
+      const head = key !== lastKey ? `<span class="kicker plain">${esc(dayTitle(e.day, { weekday: "long", day: "numeric", month: "long" }))}${e.slot === "morning" ? " · morning" : e.slot === "night" ? " · night" : ""}</span>` : "";
       lastKey = key;
       let body = "";
       if (e.tag === "run") body = `${e.km ? `${e.km} km` : ""}${e.km && e.seconds ? " in " : ""}${e.seconds ? clock(e.seconds) : ""}${e.km && e.seconds ? ` · ${pace(e.seconds, e.km)}` : ""}${e.notes ? `<br>${esc(e.notes)}` : ""}`;
+      else if (e.lines && e.prompts) body = e.prompts.map((p, i) => (e.lines[i] ? `<b>${esc(p)}</b><br>${esc(e.lines[i])}` : "")).filter(Boolean).join("<br>");
       else if (e.lines) body = e.lines.filter(Boolean).map((l, i) => `${i + 1}. ${esc(l)}`).join("<br>");
       else body = esc(e.text || "");
       if (!body) return head;
