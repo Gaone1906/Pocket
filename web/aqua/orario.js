@@ -313,7 +313,7 @@ export function view() {
   const ctx = context();
   const all = routines();
   const body = !all.length
-    ? `<div class="card empty big">No routines yet. Add one in Orario on the Mac.</div>`
+    ? `<div class="card empty big">No routines yet. Add one in Aqua on the Mac.</div>`
     : ui.mode === "week"
     ? weekView(ctx)
     : ui.mode === "month"

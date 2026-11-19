@@ -59,7 +59,7 @@ final class KairosApp: PocketApp {
     }
 
     override func menuItems() -> [NSMenuItem] {
-        let open = NSMenuItem(title: "Open Kairos", action: #selector(openFromMenu), keyEquivalent: "")
+        let open = NSMenuItem(title: "Open Ventus", action: #selector(openFromMenu), keyEquivalent: "")
         open.target = self
         guard KairosRunner.shared.running else { return [open] }
         let pause = NSMenuItem(title: KairosRunner.shared.state?.paused == true ? "Resume" : "Pause", action: #selector(pauseFromMenu), keyEquivalent: "")
@@ -195,7 +195,7 @@ final class KairosWindow: NSObject, NSWindowDelegate {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 680),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
-        window.title = "Kairos"
+        window.title = "Ventus"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.appearance = KairosBoard.theme.appearance
@@ -241,7 +241,7 @@ private struct KairosGlance: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Kairos")
+                    Text("Ventus")
                         .font(.system(size: 19, weight: .bold))
                         .foregroundStyle(KairosBoard.ink)
                     Text(KairosLook.title(day))
@@ -258,7 +258,7 @@ private struct KairosGlance: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .help("Open Kairos in its own window")
+                .help("Open Ventus in its own window")
             }
             .padding(.horizontal, 18)
             .padding(.top, 20)
@@ -293,7 +293,7 @@ private struct KairosGlance: View {
                 .padding(16)
             }
             .scrollIndicators(.never)
-            Button("Open Kairos", action: open)
+            Button("Open Ventus", action: open)
                 .buttonStyle(KairosPrimary(height: 38))
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
@@ -492,7 +492,7 @@ private struct KairosSidebar: View {
             KairosLook.kicker("Your routines")
                 .padding(.horizontal, 4)
             if list.isEmpty {
-                Text("Timed routines from Orario show up here once they exist.")
+                Text("Timed routines from Aqua show up here once they exist.")
                     .font(.system(size: 12))
                     .foregroundStyle(KairosBoard.muted)
                     .padding(.horizontal, 4)
@@ -596,7 +596,7 @@ private struct KairosSidebar: View {
                 .buttonStyle(.plain)
                 .help(state.finished == nil ? "Jump to this step" : "")
             }
-            Text("Each step ticks in Orario as you finish it.")
+            Text("Each step ticks in Aqua as you finish it.")
                 .font(.system(size: 11))
                 .foregroundStyle(KairosBoard.faint)
                 .padding(.horizontal, 6)
@@ -719,7 +719,7 @@ private struct KairosToday: View {
                     Text(isToday ? "Nothing to run today" : "Nothing guided that day")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(KairosBoard.ink)
-                    Text("Timed routines from Orario show up here on the days they run.")
+                    Text("Timed routines from Aqua show up here on the days they run.")
                         .font(.system(size: 12))
                         .foregroundStyle(KairosBoard.muted)
                 }
@@ -1134,7 +1134,7 @@ private struct KairosRun: View {
             Spacer()
             Button("End") { runner.end(reason: "button") }
                 .buttonStyle(KairosGhost(height: 28))
-                .help("End this session; finished steps stay ticked in Orario")
+                .help("End this session; finished steps stay ticked in Aqua")
         }
     }
 
@@ -1895,7 +1895,7 @@ private struct KairosDone: View {
                 Image(systemName: "sun.horizon")
                     .foregroundStyle(KairosBoard.accent)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Ticked in Orario")
+                    Text("Ticked in Aqua")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(KairosBoard.ink)
                     Text("\(ticked) of \(items.count) steps · syncs to every device")

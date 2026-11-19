@@ -1,4 +1,4 @@
-# Aurelius (formerly Pomodoro)
+# Ignis (formerly Pomodoro)
 
 Renamed from Pomodoro on 2026-11-19. Only the names people see changed; the code, app id `pomodoro`, routes, data folder and keys did not.
 
@@ -16,11 +16,11 @@ Related: [architecture](../architecture.md), [theme](../theme.md) (`BoardTheme`,
 
 | Thing | Value |
 | --- | --- |
-| Catalog entry | `Catalog.swift`: `AppSpec(id: "pomodoro", name: "Aurelius", symbol: "timer", hotKey: kVK_ANSI_P)`. Built by `Factory.swift` `case "pomodoro": PomodoroApp(spec:)` |
+| Catalog entry | `Catalog.swift`: `AppSpec(id: "pomodoro", name: "Ignis", symbol: "timer", glyph: Glyphs.ignis, hotKey: kVK_ANSI_P)`. Built by `Factory.swift` `case "pomodoro": PomodoroApp(spec:)` |
 | Default shortcut | ⌥P |
 | Dropdown | 340 × 330, fixed (`defaultSize` = `minSize`, `resizable = false`) |
-| Menu-bar item | Idle: the plain `timer` symbol. Active (running or paused): the symbol tinted, followed by ` MM:SS` in semibold monospaced digits. The tint is **gold** in focus and **silver** in rest/long (`PomodoroPalette`, with light and dark variants). A paused phase shows a frozen countdown in the same colour |
-| Right-click menu item | **Open Aurelius board** (`menuItems()`) |
+| Menu-bar item | Idle: the lion face (`Glyphs.ignis`) in the app colour. Active (running or paused): the face tinted, followed by ` MM:SS` in semibold monospaced digits. The tint is **gold** in focus and **silver** in rest/long (`PomodoroPalette`, with light and dark variants). A paused phase shows a frozen countdown in the same colour |
+| Right-click menu item | **Open Ignis board** (`menuItems()`) |
 | Board window | 980 × 620 to start (min 640 × 420), resizable, frame autosaved as `pomodoro.board` |
 
 What the user does:
@@ -106,7 +106,7 @@ a long break.
 - `ended` is the scheduled end, not the tick time.
 - `projectId(named:)` matches case-insensitively, or creates a project via `addProject()` + `rename`.
 
-**Notifications.** `notify(title: "Aurelius", body:)` posts a `UNNotificationRequest` straight away and plays
+**Notifications.** `notify(title: "Ignis", body:)` posts a `UNNotificationRequest` straight away and plays
 `NSSound "Glass"`. The bodies are:
 - "Focus done — take a N min break" or "… long break";
 - "Break over — back to focus";
@@ -145,7 +145,7 @@ This was added for API clients such as Preparo, which want the user to come back
 | `remoteStop` | `reset(reason: "stopped from <source>")`; `project = nil` |
 
 API ranges (`PocketServer.minutes`) are focus 1–240, rest 1–90 and long 1–120. These are wider than the settings UI
-(see below), and a plan never touches the settings. If Aurelius isn't enabled, every route answers `409`. The full API
+(see below), and a plan never touches the settings. If Ignis isn't enabled, every route answers `409`. The full API
 contract is in `CLAUDE.md`.
 
 ## Board window

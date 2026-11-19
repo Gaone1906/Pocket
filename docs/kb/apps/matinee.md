@@ -41,8 +41,8 @@ Related: [../architecture.md](../architecture.md) (WebApp, Factory, AppDelegate 
   - **Indirect help:** when District texts a login OTP while the user signs in to the Matinee Chromium window, Pocket's OTP watcher may show that code to copy. That only happens if the OTP feature is on (`layout.otp`).
   - **Credentials:** Keychain service `com.pranav.pocket.gmail`, with the account set to the Gmail address and the value being the OAuth refresh token. The Google OAuth client is read from `~/Library/Application Support/Pocket/google-client.json` (`id`, `secret`). UserDefaults keys: `gmailAccounts`, `keepMessages`.
   - Documented with the architecture.
-- `PocketServer.swift`: the loopback HTTP API on port **8977**, Aurelius routes only. It has no Matinee routes. Don't confuse it with Matinee's port **47811**.
-- `DeclareSession.swift`: `DeclareSessionCard`, the Aurelius "declare a session" SwiftUI card. Unrelated.
+- `PocketServer.swift`: the loopback HTTP API on port **8977**, Ignis routes only. It has no Matinee routes. Don't confuse it with Matinee's port **47811**.
+- `DeclareSession.swift`: `DeclareSessionCard`, the Ignis "declare a session" SwiftUI card. Unrelated.
 
 ### Matinee repo (`~/Files/Personal Projects/Matinee`)
 

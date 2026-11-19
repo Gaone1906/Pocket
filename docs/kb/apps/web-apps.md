@@ -219,7 +219,7 @@ No Pocket-owned files. Everything lives in WebKit's persistent stores.
 
 - Pocket does not check that Preparo's server on `:8960` is up; the browser shows its own error page.
 - `Layout.init` defaults `layout.offered` to the non-link apps, so when that key is first written, link apps count as "fresh" and are appended to the dropdown on existing installs.
-- For how Preparo drives the Aurelius timer, see `CLAUDE.md` and [pomodoro.md](pomodoro.md).
+- For how Preparo drives the Ignis timer, see `CLAUDE.md` and [pomodoro.md](pomodoro.md).
 
 ## Integrations
 

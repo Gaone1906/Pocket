@@ -142,7 +142,7 @@ final class PocketServer {
         }
         guard let pomodoro = AppDelegate.shared.app("pomodoro") as? PomodoroApp else {
             if request.method == "POST" { note("pocket server pomodoro unavailable path=\(request.path) cause=not enabled") }
-            return Response(status: 409, body: ["error": "Aurelius isn't enabled in Pocket"])
+            return Response(status: 409, body: ["error": "Ignis isn't enabled in Pocket"])
         }
         let source = request.headers["x-pocket-source"] ?? request.headers["origin"] ?? request.headers["user-agent"] ?? "local"
         let store = PomodoroBoardStore.shared

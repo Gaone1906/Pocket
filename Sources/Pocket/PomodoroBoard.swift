@@ -1063,7 +1063,7 @@ final class PomodoroBoardWindow: NSObject, NSWindowDelegate {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 620),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
-        window.title = "Aurelius"
+        window.title = "Ignis"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.appearance = AureliusBoard.theme.appearance

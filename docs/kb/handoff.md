@@ -34,9 +34,9 @@ Everything is now on `main`. The embroidery work still needs committing on its o
   - Merging only adds routines and check-offs it hasn't seen. Plan edits made on another Mac are lost.
   - A fresh Mac seeds its own "Hair care" routine, so bringing in data from GitHub duplicates it.
 
-## Misura
+## Terra
 
-- Calorie tracker built on 2026-11-19 on `claude/project-thread-ledxxq`, Mac and web (`/Pocket/misura/`). Detail in [apps/misura.md](apps/misura.md).
+- Calorie tracker built on 2026-11-19 on `claude/project-thread-ledxxq`, Mac and web (`/Pocket/terra/`). Detail in [apps/misura.md](apps/misura.md).
 - The web app was tested against `web/dev/server.mjs`. The Mac code is checked by a `swift build` on Pranav's Mac before merge.
 - It starts with no plan; Pranav fills in his own numbers on first open.
 
@@ -60,7 +60,7 @@ Each one is detailed in the linked file.
 | Scratchpad | No vault protection: it ignores `POCKET_DATA_DIR`, has no snapshots and no sync. An unreadable `pages.json` is overwritten with a fresh index. The last 0.8 s of typing can be lost on quit. | [apps/scratchpad.md](apps/scratchpad.md) |
 | Stats | Battery colours are inverted: full shows red, empty shows green. | [apps/stats.md](apps/stats.md) |
 | Web apps | The unread-badge regex matches any number in brackets, e.g. a Spotify title "(2019)". | [apps/web-apps.md](apps/web-apps.md) |
-| Aurelius | `/pomodoro/start` without `project` clears the running label. The API sample in CLAUDE.md is missing `hold` and `waiting`. `board.json` dates are seconds since 2001, not ISO. | [apps/pomodoro.md](apps/pomodoro.md) |
+| Ignis | `/pomodoro/start` without `project` clears the running label. The API sample in CLAUDE.md is missing `hold` and `waiting`. `board.json` dates are seconds since 2001, not ISO. | [apps/pomodoro.md](apps/pomodoro.md) |
 | Schedule | Opening and closing the editor each log twice. | [apps/schedule.md](apps/schedule.md) |
 | Matinee | See the Matinee section above. | [apps/matinee.md](apps/matinee.md) |
 
@@ -71,4 +71,4 @@ Each one is detailed in the linked file.
 - **Agents:** split work across subagents and keep the main session orchestrating. Never let two agents edit the same file.
 - **Scratch runs:** `POCKET_DATA_DIR` does **not** isolate the Drive mirror, Scratchpad, UserDefaults or the log. Before any scratch run, read operations.md for what to point elsewhere.
 - **Real data:** never test against it. Use `POCKET_DATA_DIR` with scratch data, and render views to PNG for visual checks. See [operations.md](operations.md).
-- **Design taste:** clean, minimal, elegant, matching the Aurelius board. No legends or explanatory chrome. Use pastel colours, not vibrant ones.
+- **Design taste:** clean, minimal, elegant, matching the Ignis board. No legends or explanatory chrome. Use pastel colours, not vibrant ones.

@@ -3,7 +3,7 @@ import { $, esc, ICONS, readLocal, writeLocal, dayTitle, fmtTime } from "./util.
 import * as R from "./routines.js";
 import { beatsForSteps, estimate, howLabel, clock, minutes, split, runOf, plainDetail, breath } from "./plan.js";
 
-const APP_NAME = "Kairos";
+const APP_NAME = "Ventus";
 const RUN_KEY = "runner.run.v1";
 const TAGS = [
   ["all", "All"],
@@ -594,7 +594,7 @@ function viewDone() {
         <h1 class="huge">${ticked < s.steps.length ? "Stopped early" : n ? `Day ${n.n} done` : `${esc(s.routine.name)} done`}</h1>
         <p class="sub">${esc(s.routine.name)} · ${took} min${n && left > 0 ? ` · ${left} more to go` : ""}</p>
       </div>
-      <div class="card orario"><span class="ologo"></span><div><b>Ticked in Orario</b><small>${ticked} of ${s.steps.length} steps · syncs to every device</small></div></div>
+      <div class="card orario"><span class="ologo"></span><div><b>Ticked in Aqua</b><small>${ticked} of ${s.steps.length} steps · syncs to every device</small></div></div>
       <div class="list">${s.steps
         .map((st, i) => `<div class="mv done"><span class="mk">${R.isDone(s.routine.id, run.day, run.slot, st.id) ? "✓" : "–"}</span><span class="grow">${esc(split(st.title).name)}</span><span class="amt">${run.spent[i] ? clock(run.spent[i]) : ""}</span></div>`)
         .join("")}</div>
@@ -658,7 +658,7 @@ function viewToday() {
     ${hero ? sessionCard(hero, true) : ""}
     ${section("morning", "Morning")}
     ${section("night", `Tonight · from ${hourLabel(R.settings().nightFrom)}`)}
-    ${all.length ? "" : `<p class="sub">Routines with timed steps show up here. Hair care and other check-off routines stay in Orario.</p>`}
+    ${all.length ? "" : `<p class="sub">Routines with timed steps show up here. Hair care and other check-off routines stay in Aqua.</p>`}
     <div class="grow"></div>
     <button class="ghost wide" data-view="journal">${ICON.book}Journal</button>
   </main>`;
@@ -741,7 +741,7 @@ function viewSettings() {
       ${st.problem ? `<div class="warn">${esc(st.problem)}</div>` : ""}
       <div class="row gap wrap"><button class="ghost" data-sync>Sync now</button><button class="ghost" data-export>Download journal</button><button class="ghost danger" data-signout>Disconnect</button></div>
     </div>
-    <p class="sub">Routines and steps come from Orario. Change them on the Mac; Kairos picks them up on its own.</p>
+    <p class="sub">Routines and steps come from Aqua. Change them on the Mac; Ventus picks them up on its own.</p>
   </main>`;
 }
 
@@ -751,7 +751,7 @@ function viewSetup() {
       <div class="row gap"><span class="logo"></span><h1 class="title">${APP_NAME}</h1></div>
       <p class="sub">Runs your routines one step at a time. Paste your Pocket setup link.</p>
       <form data-form="server" class="col gap">
-        <input name="link" placeholder="https://gaone1906.github.io/Pocket/kairos/#connect=…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Setup link">
+        <input name="link" placeholder="https://gaone1906.github.io/Pocket/ventus/#connect=…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Setup link">
         <details><summary class="sub">Or enter the Supabase values</summary>
           <input name="url" placeholder="Project URL (https://xxxx.supabase.co)" autocomplete="off" autocapitalize="off" aria-label="Project URL">
           <input name="key" placeholder="Anon public key" autocomplete="off" autocapitalize="off" aria-label="Anon public key">
@@ -910,7 +910,7 @@ document.addEventListener("click", async (e) => {
   }
   if (d.resume !== undefined) return go("run");
   if (d.end !== undefined) {
-    if (confirm("End this session? Steps you finished stay ticked in Orario.")) endRun();
+    if (confirm("End this session? Steps you finished stay ticked in Aqua.")) endRun();
     return;
   }
   if (d.steps !== undefined) {

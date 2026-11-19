@@ -44,7 +44,7 @@ final class MisuraApp: PocketApp {
     }
 
     override func menuItems() -> [NSMenuItem] {
-        let open = NSMenuItem(title: "Open Misura", action: #selector(openFromMenu), keyEquivalent: "")
+        let open = NSMenuItem(title: "Open Terra", action: #selector(openFromMenu), keyEquivalent: "")
         open.target = self
         return [open]
     }
@@ -140,7 +140,7 @@ final class MisuraWindow: NSObject, NSWindowDelegate {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 720),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
-        window.title = "Misura"
+        window.title = "Terra"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.appearance = MisuraBoard.theme.appearance
@@ -184,7 +184,7 @@ private struct MisuraGlance: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Misura").font(MisuraLook.font(17, .bold)).foregroundStyle(MisuraBoard.ink)
+                Text("Terra").font(MisuraLook.font(17, .bold)).foregroundStyle(MisuraBoard.ink)
                 Spacer()
                 Text(MisuraDays.format(store.today, "EEEdMMM")).font(MisuraLook.font(12)).foregroundStyle(MisuraBoard.muted)
                 Button(action: open) {
@@ -196,7 +196,7 @@ private struct MisuraGlance: View {
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .help("Open Misura")
+                .help("Open Terra")
             }
             if let day = store.summary(store.today) {
                 today(day)
@@ -1418,7 +1418,7 @@ private struct MisuraSettings: View {
 
     private func confirm(_ snap: VaultSnapshot) {
         let alert = NSAlert()
-        alert.messageText = "Restore Misura from \(snap.day.formatted(date: .long, time: .omitted))?"
+        alert.messageText = "Restore Terra from \(snap.day.formatted(date: .long, time: .omitted))?"
         alert.informativeText = "Today's copy is kept as its own backup first, so this can be undone."
         alert.addButton(withTitle: "Restore")
         alert.addButton(withTitle: "Cancel")

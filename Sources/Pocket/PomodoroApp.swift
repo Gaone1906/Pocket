@@ -179,7 +179,7 @@ final class PomodoroApp: PocketApp {
     }
 
     override func menuItems() -> [NSMenuItem] {
-        let item = NSMenuItem(title: "Open Aurelius board", action: #selector(openBoard), keyEquivalent: "")
+        let item = NSMenuItem(title: "Open Ignis board", action: #selector(openBoard), keyEquivalent: "")
         item.target = self
         return [item]
     }
@@ -516,7 +516,7 @@ struct PomodoroView: View {
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help("Open the Aurelius board in its own window")
+            .help("Open the Ignis board in its own window")
             .padding(12)
         }
         .background(RadialGradient(colors: Flap.backdrop, center: UnitPoint(x: 0.5, y: 0.4), startRadius: 0, endRadius: 280))
