@@ -11,7 +11,7 @@ Small apps that live in the macOS menu bar. Click an icon and the app drops down
 | Outlook | Outlook mail for work or personal Microsoft accounts |
 | Calendar | Month view of the events in your Mac's Calendar app |
 | To-do | A simple list; the menu bar shows one open task at a time, moving to the next every minute |
-| Schedule | Your weekly routines as a checklist (⌥O). The dropdown shows today's morning or night steps, each with a tip on how to do it; tick them off as you go. The expand button opens a window with a Schedule view of the week and a Calendar view that marks every day from 19 Nov as done, partly done or missed. Settings in the sidebar include **Change the schedule**, a weekly editor with a card for each morning and night of the week where you add, reorder and describe steps. Keep several routines (hair care, fitness, diet) and pick one or all from the dropdown filter. Backed up like everything else, to Google Drive and GitHub |
+| Orario | Your weekly routines as a checklist (⌥O). The dropdown shows today's morning or night steps, each with a tip on how to do it; tick them off as you go. The expand button opens a window with a Schedule view of the week and a Calendar view that marks every day from 19 Nov as done, partly done or missed. Settings in the sidebar include **Change the schedule**, a weekly editor with a card for each morning and night of the week where you add, reorder and describe steps. Keep several routines (hair care, fitness, diet) and pick one or all from the dropdown filter. Backed up like everything else, to Google Drive and GitHub |
 | Pomodoro | Focus, break and long-break timer; the countdown shows in the menu bar, gold while focusing and silver on a break. The expand button opens a board where finished sessions glow as dots until you file them as tally marks under a project; each project counts one stick per 25 minutes focused, struck through every five, with a shorter stick for the remainder. Right-click a project (or use its ⋯ menu) and choose **Declare a session…** to log time worked away from the laptop: pick the day, the minutes and, optionally, the start and end time. The heading switches to a Calendar table with a row per day and a cell per project. The left sidebar shows sessions and time focused today and all time; the settings button at the top right holds the timer lengths and eight pastel themes (Sage, Rose, Butter, Apricot, Sky, Lavender, Blush, Stone) a dark Bronze theme with metallic accents, and three embroidered themes on jet black fabric (Saffron tiger and azure dragon, Gold tiger and vermilion dragon, White tiger and jade dragon) with a stitched tiger, dragon, clouds and waves behind the board; themes tint the whole board and the timer |
 | Calculator | Type or tap a calculation and see the answer as you go |
 | Scratchpad | Notes in pages, with headings, bold, italic, underline, strikethrough and bulleted or numbered lists (type `- `, `1. ` or `# ` to start one) |
@@ -22,7 +22,7 @@ Small apps that live in the macOS menu bar. Click an icon and the app drops down
 ## For agents and contributors
 
 The knowledge base in [docs/kb](docs/kb/README.md) covers every app, the shell, data and backups, theming, operations and the current handoff state. Each app has its own file:
-[web apps](docs/kb/apps/web-apps.md) · [Calendar](docs/kb/apps/calendar.md) · [To-do](docs/kb/apps/todo.md) · [Pomodoro](docs/kb/apps/pomodoro.md) · [Schedule](docs/kb/apps/schedule.md) · [Calculator](docs/kb/apps/calculator.md) · [Scratchpad](docs/kb/apps/scratchpad.md) · [System Stats](docs/kb/apps/stats.md) · [Matinee](docs/kb/apps/matinee.md).
+[web apps](docs/kb/apps/web-apps.md) · [Calendar](docs/kb/apps/calendar.md) · [To-do](docs/kb/apps/todo.md) · [Pomodoro](docs/kb/apps/pomodoro.md) · [Orario](docs/kb/apps/schedule.md) · [Calculator](docs/kb/apps/calculator.md) · [Scratchpad](docs/kb/apps/scratchpad.md) · [System Stats](docs/kb/apps/stats.md) · [Matinee](docs/kb/apps/matinee.md).
 
 ## Install
 
@@ -45,7 +45,7 @@ The first launch opens a setup window. In it you:
 
 - The thin line in the menu bar opens the dropdown. Drag icons between the **Menu bar** and **Dropdown** rows to rearrange them.
 - Right-click any icon to move it, rerun setup, or quit.
-- Each app has a keyboard shortcut that opens it from anywhere. The defaults are ⌥W WhatsApp, ⌥S Slack, ⌥M Spotify, ⌥G Gmail, ⌥O Schedule, ⌥D Calendar, ⌥T To-do, ⌥P Pomodoro, ⌥C Calculator and ⌥N Scratchpad; Outlook has no default shortcut. To change one, click it next to the app in setup and press the new keys; Delete clears it.
+- Each app has a keyboard shortcut that opens it from anywhere. The defaults are ⌥W WhatsApp, ⌥S Slack, ⌥M Spotify, ⌥G Gmail, ⌥O Orario, ⌥D Calendar, ⌥T To-do, ⌥P Pomodoro, ⌥C Calculator and ⌥N Scratchpad; Outlook has no default shortcut. To change one, click it next to the app in setup and press the new keys; Delete clears it.
 - Esc or clicking elsewhere hides the panel.
 - Local tools and pages on `localhost` can drive the Pomodoro through `http://127.0.0.1:8977`: start, pause, resume and stop it with custom focus and break lengths, log sessions under a project, and read projects, sessions and totals. `GET /` lists the routes and [CLAUDE.md](CLAUDE.md) is the integration guide. Requests from other websites are refused.
 

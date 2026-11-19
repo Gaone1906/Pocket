@@ -20,7 +20,7 @@ This knowledge base is the full context for agents working on Pocket, a macOS me
 | Calendar | ⌥D | [apps/calendar.md](apps/calendar.md) |
 | To-do | ⌥T | [apps/todo.md](apps/todo.md) |
 | Pomodoro (and its board, the visual reference for every other board) | ⌥P | [apps/pomodoro.md](apps/pomodoro.md) |
-| Schedule (weekly routines, built 2026-11-19) | ⌥O | [apps/schedule.md](apps/schedule.md) |
+| Orario (weekly routines, built 2026-11-19) | ⌥O | [apps/schedule.md](apps/schedule.md) |
 | Calculator | ⌥C | [apps/calculator.md](apps/calculator.md) |
 | Scratchpad | ⌥N | [apps/scratchpad.md](apps/scratchpad.md) |
 | System Stats | none | [apps/stats.md](apps/stats.md) |

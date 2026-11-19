@@ -1,6 +1,6 @@
-# Schedule
+# Orario
 
-A weekly-routine tracker. It shows today's morning or night checklist in a dropdown and has a board window with Schedule and Calendar views. It was built on branch `add-schedule` on 2026-11-19 (`git log main..add-schedule`, commits `4882c90`…`f4892b9`).
+Orario (named Schedule until 2026-11-19; code, ids and files still say `schedule`) is a weekly-routine tracker. It shows today's morning or night checklist in a dropdown and has a board window with Schedule and Calendar views. It was built on branch `add-schedule` on 2026-11-19 (`git log main..add-schedule`, commits `4882c90`…`f4892b9`).
 
 The app comes from a claude.ai artifact, "Weekly Hair Routine" (https://claude.ai/artifact/NNyccJSEfqq9La5mhfb39i). `ScheduleSeed.hairCare()` is that routine translated into code.
 
@@ -10,7 +10,7 @@ Related files: [../architecture.md](../architecture.md) (PocketApp, catalog, hot
 
 | | |
 | --- | --- |
-| Catalog entry | `AppSpec(id: "schedule", name: "Schedule", symbol: "sun.horizon", hotKey: kVK_ANSI_O, claimsHotKey: true, pinnedByDefault: true)` in `Catalog.swift` |
+| Catalog entry | `AppSpec(id: "schedule", name: "Orario", symbol: "sun.horizon", hotKey: kVK_ANSI_O, claimsHotKey: true, pinnedByDefault: true)` in `Catalog.swift` |
 | Default shortcut | **⌥O**, taken from Outlook. Outlook now has `hotKey: nil`. See [Shortcut migration](#shortcut-migration). |
 | Menu-bar icon | SF Symbol `sun.horizon`, with a red badge counting the **unchecked steps in the current slot** of today, for the routines the filter shows (`ScheduleApp.remaining`). There is no badge at 0. |
 | Placement | The app is pinned to the menu bar, not the dropdown tray, on existing installs too (`pinnedByDefault`). |
