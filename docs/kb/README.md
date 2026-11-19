@@ -11,6 +11,7 @@ This knowledge base is the full context for agents working on Pocket, a macOS me
 | [operations.md](operations.md) | Build, install, signing, safe testing with `POCKET_DATA_DIR`, rendering views to PNG, logs, git and code conventions |
 | [data-and-backups.md](data-and-backups.md) | `DataVault`: every persisted file and UserDefaults key, snapshots, recovery, Drive mirror, git sync to `pocket-data`, restore |
 | [cloud-sync.md](cloud-sync.md) | Supabase records table, Mac `CloudSync`, the `web/` app on phone/iPad/laptops, setup and safety |
+| [web-pages.md](web-pages.md) | The three GitHub Pages web apps (Routine for the parents, Orario, Aurelius): what each shows and writes, themes, icons, storage keys, cache prefixes, setup link |
 | [theme.md](theme.md) | `Board` design tokens, themes, embroidery backdrops, design language |
 
 ## Apps

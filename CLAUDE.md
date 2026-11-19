@@ -153,7 +153,8 @@ Aurelius and Orario (Schedule) reach every device through a Supabase table (`clo
 open to the app's anon key, no sign-in), synced by `Sources/Pocket/CloudSync.swift` on the Mac and by the installable web app in `web/`
 everywhere else. The main web app shows only the Hair routine; `web/orario/` has all of Orario and `web/aurelius/` a view-only Aurelius (no timer). To-do, Calendar and Matinee stay
 Mac-only. Setup, the record
-kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md). Rules to keep true:
+kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md); the three web apps side by side are in
+[docs/kb/web-pages.md](docs/kb/web-pages.md). Rules to keep true:
 - To sync another vault file, give it a `CloudDocument.all` row and its store an `adopt(_:)` registered with `CloudSync.shared.register`.
 - Never push deletes for a file that is missing, unreadable or suddenly empty; the delete guard in `sync()` stays.
 - Test against `web/dev/server.mjs`, never the real project. There is no sign-in; the setup link (URL and anon key) is the only key, so never commit it.

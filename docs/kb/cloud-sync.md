@@ -2,7 +2,7 @@
 
 Aurelius and Orario (the Schedule app) live on every device, not only one Mac. A hosted Postgres database (Supabase, free tier) holds one row per item, the Mac app syncs those two vault files to it, and an installable web app (`web/`) works on the phone, iPad and any other laptop. To-do, Calendar and Matinee stay Mac-only by choice (Pranav, 2026-11-19). Each device keeps a full local copy, so it keeps working offline and a lost device loses nothing.
 
-Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs), [architecture.md](architecture.md) (local HTTP server).
+Related: [web-pages.md](web-pages.md) (the three web apps side by side), [data-and-backups.md](data-and-backups.md) (the vault files this syncs), [architecture.md](architecture.md) (local HTTP server).
 
 ## Pieces
 
@@ -10,7 +10,7 @@ Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs)
 | --- | --- | --- |
 | Schema | `cloud/schema.sql` | One table, `public.records`, open to the app's anon key |
 | Mac sync | `Sources/Pocket/CloudSync.swift` | Two-way sync of `board` and `schedule` with the table |
-| Web app | `web/` (`index.html`, `app.js`, `store.js`, `orario.js`, `util.js`, `themes.js`, `style.css`, `sw.js`) | Orario's Hair routine only, Settings and themes |
+| Web app | `web/` (`index.html`, `app.js`, `store.js`, `orario.js`, `util.js`, `themes.js`, `style.css`, `sw.js`) | The Routine app for Pranav's parents: Orario's Hair routine only, read only, a sync button and nothing else |
 | Orario (all routines) | `web/orario/` | A separate, self-contained web app with every routine: Day, Week and Month, the routine filter, and Settings behind a gear at the top right. No bottom bar and no schedule editing (Pranav, 2026-11-19: routines are changed in Orario on the Mac). Same table and setup link; its own local copy (`orario.cloud.v1`), service worker and Home Screen entry. In a browser that already holds the main app's link, it connects without asking |
 | Aurelius | `web/aurelius/` | A separate, view-only web app for focus sessions (no timer): a project picker, Daily, Weekly and Monthly tabs, a card comparing this day, week or month with your average, project totals, a stacked day-by-day bar chart (Weekly), a 6am to 10pm timeline (Daily, Weekly) or a daily line graph (Monthly) with arrows and swipe for earlier periods, and Settings (theme, sync). Its own local copy (`aurelius.cloud.v1`), service worker and Home Screen entry; it connects without asking in a browser that holds the main or Orario app's link |
 | Hosting | `.github/workflows/pages.yml` | Publishes `web/` (without `web/dev`) to GitHub Pages on pushes to `main`; `web/orario/` lands at `https://gaone1906.github.io/Pocket/orario/` and `web/aurelius/` at `https://gaone1906.github.io/Pocket/aurelius/` |
@@ -30,6 +30,8 @@ Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs)
 | `schedule.settings` | `book` | `{nightFrom, dayFrom}` | `schedule.json` top-level scalars |
 | `settings.prefs` | `prefs` | `{theme}` | web only (main app) |
 | `settings.prefs` | `orario` | `{theme}` | web only (`web/orario/`, default Butter) |
+
+Aurelius on the web keeps its theme per device in `localStorage` and has no `settings.prefs` record.
 
 `_pos` keeps list order (projects, routines). It exists only in the cloud; the Mac strips it when it writes a file and puts its own index back when it reads one. `CloudDocument.all` in `CloudSync.swift` is the mapping; a new vault file gets one row there.
 
