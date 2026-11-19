@@ -122,7 +122,7 @@ private struct AppRow: View {
             if enabled.wrappedValue {
                 Picker("", selection: placement) {
                     Text("Menu bar").tag(Placement.bar)
-                    Text("Dropdown").tag(Placement.tray)
+                    Text("Shelf").tag(Placement.tray)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -252,7 +252,7 @@ private struct ChooseStep: View {
             }
             Divider()
             HStack {
-                Text("Drag apps between the menu bar and the dropdown any time from the Pocket icon.")
+                Text("Drag apps between the menu bar and your shelves any time from the Pocket icon.")
                     .font(.caption).foregroundColor(.secondary)
                 Spacer()
                 Button("Continue") { model.apply() }.keyboardShortcut(.defaultAction)
@@ -351,7 +351,7 @@ private struct SignInStep: View {
             }
             Divider()
             HStack {
-                Text("Drag apps between the menu bar and the dropdown any time from the Pocket icon.")
+                Text("Drag apps between the menu bar and your shelves any time from the Pocket icon.")
                     .font(.caption).foregroundColor(.secondary)
                 Spacer()
                 Button("Back") { model.step = 1 }

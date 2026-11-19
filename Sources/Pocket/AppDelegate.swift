@@ -114,13 +114,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     func appendCommonItems(to menu: NSMenu, for id: String?) {
         if !menu.items.isEmpty { menu.addItem(.separator()) }
-        if let id, layout.enabled.contains(id) {
-            let toBar = !layout.inBar(id)
-            let move = NSMenuItem(title: toBar ? "Move to menu bar" : "Move to dropdown", action: #selector(moveFromMenu(_:)), keyEquivalent: "")
-            move.target = self
-            move.representedObject = id
+        if let id, let current = layout.spot(of: id) {
+            let move = NSMenuItem(title: "Move to", action: nil, keyEquivalent: "")
+            let choices = NSMenu()
+            let spots: [ShelfSpot] = [.bar] + layout.shelves.map { .shelf($0.id) }
+            for spot in spots where spot != current {
+                let entry = NSMenuItem(title: layout.shelfName(spot), action: #selector(moveFromMenu(_:)), keyEquivalent: "")
+                entry.target = self
+                entry.representedObject = [id, spot.label]
+                choices.addItem(entry)
+            }
+            move.submenu = choices
             menu.addItem(move)
         }
+        menu.addItem(withTitle: "Organize shelves…", action: #selector(presentShelves), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Set up Pocket…", action: #selector(presentSetup), keyEquivalent: "").target = self
         menu.addItem(.separator())
         if layout.otp && mail.available {
@@ -131,8 +138,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 
     @objc func moveFromMenu(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? String else { return }
-        layout.move(id, toBar: !layout.inBar(id))
+        guard let pair = sender.representedObject as? [String], pair.count == 2 else { return }
+        layout.move(pair[0], to: pair[1] == "bar" ? .bar : .shelf(pair[1]))
+    }
+
+    @objc func presentShelves() {
+        TrayActions.openSettings()
     }
 
     @objc func presentSetup() {

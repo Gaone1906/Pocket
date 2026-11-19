@@ -1,0 +1,24 @@
+name: shots
+on:
+  push:
+    branches: [claude/project-thread-xbsnkm]
+jobs:
+  shots:
+    runs-on: macos-26
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift --version
+      - run: swift build 2>&1 | tail -60
+      - run: |
+          cp .github/shots/Shots.swift Sources/Pocket/Shots.swift
+          cp .github/shots/main.swift Sources/Pocket/main.swift
+          swift build 2>&1 | tail -40
+          SHOTS="$PWD/shots" POCKET_DATA_DIR="$RUNNER_TEMP/data" .build/debug/Pocket
+          ls -la shots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shots
+          path: shots
