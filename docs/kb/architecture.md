@@ -227,13 +227,12 @@ Shown automatically at launch while `setup.done` is false, and from the right-cl
   with status text. **Continue** → `SetupModel.apply()`: keeps existing order for already placed apps, appends new
   ones in catalog order, `layout.apply`, step 2.
 - Step 2 "Sign in & permissions" (`SignInStep`): a **Sign in** button per enabled web app (`app.show(anchor: nil,
-  source: "setup")`, a centred panel); Calendar access row (`EKEventStore.requestFullAccessToEvents`, or deep link
-  `x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars` when denied); Full Disk Access row when
+  source: "setup")`, a centred panel); Full Disk Access row when
   OTP is on (`...?Privacy_AllFiles`). **Done** → `setup.done = true`, close.
 - `ShortcutField`: click to record; a local `keyDown` monitor captures the next combo (Esc cancels, Delete/Forward
   Delete clears). While recording, `AppDelegate.recordingShortcut = true`, which unregisters all global hotkeys so the
   combo reaches the field. Only one field records at a time (`ShortcutField.active`).
-- Logs: `pocket setup opened|refocused|applied|done|closed`, `login item`, `calendar access`, `opened settings`,
+- Logs: `pocket setup opened|refocused|applied|done|closed`, `login item`, `opened settings`,
   `sign in`.
 
 ### `PocketServer.swift` — loopback HTTP API
@@ -283,7 +282,7 @@ or `##"…"##` when the SVG contains `"#`.
 | Remove | id leaves `layout.enabled` | `stop()` (base: detach delegate, `orderOut`, drop panel), removed from `apps` |
 | Quit | "Quit Pocket", SIGTERM (`pkill`, `install.sh`) | `applicationWillTerminate` → `stop()` on every app |
 
-Rules: `didShow` is where you refresh "now"-dependent state (Schedule `tick()`, Calendar reload, Stats fast polling).
+Rules: `didShow` is where you refresh "now"-dependent state (Schedule `tick()`, Calendar `tick()` and `catchUp`, Stats fast polling).
 `didHide` is where you slow down or schedule unloads (`WebApp.scheduleUnload`). Always call `super.stop()` from an
 override. Per-app overrides are listed in each `apps/*.md`.
 
