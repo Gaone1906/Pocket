@@ -237,21 +237,6 @@ final class ScheduleStore: ObservableObject {
         save()
     }
 
-    func streak() -> Int {
-        var day = today
-        if case .open = status(on: day) { day = ScheduleDays.shift(day, by: -1) }
-        var count = 0
-        while day >= firstDay {
-            switch status(on: day) {
-            case .done: count += 1
-            case .rest: break
-            default: return count
-            }
-            day = ScheduleDays.shift(day, by: -1)
-        }
-        return count
-    }
-
     func tally(from start: String? = nil, through end: String? = nil) -> (done: Int, partial: Int, missed: Int) {
         var day = max(start ?? firstDay, firstDay)
         let last = min(end ?? today, today)

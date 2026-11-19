@@ -143,7 +143,7 @@ private struct ScheduleDropdown: View {
                 .padding(16)
             }
             .scrollIndicators(.never)
-            ScheduleStreakLine(streak: store.streak())
+            ScheduleTallyLine(store: store)
                 .padding(.bottom, 14)
                 .padding(.top, 6)
         }
@@ -553,20 +553,25 @@ private struct ScheduleNoRoutines: View {
     }
 }
 
-private struct ScheduleStreakLine: View {
-    let streak: Int
+private struct ScheduleTallyLine: View {
+    @ObservedObject var store: ScheduleStore
 
     var body: some View {
-        HStack(spacing: 5) {
-            if streak > 0 {
-                Image(systemName: "flame")
-                    .font(.system(size: 10, weight: .semibold))
-            }
-            Text(streak > 0 ? "\(streak)-day streak" : "No streak yet")
-                .font(.system(size: 11, weight: .medium))
-                .monospacedDigit()
-        }
-        .foregroundStyle(Board.muted)
-        .frame(maxWidth: .infinity)
+        let tally = store.tally()
+        let missed = tally.missed + tally.partial
+        Text("\(tally.done) \(tally.done == 1 ? "day" : "days") done · \(missed) missed since \(Self.start(store.firstDay))")
+            .font(.system(size: 11, weight: .medium))
+            .monospacedDigit()
+            .foregroundStyle(Board.muted)
+            .frame(maxWidth: .infinity)
     }
+
+    private static let format: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "d MMM"
+        return f
+    }()
+
+    private static func start(_ key: String) -> String { ScheduleDays.date(key).map(format.string) ?? key }
 }

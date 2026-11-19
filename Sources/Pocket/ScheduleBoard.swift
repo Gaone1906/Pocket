@@ -418,7 +418,6 @@ private struct ScheduleSidebar: View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 14) {
                 todayCard
-                streakCard
                 sinceCard
                 ScheduleHairline().padding(.vertical, 6)
                 VStack(alignment: .leading, spacing: 6) {
@@ -460,22 +459,14 @@ private struct ScheduleSidebar: View {
         }
     }
 
-    private var streakCard: some View {
-        let streak = store.streak()
-        return card("STREAK") {
-            figure("\(streak)", streak == 1 ? "day in a row" : "days in a row", accent: true)
-        }
-    }
-
     private var sinceCard: some View {
         let tally = store.tally()
+        let missed = tally.missed + tally.partial
         let start = ScheduleBoardDates.short(store.firstDay).uppercased()
         return card("SINCE \(start)") {
-            figure("\(tally.done)", tally.done == 1 ? "day done" : "days done", accent: true)
-            ScheduleHairline()
-            HStack(alignment: .firstTextBaseline, spacing: 14) {
-                figure("\(tally.missed)", "missed", accent: false, size: 20)
-                if tally.partial > 0 { figure("\(tally.partial)", "partial", accent: false, size: 20) }
+            HStack(alignment: .firstTextBaseline, spacing: 22) {
+                figure("\(tally.done)", tally.done == 1 ? "day done" : "days done", accent: true)
+                figure("\(missed)", missed == 1 ? "day missed" : "days missed", accent: false)
             }
         }
     }
