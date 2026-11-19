@@ -1,4 +1,4 @@
-const CACHE = "pocket-v8";
+const CACHE = "pocket-v9";
 const SHELL = ["./", "index.html", "style.css", "app.js", "store.js", "themes.js", "util.js", "orario.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
