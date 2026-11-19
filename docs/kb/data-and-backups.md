@@ -10,7 +10,7 @@ Related: [architecture.md](architecture.md), [operations.md](operations.md), [ap
 
 | Member | Path under root | Notes |
 | --- | --- | --- |
-| `board` | `Pomodoro/board.json` | Pomodoro projects and sessions (`PomodoroBoardStore`) |
+| `board` | `Pomodoro/board.json` | Aurelius projects and sessions (`PomodoroBoardStore`) |
 | `todos` | `todos.json` | To-do list (`TodoStore`) |
 | `schedule` | `schedule.json` | Schedule routines and check-offs (`ScheduleStore`) |
 | `calendar` | `calendar.json` | Calendar events (`CalendarStore`, through `CalendarVaultPersistence`) |
@@ -162,7 +162,7 @@ The repo is configured by `pocket.backup.repo`. The owner uses `https://github.c
 
 | What | Where in UI | Code |
 | --- | --- | --- |
-| Board from a daily snapshot | Pomodoro board → settings (slider icon) → BACKUP → **Restore…** menu. Each row shows the day, session count and duration | `BoardBackupSection.confirm` (`NSAlert`) → `PomodoroBoardStore.restore(snap)`: keeps aside `before-restore`, replaces projects and sessions, saves. Logs `pomodoro board restored from= sessionsBefore= sessionsAfter=` |
+| Board from a daily snapshot | Aurelius board → settings (slider icon) → BACKUP → **Restore…** menu. Each row shows the day, session count and duration | `BoardBackupSection.confirm` (`NSAlert`) → `PomodoroBoardStore.restore(snap)`: keeps aside `before-restore`, replaces projects and sessions, saves. Logs `pomodoro board restored from= sessionsBefore= sessionsAfter=` |
 | Schedule from a daily snapshot | Schedule expanded window → settings sidebar → BACKUP → **Restore…**. Rows show routines and check-offs | `ScheduleBackupSection.confirm` → `ScheduleStore.restore(snap)`. Logs `schedule restored from= checksBefore= checksAfter=` |
 | To-dos | No UI | Quit Pocket, copy `Backups/todos/todos-<day>.json` over `todos.json`, reopen |
 | Older git version | Shell | `git -C "$ROOT/DataRepo" log --oneline -- board.json`, then `git show <sha>:board.json`. Copy it in with Pocket quit |
@@ -205,7 +205,7 @@ The defaults domain is `com.pranav.pocket` for the installed app bundle. An unbu
 | `pocket.backup.repo` | String | `DataVault` | Sync repo URL; unset = sync off |
 | `pocket.backup.githubUser` | String | `DataVault` | `gh` login for `gh auth token -u` |
 | `pocket.backup.folder` | String | `DataVault` | Mirror-folder override (`~` allowed) |
-| `pomodoro.board.theme` | String | `BoardThemeStore` (`BoardTheme.swift`) | Theme id, shared by Pomodoro and Schedule; see [theme.md](theme.md) |
+| `pomodoro.board.theme` | String | `BoardThemeStore` (`BoardTheme.swift`) | Theme id, shared by Aurelius and Schedule; see [theme.md](theme.md) |
 | `pomodoro.focus`, `pomodoro.break`, `pomodoro.long`, `pomodoro.longEvery` | Int | `PomodoroModel` (`PomodoroApp.swift`) | Timer lengths in minutes; long break every N sessions |
 | `pomodoro.streak` | Int | `PomodoroModel` | Focus count toward the long break |
 | `pomodoro.board.stats`, `pomodoro.board.panel` | Bool (`@AppStorage`) | `PomodoroBoardView` | Stats sidebar shown; settings panel open |
@@ -271,7 +271,7 @@ Triage: `grep "pocket vault" ~/Library/Logs/pocket.log | tail`.
   - `TodoStore` exists only while the To-do app is enabled.
   - `ScheduleStore.shared` is created when the Schedule app starts.
 
-  Pressing **Bring them in** before a store exists logs `bring in skipped … reason=no-store`, and the file stays held. In practice the board is registered by the time its own Backup section is visible. But pressing the button in Schedule's Backup section before the Pomodoro board was ever touched skips the board, and a disabled To-do app leaves `todos` held forever (use **Keep this Mac's**, or enable To-do).
+  Pressing **Bring them in** before a store exists logs `bring in skipped … reason=no-store`, and the file stays held. In practice the board is registered by the time its own Backup section is visible. But pressing the button in Schedule's Backup section before the Aurelius board was ever touched skips the board, and a disabled To-do app leaves `todos` held forever (use **Keep this Mac's**, or enable To-do).
 - **Daily snapshot = last write of the day.** A bad save late in the day overwrites that day's good snapshot. The previous day's is still there.
 - **`start()` can overwrite today's snapshot with a file that is valid JSON but not decodable**, because it checks only `JSONSerialization`. Recovery still falls back to older days, but today's earlier good copy is gone. `start()` runs asynchronously on the vault queue, so it races with store loads.
 - **The mirror folder is never pruned**, and gets only daily snapshots.

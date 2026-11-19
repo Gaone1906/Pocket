@@ -1,16 +1,19 @@
 # Pocket
 
-Pocket is a macOS menu-bar app (Swift package, macOS 14+, AppKit + SwiftUI). Its Pomodoro timer can be driven by other
+Pocket is a macOS menu-bar app (Swift package, macOS 14+, AppKit + SwiftUI). Its Aurelius timer can be driven by other
 programs through a local HTTP API. This file tells an agent how to integrate something with it, and what to keep true when
 changing it.
 
 Full context for every app, the shell, data, theming and the current branch state lives in the knowledge base:
 start at [docs/kb/README.md](docs/kb/README.md) and [docs/kb/handoff.md](docs/kb/handoff.md).
 
-## Integrating with the Pomodoro API
+## Integrating with the Aurelius API
 
-Base URL `http://127.0.0.1:8977`, loopback only, JSON in and out. Pocket must be running with the Pomodoro app enabled;
-otherwise every Pomodoro route answers `409`. `GET /` lists the routes.
+Aurelius is Pocket's Pomodoro timer, renamed on 2026-11-19. Only the names people see changed: its code, app id (`pomodoro`),
+HTTP routes, data folder (`Pomodoro/board.json`), UserDefaults keys and cloud record kinds still say `pomodoro` or `board`.
+
+Base URL `http://127.0.0.1:8977`, loopback only, JSON in and out. Pocket must be running with the Aurelius app enabled;
+otherwise every Aurelius route answers `409`. `GET /` lists the routes.
 
 Who may call:
 - Command-line tools, scripts and native apps (no `Origin` header) are allowed.
@@ -146,9 +149,9 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 
 ## Cloud sync and the web app
 
-Pomodoro and Orario (Schedule) reach every device through a Supabase table (`cloud/schema.sql`, one row per item,
+Aurelius and Orario (Schedule) reach every device through a Supabase table (`cloud/schema.sql`, one row per item,
 open to the app's anon key, no sign-in), synced by `Sources/Pocket/CloudSync.swift` on the Mac and by the installable web app in `web/`
-everywhere else. The main web app shows only the Hair routine; `web/orario/` has all of Orario and `web/pomodoro/` a view-only Pomodoro (no timer). To-do, Calendar and Matinee stay
+everywhere else. The main web app shows only the Hair routine; `web/orario/` has all of Orario and `web/aurelius/` a view-only Aurelius (no timer). To-do, Calendar and Matinee stay
 Mac-only. Setup, the record
 kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md). Rules to keep true:
 - To sync another vault file, give it a `CloudDocument.all` row and its store an `adopt(_:)` registered with `CloudSync.shared.register`.

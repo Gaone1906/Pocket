@@ -8,10 +8,10 @@ const SPAN = 16 * 60;
 const TICKS = ["6a", "8a", "10a", "12p", "2p", "4p", "6p", "8p", "10p"];
 
 const ui = {
-  project: readLocal("pomodoro.web.project", "all"),
-  period: readLocal("pomodoro.web.period", "day"),
+  project: readLocal("aurelius.web.project", "all"),
+  period: readLocal("aurelius.web.period", "day"),
   offset: { day: 0, week: 0, month: 0 },
-  closed: readLocal("pomodoro.web.closed", "0") === "1",
+  closed: readLocal("aurelius.web.closed", "0") === "1",
   menu: false,
   settings: false,
   setupError: "",
@@ -20,7 +20,7 @@ const ui = {
 
 function readLocal(key, fallback) {
   try {
-    const v = localStorage.getItem(key);
+    const v = localStorage.getItem(key) ?? localStorage.getItem(key.replace("aurelius.", "pomodoro."));
     return v == null ? fallback : v;
   } catch (e) {
     return fallback;
@@ -56,7 +56,7 @@ const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 const minutesOf = (list) => list.reduce((a, s) => a + s.minutes, 0);
 
 function theme() {
-  const id = readLocal("pomodoro.web.theme", "rose");
+  const id = readLocal("aurelius.web.theme", "rose");
   return THEMES.some((t) => t.id === id) ? id : "rose";
 }
 
@@ -402,7 +402,7 @@ function viewSettings() {
 function viewSetup() {
   return `<div class="setup">
     <div class="card setup-card">
-      <div class="brand"><img src="icon.svg" alt="" width="40" height="40"><h1>Pomodoro</h1></div>
+      <div class="brand"><img src="icon.svg" alt="" width="40" height="40"><h1>Aurelius</h1></div>
       <p>Your focus sessions from Pocket. Paste your Pocket setup link.</p>
       <form data-form="server">
         <input name="link" placeholder="https://gaone1906.github.io/Pocket/#connect=…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Setup link">
@@ -476,23 +476,23 @@ document.addEventListener("click", async (e) => {
   } else if (d.pick) {
     ui.project = ui.menu || ui.project !== d.pick ? d.pick : "all";
     ui.menu = false;
-    writeLocal("pomodoro.web.project", ui.project);
+    writeLocal("aurelius.web.project", ui.project);
     render();
   } else if (d.period) {
     ui.period = d.period;
-    writeLocal("pomodoro.web.period", d.period);
+    writeLocal("aurelius.web.period", d.period);
     render();
   } else if (d.step) {
     step(Number(d.step));
   } else if (d.collapse !== undefined) {
     ui.closed = !ui.closed;
-    writeLocal("pomodoro.web.closed", ui.closed ? "1" : "0");
+    writeLocal("aurelius.web.closed", ui.closed ? "1" : "0");
     render();
   } else if (d.settings !== undefined) {
     ui.settings = true;
     render();
   } else if (d.theme) {
-    writeLocal("pomodoro.web.theme", d.theme);
+    writeLocal("aurelius.web.theme", d.theme);
     render();
   } else if (d.sync !== undefined) {
     await store.syncNow();

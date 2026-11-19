@@ -149,7 +149,7 @@ Two private structs share the name `ScheduleSlotCard`, one in `ScheduleApp.swift
 | `schedule.board.stats` | Bool, whether the sidebar is shown (default true) |
 | `schedule.board.panel` | Bool, whether the preferences panel is open (default false) |
 | `NSWindow Frame schedule.board` | The window frame autosave |
-| `pomodoro.board.theme` | The theme is **shared with the Pomodoro board** (`BoardThemeStore.shared`). Changing it here changes Pomodoro too, and logs as `pomodoro board theme=…`. |
+| `pomodoro.board.theme` | The theme is **shared with the Aurelius board** (`BoardThemeStore.shared`). Changing it here changes Aurelius too, and logs as `pomodoro board theme=…`. |
 
 **Load order** (`ScheduleStore.init`):
 1. Register the vault merger `"schedule"`.

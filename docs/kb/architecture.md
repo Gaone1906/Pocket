@@ -130,7 +130,7 @@ The catalog (order = setup order):
 | `outlook` | Outlook | `tray.full.fill` | – | none | web | no | no |
 | `calendar` | Calendar | `calendar` | – | ⌥D | native | no | no |
 | `todo` | To-do | `checklist` | – | ⌥T | native | no | no |
-| `pomodoro` | Pomodoro | `timer` | – | ⌥P | native | no | no |
+| `pomodoro` | Aurelius | `timer` | – | ⌥P | native | no | no |
 | `schedule` | Orario | `sun.horizon` | – | ⌥O | native | **yes** | **yes** |
 | `calculator` | Calculator | `plusminus.circle` | – | ⌥C | native | no | no |
 | `scratchpad` | Scratchpad | `note.text` | – | ⌥N | native | no | no |
@@ -265,14 +265,14 @@ connection, always `Connection: close`, JSON bodies via `JSONSerialization`.
   (incl. `Access-Control-Allow-Private-Network: true`); anything else → `403` (log `pocket server refused`). `OPTIONS` →
   `204`.
 - Caller identity for logs: `X-Pocket-Source` → `Origin` → `User-Agent` → `local`.
-- Routes: `GET /` (route table), and the `/pomodoro*` routes, which return `409` if Pomodoro isn't enabled. Input
+- Routes: `GET /` (route table), and the `/pomodoro*` routes, which return `409` if Aurelius isn't enabled. Input
   validation throws `Invalid` → `400` with a message; other errors → `500`. Full route contract and integration rules:
   `CLAUDE.md` and [apps/pomodoro.md](apps/pomodoro.md).
 - To add a route: add it to the `routes` dictionary (served by `GET /`), a `case` in `route(_:)`, validate with the
   `object/text/flag/minutes` helpers, log the action with `source`, and add it to `CLAUDE.md`'s table.
 
-### `DeclareSession.swift` — `DeclareSessionCard` (Pomodoro UI)
-Despite sitting beside the shell files, this is a Pomodoro board view: the "Declare a session…" sheet (day chips,
+### `DeclareSession.swift` — `DeclareSessionCard` (Aurelius UI)
+Despite sitting beside the shell files, this is an Aurelius board view: the "Declare a session…" sheet (day chips,
 minutes with presets 25/40/60/90/120, optional from–to time, max 720 min, cannot be in the future). Commits via
 `PomodoroBoardStore.declare(minutes:ended:started:project:)`; without a time it ends now (today) or at 18:00 (past
 day). Logs `pomodoro declare rejected` on a blocked commit. Styling via `Board.*` tokens. See
