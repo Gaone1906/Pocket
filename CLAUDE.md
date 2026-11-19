@@ -1,19 +1,20 @@
 # Pocket
 
-Pocket is a macOS menu-bar app (Swift package, macOS 14+, AppKit + SwiftUI). Its Aurelius timer can be driven by other
+Pocket is a macOS menu-bar app (Swift package, macOS 14+, AppKit + SwiftUI). Its Ignis timer can be driven by other
 programs through a local HTTP API. This file tells an agent how to integrate something with it, and what to keep true when
 changing it.
 
 Full context for every app, the shell, data, theming and the current branch state lives in the knowledge base:
 start at [docs/kb/README.md](docs/kb/README.md) and [docs/kb/handoff.md](docs/kb/handoff.md).
 
-## Integrating with the Aurelius API
+## Integrating with the Ignis API
 
-Aurelius is Pocket's Pomodoro timer, renamed on 2026-11-19. Only the names people see changed: its code, app id (`pomodoro`),
+Ignis is Pocket's Pomodoro timer (called Aurelius until the 2026-11-19 elements rename, when Orario became Aqua, Kairos
+became Ventus and Misura became Terra). Only the names people see changed: its code, app id (`pomodoro`),
 HTTP routes, data folder (`Pomodoro/board.json`), UserDefaults keys and cloud record kinds still say `pomodoro` or `board`.
 
-Base URL `http://127.0.0.1:8977`, loopback only, JSON in and out. Pocket must be running with the Aurelius app enabled;
-otherwise every Aurelius route answers `409`. `GET /` lists the routes.
+Base URL `http://127.0.0.1:8977`, loopback only, JSON in and out. Pocket must be running with the Ignis app enabled;
+otherwise every Ignis route answers `409`. `GET /` lists the routes.
 
 Who may call:
 - Command-line tools, scripts and native apps (no `Origin` header) are allowed.
@@ -76,8 +77,8 @@ Reference integration: Preparo, the exam practice app at `~/Desktop/workspace/pe
 ## Backups: setting up and restoring data
 
 Pocket's data is six JSON files under `~/Library/Application Support/Pocket` (`$ROOT` below): `Pomodoro/board.json`
-(projects and sessions), `todos.json`, `schedule.json` (Orario routines and check-offs), `calendar.json` (Calendar
-events), `runner.json` (the Kairos journal) and `calorie.json` (the Misura log). Everything else there can be rebuilt. Where copies live:
+(projects and sessions), `todos.json`, `schedule.json` (Aqua routines and check-offs), `calendar.json` (Calendar
+events), `runner.json` (the Ventus journal) and `calorie.json` (the Terra log). Everything else there can be rebuilt. Where copies live:
 
 | Copy | Location |
 | --- | --- |
@@ -130,7 +131,7 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 ### Restoring on the same Mac
 
 - From a daily snapshot: board settings → Backup → Restore…, pick a day. The current board is kept aside first.
-- From a schedule snapshot: Orario's expanded window → settings sidebar → Backup → Restore…; the current schedule is kept aside first.
+- From a schedule snapshot: Aqua's expanded window → settings sidebar → Backup → Restore…; the current schedule is kept aside first.
 - By hand, or for to-dos (no restore menu): quit Pocket, copy the snapshot over `board.json`, `todos.json` or
   `schedule.json` (from `$ROOT/Backups/schedule/`, or `schedule.json` in the repo), reopen.
 - From an older git version: `git -C "$ROOT/DataRepo" log --oneline -- board.json`, then
@@ -149,9 +150,9 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 
 ## Cloud sync and the web app
 
-Aurelius and Orario (Schedule) reach every device through a Supabase table (`cloud/schema.sql`, one row per item,
+Ignis and Aqua (Schedule) reach every device through a Supabase table (`cloud/schema.sql`, one row per item,
 open to the app's anon key, no sign-in), synced by `Sources/Pocket/CloudSync.swift` on the Mac and by the installable web app in `web/`
-everywhere else. The main web app shows only the Hair routine; `web/orario/` has all of Orario, `web/aurelius/` a view-only Aurelius (no timer), `web/kairos/` the Kairos runner and `web/misura/` Misura. To-do, Calendar and Matinee stay
+everywhere else. The main web app shows only the Hair routine; `web/aqua/` has all of Aqua, `web/ignis/` a view-only Ignis (no timer), `web/ventus/` the Ventus runner and `web/terra/` Terra. To-do, Calendar and Matinee stay
 Mac-only. Setup, the record
 kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md); the five web apps side by side are in
 [docs/kb/web-pages.md](docs/kb/web-pages.md). Rules to keep true:
@@ -160,7 +161,7 @@ kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md); 
 - Test against `web/dev/server.mjs`, never the real project. There is no sign-in; the setup link (URL and anon key) is the only key, so never commit it.
 - Mac routes: `GET /cloud`, `POST /cloud/connect {link}`, `POST /cloud/sync`, `POST /cloud/disconnect`.
 
-## Orario app (formerly Schedule)
+## Aqua app (formerly Orario, and before that Schedule)
 
 A weekly routine tracker (`⌥O`); its code, app id and data file still use `schedule`. Data model in `Sources/Pocket/ScheduleModel.swift` (`ScheduleStore.shared`, saved to
 `$ROOT/schedule.json` through `DataVault` as `schedule`):
@@ -172,7 +173,7 @@ A weekly routine tracker (`⌥O`); its code, app id and data file still use `sch
 - `checks`: one per ticked step per day, with the deterministic id `routine|day|slot|step` (UUIDs and a `yyyy-MM-dd` day),
   so merging two copies is a union by id. Sync counts both check ids and routine ids as "seen".
 - The day rolls over at 4am (`dayFrom`), so a 1am night routine still counts for the day before; the night slot starts at
-  `nightFrom` (default 16:00, set in the Orario settings). History starts 19 Nov 2026 (`ScheduleStore.startDay`).
+  `nightFrom` (default 16:00, set in the Aqua settings). History starts 19 Nov 2026 (`ScheduleStore.startDay`).
 
 Views: `ScheduleApp.swift` (the dropdown: today's morning/night checklist with tips), `ScheduleBoard.swift` (the expanded
 window: Schedule and Calendar views, routine filter, settings sidebar with backups), `ScheduleEditor.swift` (the
@@ -199,19 +200,19 @@ Views: `CalendarApp.swift` (the dropdown: month grid with colour dots and the se
 (the add/edit card). Double-click a day or an hour to add an event; click an event to edit it. Everything draws with the
 shared `Board` theme tokens; there is no theme picker inside Calendar.
 
-## Kairos app
+## Ventus app
 
 Runs today's timed routines step by step (`⌥K`); its code, app id, data file and record kind say `runner`. Details in
 [docs/kb/apps/kairos.md](docs/kb/apps/kairos.md). Rules to keep true:
 - Code holds only templates. Every workout number, move name, timer, cue, affirmation line and writing prompt lives in the
-  `run` object on each Orario step in the database, so a routine change is a data change. Never hard-code them.
-- `ScheduleStep.run` is loose JSON (`Loose`) and must round-trip untouched; the Orario editor never touches it.
-- Finishing a step ticks Orario through `ScheduleStore.shared.set(_:done:)` on the Mac and a `schedule.check` record on the
-  web, never anything Kairos-specific.
+  `run` object on each Aqua step in the database, so a routine change is a data change. Never hard-code them.
+- `ScheduleStep.run` is loose JSON (`Loose`) and must round-trip untouched; the Aqua editor never touches it.
+- Finishing a step ticks Aqua through `ScheduleStore.shared.set(_:done:)` on the Mac and a `schedule.check` record on the
+  web, never anything Ventus-specific.
 - The journal is `$ROOT/runner.json` (`{"entries": [...]}`) through `DataVault` as `runner`, synced as `runner.entry`.
-- The web app is `web/kairos/`; keep `web/kairos/plan.js` and `KairosPlan` (`KairosModel.swift`) producing the same beats.
+- The web app is `web/ventus/`; keep `web/ventus/plan.js` and `KairosPlan` (`KairosModel.swift`) producing the same beats.
 
-## Misura app
+## Terra app
 
 Calorie tracker (`⌥E`); its app id, data file and record kinds say `calorie`. Details in
 [docs/kb/apps/misura.md](docs/kb/apps/misura.md). Rules to keep true:
@@ -219,7 +220,7 @@ Calorie tracker (`⌥E`); its app id, data file and record kinds say `calorie`. 
   `$ROOT/calorie.json` (`{"plan", "entries", "weights"}`, `DataVault` name `calorie`), never in code.
 - Synced as `calorie.settings` (id `book`), `calorie.entry` and `calorie.weight` (id is the day). Merge is a union by id,
   newer `updated` wins.
-- Keep `MisuraMath` (`MisuraModel.swift`) and `web/misura/plan.js` giving the same numbers.
+- Keep `MisuraMath` (`MisuraModel.swift`) and `web/terra/plan.js` giving the same numbers.
 - Over the daily limit is red, under is green; eaten is orange, workout and BMR are green.
 
 ## Changing Pocket itself
@@ -243,6 +244,6 @@ Calorie tracker (`⌥E`); its app id, data file and record kinds say `calorie`. 
 - Build with `swift build`. Install and relaunch with `scripts/install.sh`. Then check routes with `curl`.
 - Themes live in `Sources/Pocket/BoardTheme.swift`: `pastel(...)` for light themes and `dusk(..., ground:, glow:)` for
   dark ones (a deep tinted ground with a pastel glow). The Pocket theme covers the dropdown, Settings and most native
-  apps; Orario, Aurelius and Kairos have their own colour (`AppThemeStore`, defaults Butter, Rose and Apricot like their
+  apps; Aqua, Ignis, Ventus and Terra have their own colour (`AppThemeStore`, defaults Sky, Rose, Stone and Sage like their
   web apps) that tints their menu-bar icon and their windows. Both are picked only in Pocket Settings → Appearance
   (`SettingsWindow.swift`); see `docs/kb/theme.md`. Theme ids are persisted, so never rename one.

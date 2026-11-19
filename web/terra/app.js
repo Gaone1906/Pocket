@@ -9,7 +9,7 @@ const ACTIVITY = [
   ["Moderate", 1.55],
   ["Active", 1.725],
 ];
-const LOGO = '<svg viewBox="0 0 512 512" class="logo-svg"><path d="M256 120v250M150 180h212" stroke="var(--ink)" stroke-width="30" stroke-linecap="round" fill="none"/><path d="M150 180l-56 120h112zM362 180l-56 120h112z" fill="var(--accent)" stroke="none"/><rect x="186" y="370" width="140" height="36" rx="18" fill="var(--ink)" stroke="none"/></svg>';
+const LOGO = '<img src="icon.svg" alt="" class="logo-img">';
 
 const ui = {
   view: readLocal("misura.view", "day"),
@@ -56,7 +56,7 @@ function ring(fraction, size, stroke, over) {
 }
 
 function head() {
-  return `<header class="hd"><div class="logo">${LOGO}</div><h1 class="name">Misura</h1><button class="gear" data-go="settings" aria-label="Settings">${ICONS.settings}</button></header>
+  return `<header class="hd"><div class="logo">${LOGO}</div><h1 class="name">Terra</h1><button class="gear" data-go="settings" aria-label="Settings">${ICONS.settings}</button></header>
   <div class="seg">${["day", "week", "month"].map((v) => `<button class="${ui.view === v ? "on" : ""}" data-go="${v}">${v[0].toUpperCase() + v.slice(1)}</button>`).join("")}</div>`;
 }
 
@@ -252,7 +252,7 @@ function viewPlan() {
   const now = P.today();
   const d = ui.draft || { born: shiftDay(now, -9131), sex: "male", activity: 1.2, startDay: now, goalDay: shiftDay(now, 182), pace: "fastest", floor: 1500 };
   return `<main class="setup">
-    <div class="hd"><div class="logo">${LOGO}</div><h1 class="name">Misura</h1></div>
+    <div class="hd"><div class="logo">${LOGO}</div><h1 class="name">Terra</h1></div>
     <h2 class="ttl">Your plan</h2>
     <form data-form="plan" class="card col gap">
       ${planFields(d)}
@@ -293,10 +293,10 @@ function viewSettings() {
 function viewSetup() {
   return `<main class="setup">
     <div class="card">
-      <div class="hd"><div class="logo">${LOGO}</div><h1 class="name">Misura</h1></div>
+      <div class="hd"><div class="logo">${LOGO}</div><h1 class="name">Terra</h1></div>
       <p class="sub">Paste your Pocket setup link.</p>
       <form data-form="server" class="col gap">
-        <input name="link" placeholder="https://gaone1906.github.io/Pocket/misura/#connect=…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Setup link">
+        <input name="link" placeholder="https://gaone1906.github.io/Pocket/terra/#connect=…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Setup link">
         <details><summary class="sub">Or enter the Supabase values</summary>
           <input name="url" placeholder="Project URL (https://xxxx.supabase.co)" autocomplete="off" autocapitalize="off" aria-label="Project URL">
           <input name="key" placeholder="Anon public key" autocomplete="off" autocapitalize="off" aria-label="Anon public key">

@@ -234,13 +234,13 @@ is through runtime TCC prompts or user settings:
 
 | Permission | Needed by | How it's obtained |
 | --- | --- | --- |
-| Notifications | web app new-message banners, Aurelius phase ends, Calendar alerts | `requestAuthorization(.alert, .sound, .badge)` at every launch |
+| Notifications | web app new-message banners, Ignis phase ends, Calendar alerts | `requestAuthorization(.alert, .sound, .badge)` at every launch |
 | Microphone / Camera | calls in WhatsApp/Slack | WebKit prompts; `WebApp` grants media only to the app's own `hosts`; usage strings in `Info.plist` |
 | Full Disk Access | OTP from Messages (`chat.db`) | manual, System Settings → Privacy & Security → Full Disk Access; setup deep-links there |
 | Login item | "Open Pocket at login" | `SMAppService.mainApp.register()`; may show "Waiting for approval in System Settings" |
 | Keychain | Gmail OAuth tokens | generic passwords, service `com.pranav.pocket.gmail`, account = address |
 | Global hotkeys | all shortcuts | Carbon `RegisterEventHotKey`; no Accessibility permission needed |
-| Loopback server | Aurelius API on 127.0.0.1:8977 | none (loopback only) |
+| Loopback server | Ignis API on 127.0.0.1:8977 | none (loopback only) |
 | `gh` auth | git data sync | `gh auth token -u <pocket.backup.githubUser>`; never prompts |
 
 TCC grants are tied to the code signature. With an ad hoc signature (no Apple Development identity), each rebuild is

@@ -155,10 +155,10 @@ final class AppThemeStore: ObservableObject {
     private static let prefix = "app.theme."
 
     static let apps = [
-        ThemedApp(id: "schedule", name: "Orario", fallback: "butter"),
-        ThemedApp(id: "pomodoro", name: "Aurelius", fallback: "rose"),
-        ThemedApp(id: "runner", name: "Kairos", fallback: "apricot"),
-        ThemedApp(id: "calorie", name: "Misura", fallback: "sage"),
+        ThemedApp(id: "schedule", name: "Aqua", fallback: "sky"),
+        ThemedApp(id: "pomodoro", name: "Ignis", fallback: "rose"),
+        ThemedApp(id: "runner", name: "Ventus", fallback: "stone"),
+        ThemedApp(id: "calorie", name: "Terra", fallback: "sage"),
     ]
 
     @Published private(set) var picks: [String: String]

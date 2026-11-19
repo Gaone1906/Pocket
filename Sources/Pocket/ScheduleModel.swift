@@ -553,7 +553,7 @@ enum ScheduleSeed {
         }
         func actionTip(_ goal: Goal) -> String {
             switch goal {
-            case .job: return "Attraction works with action. Choose one concrete step for the job today and decide when you'll do it, e.g. \"2 focus sessions in Aurelius before lunch\" or \"one full mock test tonight\"."
+            case .job: return "Attraction works with action. Choose one concrete step for the job today and decide when you'll do it, e.g. \"2 focus sessions in Ignis before lunch\" or \"one full mock test tonight\"."
             case .abs: return "Attraction works with action. Choose one concrete step for your six pack today, e.g. \"finish this morning's Fitness session\", \"protein at every meal\" or \"no sugar today\"."
             case .hair: return "Attraction works with action. Choose one concrete step for your hair today, e.g. \"every Hair care step on time\", \"8 hours of sleep\" or \"cap on outdoors\"."
             case .all: return "Choose one concrete step for each goal this week and put it where you'll see it."
@@ -606,7 +606,7 @@ enum ScheduleSeed {
         About 20 minutes first thing after waking and 20 minutes last thing before sleep. The phone stays away until the morning session is done.
         Goal focus rotates: Monday and Thursday the government job, Tuesday and Friday the six pack, Wednesday and Saturday your hair, Sunday all three with a weekly review.
         Keep one notebook for gratitude, wins and scripting, so you can reread your progress.
-        Attraction works best paired with action: study in Aurelius, the Fitness mornings, and the Hair care routine are how the goals arrive.
+        Attraction works best paired with action: study in Ignis, the Fitness mornings, and the Hair care routine are how the goals arrive.
         Missing a step or a day is fine; just pick up at the next session. Consistency matters more than perfection.
         """
         return routine

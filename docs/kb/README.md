@@ -11,7 +11,7 @@ This knowledge base is the full context for agents working on Pocket, a macOS me
 | [operations.md](operations.md) | Build, install, signing, safe testing with `POCKET_DATA_DIR`, rendering views to PNG, logs, git and code conventions |
 | [data-and-backups.md](data-and-backups.md) | `DataVault`: every persisted file and UserDefaults key, snapshots, recovery, Drive mirror, git sync to `pocket-data`, restore |
 | [cloud-sync.md](cloud-sync.md) | Supabase records table, Mac `CloudSync`, the `web/` app on phone/iPad/laptops, setup and safety |
-| [web-pages.md](web-pages.md) | The five GitHub Pages web apps (Routine for the parents, Orario, Aurelius, Kairos, Misura): what each shows and writes, themes, icons, storage keys, cache prefixes, setup link |
+| [web-pages.md](web-pages.md) | The five GitHub Pages web apps (Routine for the parents, Aqua, Ignis, Ventus, Terra): what each shows and writes, themes, icons, storage keys, cache prefixes, setup link |
 | [theme.md](theme.md) | `Board` design tokens, themes, embroidery backdrops, design language |
 
 ## Apps
@@ -21,10 +21,10 @@ This knowledge base is the full context for agents working on Pocket, a macOS me
 | WhatsApp, Slack, Spotify, Gmail, Outlook, Preparo | ⌥W ⌥S ⌥M ⌥G, none, none | [apps/web-apps.md](apps/web-apps.md) |
 | Calendar | ⌥D | [apps/calendar.md](apps/calendar.md) |
 | To-do | ⌥T | [apps/todo.md](apps/todo.md) |
-| Aurelius (and its board, the visual reference for every other board) | ⌥P | [apps/pomodoro.md](apps/pomodoro.md) |
-| Orario (weekly routines, built 2026-11-19) | ⌥O | [apps/schedule.md](apps/schedule.md) |
-| Kairos (runs today's routines step by step, journal) | ⌥K | [apps/kairos.md](apps/kairos.md) |
-| Misura (calories against daily, weekly and monthly goals) | ⌥E | [apps/misura.md](apps/misura.md) |
+| Ignis (and its board, the visual reference for every other board) | ⌥P | [apps/pomodoro.md](apps/pomodoro.md) |
+| Aqua (weekly routines, built 2026-11-19) | ⌥O | [apps/schedule.md](apps/schedule.md) |
+| Ventus (runs today's routines step by step, journal) | ⌥K | [apps/kairos.md](apps/kairos.md) |
+| Terra (calories against daily, weekly and monthly goals) | ⌥E | [apps/misura.md](apps/misura.md) |
 | Calculator | ⌥C | [apps/calculator.md](apps/calculator.md) |
 | Scratchpad | ⌥N | [apps/scratchpad.md](apps/scratchpad.md) |
 | System Stats | none | [apps/stats.md](apps/stats.md) |
@@ -35,7 +35,7 @@ Shortcuts are the defaults from `Catalog.swift`. The user can rebind them, or ad
 ## Elsewhere in the repo
 
 - [../../README.md](../../README.md): user-facing overview and install.
-- [../../CLAUDE.md](../../CLAUDE.md): the Aurelius HTTP API integration guide and rules to keep true.
+- [../../CLAUDE.md](../../CLAUDE.md): the Ignis HTTP API integration guide and rules to keep true.
 
 ## Keeping this current
 

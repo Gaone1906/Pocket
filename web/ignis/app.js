@@ -349,7 +349,7 @@ function viewHeader(m) {
   const options = [{ id: "all", name: "All projects", tint: "var(--faint)", minutes: minutesOf(m.every) }, ...m.list.map((p) => ({ ...p, minutes: minutesOf(m.every.filter((s) => s.project === p.id)) }))];
   return `<header>
     <span class="logo" aria-hidden="true"></span>
-    <h1>Aurelius</h1>
+    <h1>Ignis</h1>
     <button class="picker" data-menu aria-haspopup="listbox" aria-expanded="${ui.menu}" aria-label="Project">
       ${current ? `<i class="dot" style="background:${current.tint}"></i>` : ""}
       <span>${esc(current ? current.short : "All projects")}</span>
@@ -404,7 +404,7 @@ function viewSettings() {
 function viewSetup() {
   return `<div class="setup">
     <div class="card setup-card">
-      <div class="brand"><img src="icon.svg" alt="" width="40" height="40"><h1>Aurelius</h1></div>
+      <div class="brand"><img src="icon.svg" alt="" width="40" height="40"><h1>Ignis</h1></div>
       <p>Your focus sessions from Pocket. Paste your Pocket setup link.</p>
       <form data-form="server">
         <input name="link" placeholder="https://gaone1906.github.io/Pocket/#connect=…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Setup link">

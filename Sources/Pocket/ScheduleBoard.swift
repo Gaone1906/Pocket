@@ -31,7 +31,7 @@ final class ScheduleBoardWindow: NSObject, NSWindowDelegate {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 660),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                               backing: .buffered, defer: false)
-        window.title = "Orario"
+        window.title = "Aqua"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.appearance = OrarioBoard.theme.appearance

@@ -581,7 +581,7 @@ enum MisuraReminder {
                 guard let date = MisuraDays.date(day),
                       let fire = MisuraDays.calendar.date(bySettingHour: hour, minute: minute, second: 0, of: date), fire > now else { continue }
                 let content = UNMutableNotificationContent()
-                content.title = "Misura"
+                content.title = "Terra"
                 content.body = "Weigh-in"
                 content.sound = .default
                 content.userInfo = ["app": "calorie"]

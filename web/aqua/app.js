@@ -4,7 +4,7 @@ import { $, esc, ICONS } from "./util.js";
 import * as orario from "./orario.js";
 
 const TABS = [
-  ["orario", "Orario"],
+  ["orario", "Aqua"],
   ["settings", "Settings"],
 ];
 
@@ -14,8 +14,13 @@ const ui = {
   toast: "",
 };
 
+function savedPrefs() {
+  return store.get("settings.prefs", "orario") || {};
+}
+
 function prefs() {
-  return { theme: "butter", ...(store.get("settings.prefs", "orario") || {}) };
+  const saved = savedPrefs();
+  return { ...saved, theme: saved.aquaTheme || "sky" };
 }
 
 function viewSettings() {
@@ -35,7 +40,7 @@ function viewSettings() {
       <div class="themes">${swatches(dark)}</div>
     </div>
     <div class="card list">
-      <h3>Orario</h3>
+      <h3>Aqua</h3>
       <div class="row"><span class="grow">Night routine from<span class="tip">The day rolls over at 4 AM, so a late night still counts for the day before.</span></span>
         <div class="stepper"><button data-night="-1" aria-label="Earlier">−</button><b>${orario.hourLabel(night)}</b><button data-night="1" aria-label="Later">+</button></div>
       </div>
@@ -55,10 +60,10 @@ function viewSetup() {
   return `
   <div class="setup">
     <div class="card setup-card">
-      <div class="brand"><span class="logo"></span><h1>Orario</h1></div>
+      <div class="brand"><span class="logo"></span><h1>Aqua</h1></div>
       <p>Every routine, in one place. Paste your Pocket setup link.</p>
       <form data-form="server">
-        <input name="link" placeholder="https://gaone1906.github.io/Pocket/orario/#connect=…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Setup link">
+        <input name="link" placeholder="https://gaone1906.github.io/Pocket/aqua/#connect=…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Setup link">
         <details class="manual"><summary>Or enter the Supabase values</summary>
           <input name="url" placeholder="Project URL (https://xxxx.supabase.co)" autocomplete="off" autocapitalize="off" aria-label="Project URL">
           <input name="key" placeholder="Anon public key" autocomplete="off" autocapitalize="off" aria-label="Anon public key">
@@ -144,7 +149,7 @@ document.addEventListener("click", async (e) => {
     if (r) return;
   }
   if (d.theme) {
-    store.put("settings.prefs", "orario", { ...prefs(), theme: d.theme });
+    store.put("settings.prefs", "orario", { ...savedPrefs(), aquaTheme: d.theme });
   } else if (d.night) {
     orario.setNightFrom(Number(d.night));
   } else if (d.sync !== undefined) {

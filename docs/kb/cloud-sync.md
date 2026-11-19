@@ -1,6 +1,6 @@
 # Cloud sync and the web app
 
-Aurelius and Orario (the Schedule app) live on every device, not only one Mac. A hosted Postgres database (Supabase, free tier) holds one row per item, the Mac app syncs those two vault files to it, and an installable web app (`web/`) works on the phone, iPad and any other laptop. To-do, Calendar and Matinee stay Mac-only by choice (Pranav, 2026-11-19). Each device keeps a full local copy, so it keeps working offline and a lost device loses nothing.
+Ignis and Aqua (the Schedule app) live on every device, not only one Mac. A hosted Postgres database (Supabase, free tier) holds one row per item, the Mac app syncs those two vault files to it, and an installable web app (`web/`) works on the phone, iPad and any other laptop. To-do, Calendar and Matinee stay Mac-only by choice (Pranav, 2026-11-19). Each device keeps a full local copy, so it keeps working offline and a lost device loses nothing.
 
 Related: [web-pages.md](web-pages.md) (the three web apps side by side), [data-and-backups.md](data-and-backups.md) (the vault files this syncs), [architecture.md](architecture.md) (local HTTP server).
 
@@ -10,10 +10,10 @@ Related: [web-pages.md](web-pages.md) (the three web apps side by side), [data-a
 | --- | --- | --- |
 | Schema | `cloud/schema.sql` | One table, `public.records`, open to the app's anon key |
 | Mac sync | `Sources/Pocket/CloudSync.swift` | Two-way sync of `board` and `schedule` with the table |
-| Web app | `web/` (`index.html`, `app.js`, `store.js`, `orario.js`, `util.js`, `themes.js`, `style.css`, `sw.js`) | The Routine app for Pranav's parents: Orario's Hair routine only, read only, a sync button and nothing else |
-| Orario (all routines) | `web/orario/` | A separate, self-contained web app with every routine: Day, Week and Month, the routine filter, and Settings behind a gear at the top right. No bottom bar and no schedule editing (Pranav, 2026-11-19: routines are changed in Orario on the Mac). Same table and setup link; its own local copy (`orario.cloud.v1`), service worker and Home Screen entry. In a browser that already holds the main app's link, it connects without asking |
-| Aurelius | `web/aurelius/` | A separate, view-only web app for focus sessions (no timer): a project picker, Daily, Weekly and Monthly tabs, a card comparing this day, week or month with your average, project totals, a stacked day-by-day bar chart (Weekly), a 6am to 10pm timeline (Daily, Weekly) or a daily line graph (Monthly) with arrows and swipe for earlier periods, and Settings (theme, sync). Its own local copy (`aurelius.cloud.v1`), service worker and Home Screen entry; it connects without asking in a browser that holds the main or Orario app's link |
-| Hosting | `.github/workflows/pages.yml` | Publishes `web/` (without `web/dev`) to GitHub Pages on pushes to `main`; `web/orario/` lands at `https://gaone1906.github.io/Pocket/orario/` and `web/aurelius/` at `https://gaone1906.github.io/Pocket/aurelius/` |
+| Web app | `web/` (`index.html`, `app.js`, `store.js`, `orario.js`, `util.js`, `themes.js`, `style.css`, `sw.js`) | The Routine app for Pranav's parents: Aqua's Hair routine only, read only, a sync button and nothing else |
+| Aqua (all routines) | `web/aqua/` | A separate, self-contained web app with every routine: Day, Week and Month, the routine filter, and Settings behind a gear at the top right. No bottom bar and no schedule editing (Pranav, 2026-11-19: routines are changed in Aqua on the Mac). Same table and setup link; its own local copy (`orario.cloud.v1`), service worker and Home Screen entry. In a browser that already holds the main app's link, it connects without asking |
+| Ignis | `web/ignis/` | A separate, view-only web app for focus sessions (no timer): a project picker, Daily, Weekly and Monthly tabs, a card comparing this day, week or month with your average, project totals, a stacked day-by-day bar chart (Weekly), a 6am to 10pm timeline (Daily, Weekly) or a daily line graph (Monthly) with arrows and swipe for earlier periods, and Settings (theme, sync). Its own local copy (`aurelius.cloud.v1`), service worker and Home Screen entry; it connects without asking in a browser that holds the main or Aqua app's link |
+| Hosting | `.github/workflows/pages.yml` | Publishes `web/` (without `web/dev`) to GitHub Pages on pushes to `main`; `web/aqua/` lands at `https://gaone1906.github.io/Pocket/aqua/` and `web/ignis/` at `https://gaone1906.github.io/Pocket/ignis/` |
 | Dev backend | `web/dev/server.mjs` | A local stand-in for the Supabase REST API, for testing without a cloud project |
 | Setup link | `web/dev/link.mjs` | Prints a link that fills in the database URL and key on a new device |
 
@@ -25,17 +25,17 @@ Related: [web-pages.md](web-pages.md) (the three web apps side by side), [data-a
 | --- | --- | --- | --- |
 | `board.project` | project UUID | `{id, name, hue, _pos}` | `board.json` `projects` |
 | `board.session` | session UUID | `{id, ended, minutes, project?, started?, declared?}`; `ended` is seconds since 2001 | `board.json` `sessions` |
-| `schedule.routine` | UUID | the routine, with `plan`, plus `_pos`; a step may carry a `run` object for Kairos ([apps/kairos.md](apps/kairos.md)) | `schedule.json` `routines` |
+| `schedule.routine` | UUID | the routine, with `plan`, plus `_pos`; a step may carry a `run` object for Ventus ([apps/kairos.md](apps/kairos.md)) | `schedule.json` `routines` |
 | `schedule.check` | `routine\|day\|slot\|step` | the check | `schedule.json` `checks` |
 | `schedule.settings` | `book` | `{nightFrom, dayFrom}` | `schedule.json` top-level scalars |
-| `runner.entry` | `routine\|day\|slot\|step` | a Kairos journal entry | `runner.json` `entries` |
-| `calorie.settings` | `book` | `{plan}`, Misura's plan ([apps/misura.md](apps/misura.md)) | `calorie.json` `plan` |
+| `runner.entry` | `routine\|day\|slot\|step` | a Ventus journal entry | `runner.json` `entries` |
+| `calorie.settings` | `book` | `{plan}`, Terra's plan ([apps/misura.md](apps/misura.md)) | `calorie.json` `plan` |
 | `calorie.entry` | UUID | a meal or workout | `calorie.json` `entries` |
 | `calorie.weight` | `yyyy-MM-dd` | a weigh-in | `calorie.json` `weights` |
 | `settings.prefs` | `prefs` | `{theme}` | web only (main app) |
-| `settings.prefs` | `orario` | `{theme}` | web only (`web/orario/`, default Butter) |
+| `settings.prefs` | `orario` | `{theme}` | web only (`web/aqua/`, default Sky, stored in `aquaTheme`) |
 
-Aurelius on the web keeps its theme per device in `localStorage` and has no `settings.prefs` record.
+Ignis on the web keeps its theme per device in `localStorage` and has no `settings.prefs` record.
 
 `_pos` keeps list order (projects, routines). It exists only in the cloud; the Mac strips it when it writes a file and puts its own index back when it reads one. `CloudDocument.all` in `CloudSync.swift` is the mapping; a new vault file gets one row there.
 
@@ -60,7 +60,7 @@ Web (`store.js`): edits go to a local outbox in `localStorage` and are pushed wi
 
 Built for an iPhone 14 screen first (390 pt wide, Home Screen app), with a sidebar layout on laptops.
 
-- **Hair only, read only** (Pranav, 2026-11-19): this is the app shared with Pranav's parents. It shows only the Orario routine whose name contains "hair", in Day, Week and Month views with tips, and never writes: no ticking, no Mark all done, no schedule editor, no settings, no bottom bar. A sync button at the top pulls the latest; the theme and night start hour come from the synced data. No app or routine name appears (the page title and Home Screen name read "Routine"). Ticking and editing happen in the Orario master app (`web/orario/`) or on the Mac.
+- **Hair only, read only** (Pranav, 2026-11-19): this is the app shared with Pranav's parents. It shows only the Aqua routine whose name contains "hair", in Day, Week and Month views with tips, and never writes: no ticking, no Mark all done, no schedule editor, no settings, no bottom bar. A sync button at the top pulls the latest; the theme and night start hour come from the synced data. No app or routine name appears (the page title and Home Screen name read "Routine"). Ticking and editing happen in the Aqua master app (`web/aqua/`) or on the Mac.
 
 ## Setting it up (owner, once)
 

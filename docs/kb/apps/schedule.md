@@ -1,6 +1,6 @@
-# Orario
+# Aqua
 
-Orario (named Schedule until 2026-11-19; code, ids and files still say `schedule`) is a weekly-routine tracker. It shows today's morning or night checklist in a dropdown and has a board window with Schedule and Calendar views. It was built on branch `add-schedule` on 2026-11-19 (`git log main..add-schedule`, commits `4882c90`…`f4892b9`).
+Aqua (named Schedule until 2026-11-19; code, ids and files still say `schedule`) is a weekly-routine tracker. It shows today's morning or night checklist in a dropdown and has a board window with Schedule and Calendar views. It was built on branch `add-schedule` on 2026-11-19 (`git log main..add-schedule`, commits `4882c90`…`f4892b9`).
 
 The app comes from a claude.ai artifact, "Weekly Hair Routine" (https://claude.ai/artifact/NNyccJSEfqq9La5mhfb39i). `ScheduleSeed.hairCare()` is that routine translated into code.
 
@@ -10,9 +10,9 @@ Related files: [../architecture.md](../architecture.md) (PocketApp, catalog, hot
 
 | | |
 | --- | --- |
-| Catalog entry | `AppSpec(id: "schedule", name: "Orario", symbol: "sun.horizon", hotKey: kVK_ANSI_O, claimsHotKey: true, pinnedByDefault: true)` in `Catalog.swift` |
+| Catalog entry | `AppSpec(id: "schedule", name: "Aqua", symbol: "sun.horizon", glyph: Glyphs.aqua, hotKey: kVK_ANSI_O, claimsHotKey: true, pinnedByDefault: true)` in `Catalog.swift` |
 | Default shortcut | **⌥O**, taken from Outlook. Outlook now has `hotKey: nil`. See [Shortcut migration](#shortcut-migration). |
-| Menu-bar icon | SF Symbol `sun.horizon`, with a red badge counting the **unchecked steps in the current slot** of today, for the routines the filter shows (`ScheduleApp.remaining`). There is no badge at 0. |
+| Menu-bar icon | `Glyphs.aqua`, a koi face rising through ripples, tinted with the app colour, with a red badge counting the **unchecked steps in the current slot** of today, for the routines the filter shows (`ScheduleApp.remaining`). There is no badge at 0. |
 | Placement | The app is pinned to the menu bar, not the dropdown tray, on existing installs too (`pinnedByDefault`). |
 | Dropdown | 380×560, fixed (`defaultSize` = `minSize`, `resizable` false). |
 | Right-click menu | "Open schedule", which opens the board window. |
@@ -105,7 +105,7 @@ Two private structs share the name `ScheduleSlotCard`, one in `ScheduleApp.swift
 
 **Book settings**
 - **Repeats are weekly only, by design.** There is no biweekly and no every-N-days. A repeat is entered on each weekday separately; the editor footer says "Weeks repeat; put a step on each day you want it."
-- **Fixed-length programs.** A routine can carry `ends` (last day, inclusive) and `dated` (`"<yyyy-MM-dd>-<slot>"` to a step list). `ScheduleRoutine.runs(on:)` hides the routine outside `starts…ends`, and `steps(on:_:)` uses a `dated` list when that day has one, otherwise the weekly cell. The Orario web app mirrors this in `runs` and `stepsOn`. The editor does not edit `dated` lists.
+- **Fixed-length programs.** A routine can carry `ends` (last day, inclusive) and `dated` (`"<yyyy-MM-dd>-<slot>"` to a step list). `ScheduleRoutine.runs(on:)` hides the routine outside `starts…ends`, and `steps(on:_:)` uses a `dated` list when that day has one, otherwise the weekly cell. The Aqua web app mirrors this in `runs` and `stepsOn`. The editor does not edit `dated` lists.
 - **Fitness (seeded once).** `ScheduleSeed.fitness()` is a 21-morning program from 20 Nov to 10 Dec 2026 (10 days of home exercises, then run/walk up to 1 km and jump rope up to 1000). `addFitnessIfDue()` adds it once per Mac, guarded by the `schedule.seeded.fitness-2026-11` default, and only if the program hasn't ended and no routine is already named Fitness.
 - **`nightFrom`** (default 16): the hour the night slot begins. It is set in Preferences, clamped to `dayFrom+1 … 23` (`setNightFrom`).
 - **`dayFrom`** (default 4): the day rolls over at 4 AM. **No UI changes it.**
@@ -151,7 +151,7 @@ Two private structs share the name `ScheduleSlotCard`, one in `ScheduleApp.swift
 | `schedule.board.stats` | Bool, whether the sidebar is shown (default true) |
 | `schedule.board.panel` | Bool, whether the preferences panel is open (default false) |
 | `NSWindow Frame schedule.board` | The window frame autosave |
-| `pomodoro.board.theme` | The theme is **shared with the Aurelius board** (`BoardThemeStore.shared`). Changing it here changes Aurelius too, and logs as `pomodoro board theme=…`. |
+| `pomodoro.board.theme` | The theme is **shared with the Ignis board** (`BoardThemeStore.shared`). Changing it here changes Ignis too, and logs as `pomodoro board theme=…`. |
 
 **Load order** (`ScheduleStore.init`):
 1. Register the vault merger `"schedule"`.
