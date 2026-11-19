@@ -2,6 +2,9 @@ name: shots
 on:
   push:
     branches: [claude/project-thread-xbsnkm]
+    paths-ignore: ['.github/shots/out/**']
+permissions:
+  contents: write
 jobs:
   shots:
     runs-on: macos-26
@@ -10,15 +13,16 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
-      - run: swift --version
-      - run: swift build 2>&1 | tail -60
+      - run: swift build 2>&1 | tail -30
       - run: |
           cp .github/shots/Shots.swift Sources/Pocket/Shots.swift
           cp .github/shots/main.swift Sources/Pocket/main.swift
-          swift build 2>&1 | tail -40
-          SHOTS="$PWD/shots" POCKET_DATA_DIR="$RUNNER_TEMP/data" .build/debug/Pocket
-          ls -la shots
-      - uses: actions/upload-artifact@v4
-        with:
-          name: shots
-          path: shots
+          swift build 2>&1 | tail -30
+          SHOTS="$PWD/.github/shots/out" POCKET_DATA_DIR="$RUNNER_TEMP/data" .build/debug/Pocket
+          git checkout Sources/Pocket/main.swift
+          rm Sources/Pocket/Shots.swift
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/shots/out
+          git commit -m "screenshots for review"
+          git push
