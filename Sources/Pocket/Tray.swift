@@ -29,6 +29,7 @@ final class TrayApp: PocketApp {
         })
         let hosting = NSHostingView(rootView: view)
         hosting.sizingOptions = []
+        hosting.safeAreaRegions = []
         hosting.appearance = BoardThemeStore.shared.theme.appearance
         themeWatch = BoardThemeStore.shared.$theme.sink { [weak hosting] theme in hosting?.appearance = theme.appearance }
         return hosting
@@ -66,89 +67,40 @@ private struct TrayHeightKey: PreferenceKey {
 
 struct TrayView: View {
     static let width: CGFloat = 436
-    static let headerHeight: CGFloat = 78
-    static let footerHeight: CGFloat = 46
 
     @ObservedObject var layout: Layout
     @ObservedObject var themes: BoardThemeStore
     let open: (String) -> Void
     let fit: (CGFloat) -> Void
-    @State var editing = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-                .frame(height: Self.headerHeight, alignment: .bottom)
-            ScrollView(.vertical, showsIndicators: false) {
-                ShelfList(layout: layout, editing: editing, open: open)
+        ScrollView(.vertical, showsIndicators: false) {
+            ShelfList(layout: layout, editing: false, open: open)
+                .overlay(alignment: .topTrailing) {
+                    TrayRoundButton(symbol: "gearshape", help: "Settings", active: false, size: 24) {
+                        TrayActions.openSettings()
+                    }
+                    .offset(y: -1)
+                }
                 .padding(.horizontal, 14)
-                .padding(.top, 4)
+                .padding(.top, 14)
                 .padding(.bottom, 14)
                 .background(GeometryReader { proxy in
                     Color.clear.preference(key: TrayHeightKey.self, value: proxy.size.height)
                 })
-            }
-            footer
-                .frame(height: Self.footerHeight)
         }
         .frame(width: Self.width)
         .frame(maxHeight: .infinity, alignment: .top)
+        .ignoresSafeArea()
         .background(BoardBackdrop(theme: themes.theme).ignoresSafeArea())
         .environment(\.colorScheme, themes.theme.colorScheme)
         .animation(Board.glide, value: layout.shelves)
         .animation(Board.glide, value: layout.bar)
         .animation(Board.glide, value: layout.collapsed)
-        .animation(Board.glide, value: editing)
         .onPreferenceChange(TrayHeightKey.self) { content in
-            let total = content + Self.headerHeight + Self.footerHeight
-            DispatchQueue.main.async { fit(total) }
+            DispatchQueue.main.async { fit(content) }
         }
         .id(themes.theme.id)
-    }
-
-    var header: some View {
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Pocket")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(Board.ink)
-                Text(summary)
-                    .font(.system(size: 11))
-                    .foregroundStyle(Board.muted)
-            }
-            Spacer()
-            TrayRoundButton(symbol: editing ? "checkmark" : "square.and.pencil", help: editing ? "Done organizing" : "Organize shelves", active: editing) {
-                editing.toggle()
-                note("pocket dropdown organize editing=\(editing)")
-            }
-            TrayRoundButton(symbol: "gearshape", help: "Settings", active: false) {
-                TrayActions.openSettings()
-            }
-        }
-        .padding(.horizontal, 18)
-        .padding(.bottom, 12)
-    }
-
-    var summary: String {
-        let apps = layout.enabled.count
-        let shelves = layout.customShelves.count
-        return "\(apps) app\(apps == 1 ? "" : "s") · \(shelves) shel\(shelves == 1 ? "f" : "ves")"
-    }
-
-    var footer: some View {
-        HStack(spacing: 10) {
-            Text(editing ? "Rename, reorder or remove shelves. Their apps go to Unorganized." : "Drag apps between shelves. Click one to open it.")
-                .font(.system(size: 11))
-                .foregroundStyle(Board.faint)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
-            Spacer(minLength: 4)
-            Button("Set up…") { AppDelegate.shared.presentSetup() }
-                .buttonStyle(TrayPillButton())
-        }
-        .padding(.horizontal, 18)
-        .frame(maxHeight: .infinity)
-        .overlay(alignment: .top) { Rectangle().fill(Board.line).frame(height: 1) }
     }
 }
 
@@ -156,13 +108,14 @@ struct TrayRoundButton: View {
     let symbol: String
     let help: String
     let active: Bool
+    var size: CGFloat = 30
     let action: () -> Void
 
     var body: some View {
         let icon = Image(systemName: symbol)
-            .font(.system(size: 12, weight: .semibold))
+            .font(.system(size: size * 0.4, weight: .semibold))
             .foregroundStyle(active ? Board.accentInk : Board.ink)
-            .frame(width: 30, height: 30)
+            .frame(width: size, height: size)
             .contentShape(Circle())
         Button(action: action) {
             if #available(macOS 26, *) {
@@ -175,19 +128,6 @@ struct TrayRoundButton: View {
         }
         .buttonStyle(.plain)
         .help(help)
-    }
-}
-
-struct TrayPillButton: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 11.5, weight: .semibold))
-            .foregroundStyle(Board.ink)
-            .padding(.horizontal, 12)
-            .frame(height: 26)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Board.theme.pill))
-            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Board.line, lineWidth: 1))
-            .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 
@@ -205,7 +145,10 @@ struct ShelfList: View {
             if editing {
                 NewShelfButton { layout.addShelf() }
             }
-            ShelfSection(layout: layout, spot: .shelf(Shelf.unorganizedId), title: Shelf.unorganizedName, symbol: "tray", apps: layout.shelves.last?.apps ?? [], editing: editing, open: open)
+            let loose = layout.shelves.last?.apps ?? []
+            if editing || !loose.isEmpty {
+                ShelfSection(layout: layout, spot: .shelf(Shelf.unorganizedId), title: Shelf.unorganizedName, symbol: "tray", apps: loose, editing: editing, open: open)
+            }
         }
     }
 }
@@ -301,12 +244,6 @@ struct ShelfSection: View {
                     .foregroundStyle(Board.muted)
                     .lineLimit(1)
             }
-            Text("\(apps.count)")
-                .font(.system(size: 9.5, weight: .bold))
-                .foregroundStyle(Board.muted)
-                .padding(.horizontal, 6)
-                .frame(height: 16)
-                .background(Capsule().fill(Board.theme.pill))
             Spacer(minLength: 4)
             if editing, let shelfId {
                 let index = layout.customShelves.firstIndex { $0.id == shelfId } ?? 0

@@ -70,7 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             app.start()
         }
         bar.sync(layout.bar.filter { apps[$0] != nil })
-        hotKeys.register(layout.hotKeys && !recordingShortcut ? wanted.compactMap { id in layout.shortcuts[id].map { (id, $0) } } : [])
+        hotKeys.register(layout.hotKeys && !recordingShortcut ? wanted.flatMap { id in layout.keys(for: id).map { (id: id, keys: $0) } } : [])
         syncOtp()
         syncAwake()
     }

@@ -28,6 +28,7 @@ final class Layout: ObservableObject {
     @Published var hotKeys: Bool { didSet { defaults.set(hotKeys, forKey: "hotkeys.enabled"); onChange?() } }
     @Published var otp: Bool { didSet { defaults.set(otp, forKey: "otp.enabled"); onChange?() } }
     @Published private(set) var shortcuts: [String: Shortcut]
+    @Published private(set) var extraShortcuts: [String: [Shortcut]]
     var onChange: (() -> Void)?
 
     init() {
@@ -76,6 +77,7 @@ final class Layout: ObservableObject {
             added.append(app.id)
         }
         shortcuts = map
+        extraShortcuts = defaults.data(forKey: "shortcuts.extra").flatMap { try? JSONDecoder().decode([String: [Shortcut]].self, from: $0) } ?? [:]
         defaults.set(Array(offered).sorted(), forKey: "shortcuts.offered")
         if stored == nil || !added.isEmpty, let data = try? JSONEncoder().encode(map) {
             defaults.set(data, forKey: "shortcuts")
@@ -227,19 +229,48 @@ final class Layout: ObservableObject {
         defaults.set(Array(collapsed), forKey: "layout.collapsed")
     }
 
+    func keys(for id: String) -> [Shortcut] {
+        (shortcuts[id].map { [$0] } ?? []) + (extraShortcuts[id] ?? [])
+    }
+
     func setShortcut(_ id: String, _ shortcut: Shortcut?) {
-        var next = shortcuts
+        replaceShortcut(id, old: shortcuts[id], with: shortcut)
+    }
+
+    func replaceShortcut(_ id: String, old: Shortcut?, with shortcut: Shortcut?) {
+        var all: [String: [Shortcut]] = [:]
+        for app in Set(shortcuts.keys).union(extraShortcuts.keys) { all[app] = keys(for: app) }
+        var list = all[id] ?? []
+        if let old, let index = list.firstIndex(of: old) {
+            if let shortcut { list[index] = shortcut } else { list.remove(at: index) }
+        } else if let shortcut {
+            list.append(shortcut)
+        }
         if let shortcut {
-            for (other, taken) in next where other != id && taken == shortcut {
-                next[other] = nil
+            for (other, taken) in all where other != id && taken.contains(shortcut) {
+                all[other] = taken.filter { $0 != shortcut }
                 note("pocket shortcut taken over app=\(other) by=\(id) keys=\(shortcut.display)")
             }
+            var seen = false
+            list = list.filter { key in
+                guard key == shortcut else { return true }
+                defer { seen = true }
+                return !seen
+            }
         }
-        next[id] = shortcut
-        guard next != shortcuts else { return }
-        shortcuts = next
-        if let data = try? JSONEncoder().encode(next) { defaults.set(data, forKey: "shortcuts") }
-        note("pocket shortcut set app=\(id) keys=\(shortcut?.display ?? "none")")
+        all[id] = list
+        var primary: [String: Shortcut] = [:]
+        var extra: [String: [Shortcut]] = [:]
+        for (app, list) in all {
+            primary[app] = list.first
+            if list.count > 1 { extra[app] = Array(list.dropFirst()) }
+        }
+        guard primary != shortcuts || extra != extraShortcuts else { return }
+        shortcuts = primary
+        extraShortcuts = extra
+        if let data = try? JSONEncoder().encode(primary) { defaults.set(data, forKey: "shortcuts") }
+        if let data = try? JSONEncoder().encode(extra) { defaults.set(data, forKey: "shortcuts.extra") }
+        note("pocket shortcut set app=\(id) old=\(old?.display ?? "none") keys=\(shortcut?.display ?? "none") now=\(list.map(\.display).joined(separator: ","))")
         onChange?()
     }
 }

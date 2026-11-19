@@ -27,7 +27,7 @@ This knowledge base is the full context for agents working on Pocket, a macOS me
 | System Stats | none | [apps/stats.md](apps/stats.md) |
 | Matinee (District ticket hunter) | none | [apps/matinee.md](apps/matinee.md) |
 
-Shortcuts are the defaults from `Catalog.swift`. The user can rebind them in setup.
+Shortcuts are the defaults from `Catalog.swift`. The user can rebind them, or add more per app, in Pocket Settings → Shortcuts (or in setup).
 
 ## Elsewhere in the repo
 

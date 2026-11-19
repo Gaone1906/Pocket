@@ -165,11 +165,12 @@ the gotcha on unbundled runs below).
 | `setup.done` | Bool | setup finished at least once |
 | `hotkeys.enabled` | Bool | global shortcuts on (default true when absent) |
 | `otp.enabled` | Bool | one-time-code watching on |
-| `shortcuts` | Data (JSON `[id: Shortcut]`) | per-app shortcut |
+| `shortcuts` | Data (JSON `[id: Shortcut]`) | per-app primary shortcut |
+| `shortcuts.extra` | Data (JSON `[id: [Shortcut]]`) | further shortcuts per app, added in Pocket Settings → Shortcuts |
 | `shortcuts.offered` | `[String]` | ids whose default shortcut has already been offered |
 | `size.<id>` | String (`NSStringFromSize`) | saved panel size (written by `PocketApp`) |
 
-Published: `bar`, `shelves`, `collapsed` (private set), `setupDone`, `hotKeys`, `otp`, `shortcuts` (private set).
+Published: `bar`, `shelves`, `collapsed` (private set), `setupDone`, `hotKeys`, `otp`, `shortcuts`, `extraShortcuts` (private set). `keys(for:)` gives every shortcut of an app; `replaceShortcut(_:old:with:)` adds, changes or removes one and takes it from any other app.
 `tray` is every shelf's apps flattened and `enabled = bar + tray`. Stale ids not in the catalog are dropped on load, and
 `Layout.normalized` keeps each app in exactly one place with Unorganized last.
 
@@ -225,12 +226,13 @@ measures the shelf list (`TrayHeightKey`) and calls `fit`, which resizes the pan
 bar, capped at the screen's visible height (beyond that the list scrolls). The view follows `BoardThemeStore` (Board
 tokens, `BoardBackdrop`, `colorScheme`, hosting `appearance`).
 
-Layout: a header ("Pocket", app and shelf count, an Organize toggle and a gear), `ShelfList`, and a footer with "Set
-up…". `ShelfList` renders the Menu bar shelf, the custom shelves, and Unorganized as `ShelfSection`s: a small-caps title
-with a count and a fold chevron, over a card with an adaptive grid of `AppTile`s (42pt glyph chip + name). Tap opens the
+Layout: no header or footer. `ShelfList` starts at the top of the panel (the hosting view has no safe area), with a small
+gear over the right end of the first shelf's title row. `ShelfList` renders the Menu bar shelf, the custom shelves, and
+Unorganized (only while it has apps, or in organize mode) as `ShelfSection`s: a small-caps title and a fold chevron, over a card with an adaptive grid of `AppTile`s (42pt glyph chip + name). Tap opens the
 app (`open(id, source: "dropdown")`); right-click offers "Move to" and "New shelf with …". Drag-and-drop uses the app id
 `String` as payload (on a tile inserts before it, on a shelf appends); a shelf's grip drags `shelf:<id>` to reorder.
-In Organize mode custom shelves get a name field, up/down and delete, and a "New shelf" row appears.
+Organize mode (name field, up/down, delete, "New shelf") exists only in Pocket Settings → Shelves; "Set up…" is in
+Pocket Settings → General, and per-app shortcuts in Pocket Settings → Shortcuts (`ShortcutsSettings.swift`).
 `TrayActions.openSettings()` is the gear's single entry point, also behind the right-click "Organize shelves…"; it opens
 Pocket Settings on its Shelves section (`PocketSettings.shared.show(section: .shelves)`), where `ShelvesSettings`
 (`ShelvesSettings.swift`) shows the same `ShelfList` in organize mode.

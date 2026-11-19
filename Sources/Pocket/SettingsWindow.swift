@@ -6,6 +6,7 @@ import SwiftUI
 enum SettingsSection: String, CaseIterable, Identifiable {
     case appearance
     case shelves
+    case shortcuts
     case general
 
     var id: String { rawValue }
@@ -14,6 +15,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .appearance: "Appearance"
         case .shelves: "Shelves"
+        case .shortcuts: "Shortcuts"
         case .general: "General"
         }
     }
@@ -22,6 +24,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         switch self {
         case .appearance: "paintpalette"
         case .shelves: "square.grid.2x2"
+        case .shortcuts: "command"
         case .general: "gearshape"
         }
     }
@@ -215,7 +218,8 @@ struct PocketSettingsView: View {
         switch focus.section {
         case .appearance: "One theme for every Pocket app. Gmail, WhatsApp, Slack and Spotify keep their own look."
         case .shelves: "Arrange where each app lives."
-        case .general: "Shortcuts, codes and startup."
+        case .shortcuts: "Open any app from anywhere. Click a shortcut to change it, or + to add another."
+        case .general: "Apps, codes and startup."
         }
     }
 
@@ -227,6 +231,8 @@ struct PocketSettingsView: View {
         case .shelves:
             ShelvesSettings()
                 .id(themes.theme.id)
+        case .shortcuts:
+            ShortcutsSettings(layout: Layout.shared, theme: themes.theme)
         case .general:
             GeneralSettings(layout: Layout.shared, theme: themes.theme)
         }
@@ -409,8 +415,6 @@ private struct GeneralSettings: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(spacing: 0) {
-                toggle("Keyboard shortcuts", "Open apps with ⌥ and a letter", isOn: $layout.hotKeys)
-                hairline
                 toggle("One-time codes", "Show codes from Messages in the menu bar", isOn: $layout.otp)
                 hairline
                 toggle("Open at login", "Start Pocket when you sign in", isOn: Binding(get: { login.on }, set: { login.set($0) }))
@@ -430,7 +434,7 @@ private struct GeneralSettings: View {
                 Button {
                     AppDelegate.shared.presentSetup()
                 } label: {
-                    Text("Choose apps…")
+                    Text("Set up…")
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(theme.accentInkStyle)
                         .padding(.horizontal, 14)
