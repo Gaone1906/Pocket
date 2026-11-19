@@ -560,6 +560,7 @@ private struct CalendarWeekView: View {
 
     private let hourHeight: CGFloat = 48
     private let gutter: CGFloat = 56
+    private let lineInset: CGFloat = 6
 
     var body: some View {
         let days = CalendarDays.week(state.anchor)
@@ -605,7 +606,6 @@ private struct CalendarWeekView: View {
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
                     ZStack(alignment: .topLeading) {
-                        Color.clear.frame(height: 1).id("morning").padding(.top, 7 * hourHeight - 16)
                         grid
                         HStack(spacing: 6) {
                             Color.clear.frame(width: gutter - 6)
@@ -614,12 +614,12 @@ private struct CalendarWeekView: View {
                             }
                         }
                     }
-                    .frame(height: hourHeight * 24)
-                    .padding(.top, 8)
+                    .frame(height: hourHeight * 24 + lineInset)
+                    .padding(.top, 2)
                     .padding(.bottom, 12)
                 }
                 .scrollIndicators(.never)
-                .onAppear { proxy.scrollTo("morning", anchor: .top) }
+                .onAppear { proxy.scrollTo(7, anchor: .top) }
             }
         }
         .id(CalendarDays.weekStart(state.anchor))
@@ -661,10 +661,11 @@ private struct CalendarWeekView: View {
                         .monospacedDigit()
                         .foregroundStyle(Board.faint)
                         .frame(width: gutter - 12, alignment: .trailing)
-                        .offset(y: -6)
                     Rectangle().fill(Board.line.opacity(Board.theme.embroidery == nil ? 0.7 : 0.25)).frame(height: 1)
+                        .padding(.top, lineInset)
                 }
                 .frame(height: hourHeight, alignment: .top)
+                .id(hour)
             }
         }
     }
@@ -683,7 +684,7 @@ private struct CalendarWeekView: View {
                     .fill(today ? Board.accent.opacity(0.06) : Color.clear)
                     .contentShape(Rectangle())
                     .onTapGesture(count: 2, coordinateSpace: .local) { point in
-                        let hour = min(23, max(0, Int(point.y / hourHeight)))
+                        let hour = min(23, max(0, Int((point.y - lineInset) / hourHeight)))
                         state.create(on: day, hour: hour, store: store)
                     }
                 if today {
@@ -719,7 +720,7 @@ private struct CalendarWeekView: View {
         let start = CalendarDays.day(day)
         let minutes = date.timeIntervalSince(start) / 60
         let limit = clampEnd ? 24.0 * 60 : 24.0 * 60 - 15
-        return CGFloat(min(max(0, minutes), limit)) / 60 * hourHeight
+        return CGFloat(min(max(0, minutes), limit)) / 60 * hourHeight + lineInset
     }
 
     private func block(_ occurrence: CalendarOccurrence, height: CGFloat) -> some View {
