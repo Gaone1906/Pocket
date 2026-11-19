@@ -53,13 +53,24 @@ let playbackWatch = """
       response => { if (!response.ok && watched.test(url)) report("http " + response.status, bare(url)); return response; },
       error => { if (watched.test(url)) report("fetch failed", bare(url) + " " + error); throw error; });
   };
+  let seen = false;
+  let live = 0;
+  window.__pocketConnected = () => seen ? live > 0 : null;
   const NativeSocket = window.WebSocket;
   window.WebSocket = class extends NativeSocket {
     constructor(url, protocols) {
       super(url, protocols);
       const host = bare(url);
-      this.addEventListener("open", () => report("socket open", host, 100));
-      this.addEventListener("close", event => report("socket closed", host + " code=" + event.code + " clean=" + event.wasClean, 100));
+      const dealer = /dealer/i.test(host);
+      let counted = false;
+      this.addEventListener("open", () => {
+        if (dealer) { seen = true; live += 1; counted = true; }
+        report("socket open", host, 100);
+      });
+      this.addEventListener("close", event => {
+        if (counted) { live -= 1; counted = false; }
+        report("socket closed", host + " code=" + event.code + " clean=" + event.wasClean, 100);
+      });
       this.addEventListener("error", () => report("socket error", host, 100));
     }
   };
@@ -80,6 +91,8 @@ let playbackWatch = """
   console.error = function (...args) { report("console", args.map(a => a && a.message ? a.message : a).join(" ")); return nativeError.apply(this, args); };
 })();
 """
+
+let connectedProbe = "typeof window.__pocketConnected === 'function' ? window.__pocketConnected() : null"
 
 let playingProbe = "typeof window.__pocketPlaying === 'function' && window.__pocketPlaying() === true"
 
@@ -194,9 +207,23 @@ class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHand
             note("pocket health failed app=\(self.spec.id) cause=\(error.localizedDescription); reloading")
             self.web?.load(URLRequest(url: self.site.url))
         }
+        checkPlayer(reason: "health")
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) { [weak self] in
             guard let self, !answered, self.web != nil else { return }
             self.restart(reason: "health timed out")
+        }
+    }
+
+    func checkPlayer(reason: String) {
+        guard site.watch != nil, let web else { return }
+        web.evaluateJavaScript(connectedProbe) { [weak self] connected, _ in
+            guard let self, connected as? Bool == false else { return }
+            self.web?.evaluateJavaScript(playingProbe) { [weak self] playing, _ in
+                guard let self, let web = self.web else { return }
+                let busy = playing as? Bool == true
+                note("pocket player disconnected app=\(self.spec.id) reason=\(reason) playing=\(busy) action=\(busy ? "kept" : "reload")")
+                if !busy { web.load(URLRequest(url: self.site.url)) }
+            }
         }
     }
 
@@ -223,6 +250,7 @@ class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHand
     override func didShow() {
         unloadWork?.cancel()
         load(reason: "opened")
+        checkPlayer(reason: "opened")
         panel.makeFirstResponder(web)
     }
 

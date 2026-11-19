@@ -45,6 +45,11 @@ So a new web or link app needs only a catalog entry. For the shared panel, statu
 - `media error|stalled|abort|emptied` from audio and video elements;
 - `rejection`, `script error` and `console` (console.error) messages.
 
+The script also counts open Connect dealer sockets and exposes `window.__pocketConnected()` (null until one has
+opened). `WebApp.checkPlayer(reason:)` runs it when the panel opens and on every `checkHealth()` (every 300 s and on
+wake); if the dealer is down and nothing is playing it reloads the page and logs
+`pocket player disconnected app=spotify reason=<opened|health> playing=<bool> action=<reload|kept>`.
+
 Each kind is capped per page load (30, sockets 100, DRM 5/10). When song picks stop working, read
 `grep "app=spotify" ~/Library/Logs/pocket.log | tail -80` around that time.
 
