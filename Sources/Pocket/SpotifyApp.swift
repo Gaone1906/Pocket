@@ -22,7 +22,8 @@ final class SpotifyApp: WebApp {
     var claimed = false
     var showingCompanion = false
     var presentWork: DispatchWorkItem?
-    var presentedAt = Date.distantPast
+    var holdUntil = Date.distantPast
+    var claimPending = false
 
     var companion: NSRunningApplication? {
         NSRunningApplication.runningApplications(withBundleIdentifier: SpotifyApp.bundleID).first { !$0.isTerminated }
@@ -42,7 +43,7 @@ final class SpotifyApp: WebApp {
     }
 
     override func shouldStayOpen() -> Bool {
-        super.shouldStayOpen() || Date().timeIntervalSince(presentedAt) < 2
+        super.shouldStayOpen() || Date() < holdUntil
     }
 
     override func didShow() {
@@ -87,16 +88,16 @@ final class SpotifyApp: WebApp {
         guard !showingCompanion else { return }
         let fresh = Date().timeIntervalSince(launchedAt) < 15
         keepHidden(app, reason: fresh ? "launch activated" : "activated")
-        guard !fresh else { return }
+        if fresh, !isShown { return }
         presentWork?.cancel()
-        presentedAt = Date()
+        holdUntil = max(holdUntil, Date().addingTimeInterval(2))
         let work = DispatchWorkItem { [weak self] in self?.present() }
         presentWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
     }
 
     func present() {
-        presentedAt = Date()
+        holdUntil = max(holdUntil, Date().addingTimeInterval(2))
         guard isShown else { return show(anchor: AppDelegate.shared.anchor(for: spec.id), source: "spotify app") }
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
@@ -128,6 +129,7 @@ final class SpotifyApp: WebApp {
         config.addsToRecentItems = false
         launching = true
         launchedAt = Date()
+        if isShown { holdUntil = Date().addingTimeInterval(8) }
         note("pocket spotify app launching app=\(spec.id) reason=\(reason) path=\(url.path)")
         NSWorkspace.shared.openApplication(at: url, configuration: config) { [weak self] app, error in
             DispatchQueue.main.async {
@@ -142,9 +144,11 @@ final class SpotifyApp: WebApp {
     }
 
     func claimWhenReady(attempt: Int) {
-        guard !claimed, companion != nil else { return }
+        guard !claimed, !claimPending, companion != nil else { return }
+        claimPending = true
         let wait: TimeInterval = attempt == 0 ? 4 : 5
         DispatchQueue.main.asyncAfter(deadline: .now() + wait) { [weak self] in
+            self?.claimPending = false
             self?.runClaim(attempt: attempt)
         }
     }
