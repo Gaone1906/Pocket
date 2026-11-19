@@ -5,8 +5,9 @@ import SwiftUI
 final class KairosApp: PocketApp {
     private var watch: AnyCancellable?
 
-    override var defaultSize: NSSize { NSSize(width: 400, height: 640) }
-    override var minSize: NSSize { NSSize(width: 380, height: 540) }
+    override var defaultSize: NSSize { NSSize(width: 380, height: 520) }
+    override var minSize: NSSize { NSSize(width: 380, height: 520) }
+    override var resizable: Bool { false }
 
     override func start() {
         let journal = KairosJournal.shared
@@ -25,7 +26,8 @@ final class KairosApp: PocketApp {
     }
 
     override func makeContent() -> NSView {
-        ThemedHostingView(rootView: KairosRoot(runner: KairosRunner.shared, store: ScheduleStore.shared, journal: KairosJournal.shared), app: "runner")
+        let view = KairosGlance(runner: KairosRunner.shared, store: ScheduleStore.shared) { [weak self] in self?.openWindow(source: "dropdown") }
+        return ThemedHostingView(rootView: view, app: "runner")
     }
 
     override func didShow() {
@@ -51,14 +53,23 @@ final class KairosApp: PocketApp {
         return NSAttributedString(string: text, attributes: attributes)
     }
 
+    func openWindow(source: String) {
+        hide(reason: "switched")
+        KairosWindow.shared.present(source: source)
+    }
+
     override func menuItems() -> [NSMenuItem] {
-        guard KairosRunner.shared.running else { return [] }
+        let open = NSMenuItem(title: "Open Kairos", action: #selector(openFromMenu), keyEquivalent: "")
+        open.target = self
+        guard KairosRunner.shared.running else { return [open] }
         let pause = NSMenuItem(title: KairosRunner.shared.state?.paused == true ? "Resume" : "Pause", action: #selector(pauseFromMenu), keyEquivalent: "")
         pause.target = self
         let end = NSMenuItem(title: "End session", action: #selector(endFromMenu), keyEquivalent: "")
         end.target = self
-        return [pause, end]
+        return [open, pause, end]
     }
+
+    @objc private func openFromMenu() { openWindow(source: "menu") }
 
     @objc private func pauseFromMenu() { KairosRunner.shared.togglePause() }
 
@@ -150,56 +161,85 @@ private enum KairosPage {
     case journal
 }
 
-private struct KairosRoot: View {
-    @ObservedObject var runner: KairosRunner
-    @ObservedObject var store: ScheduleStore
-    @ObservedObject var journal: KairosJournal
-    @ObservedObject var themes = AppThemeStore.shared
-    @State private var page = KairosPage.today
+final class KairosWindow: NSObject, NSWindowDelegate {
+    static let shared = KairosWindow()
 
-    var body: some View {
-        Group {
-            if let state = runner.state, let live = runner.live {
-                if state.finished != nil {
-                    KairosDone(runner: runner, journal: journal, live: live, state: state)
-                } else {
-                    KairosRun(runner: runner, journal: journal, live: live, state: state)
-                }
-            } else if page == .journal {
-                KairosJournalView(journal: journal) { page = .today }
-            } else {
-                KairosToday(runner: runner, store: store, journal: journal) { page = .journal }
-            }
+    private var window: NSWindow?
+    private var themeWatch: AnyCancellable?
+
+    func present(source: String) {
+        NSApp.setActivationPolicy(.regular)
+        if let window {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            note("kairos window refocused source=\(source)")
+            return
         }
-        .id(KairosBoard.theme.id)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(BoardBackdrop(theme: KairosBoard.theme))
-        .ignoresSafeArea()
-        .appTheme(KairosBoard.theme)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 680),
+                              styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                              backing: .buffered, defer: false)
+        window.title = "Kairos"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.appearance = KairosBoard.theme.appearance
+        window.backgroundColor = NSColor(KairosBoard.backdrop)
+        themeWatch = AppThemeStore.shared.publisher(for: "runner").sink { [weak window] theme in
+            window?.appearance = theme.appearance
+            window?.backgroundColor = NSColor(theme.backdrop)
+        }
+        window.minSize = NSSize(width: 780, height: 540)
+        window.contentView = NSHostingView(rootView: KairosBoardView(runner: KairosRunner.shared, store: ScheduleStore.shared, journal: KairosJournal.shared))
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.center()
+        window.setFrameAutosaveName("runner.board")
+        self.window = window
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        note("kairos window opened source=\(source) running=\(KairosRunner.shared.running)")
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        let closing = window
+        window?.delegate = nil
+        window = nil
+        themeWatch = nil
+        let others = NSApp.windows.contains { $0 !== closing && $0.isVisible && $0.styleMask.contains(.titled) && $0.canBecomeMain }
+        if !others { NSApp.setActivationPolicy(.accessory) }
+        note("kairos window closed running=\(KairosRunner.shared.running) otherWindows=\(others)")
     }
 }
 
-private struct KairosToday: View {
+private struct KairosGlance: View {
     @ObservedObject var runner: KairosRunner
     @ObservedObject var store: ScheduleStore
-    @ObservedObject var journal: KairosJournal
-    let openJournal: () -> Void
-    @State private var sound = KairosRunner.sound
-    @State private var hold = KairosRunner.hold
+    @ObservedObject var themes = AppThemeStore.shared
+    let open: () -> Void
 
     var body: some View {
         let day = store.today
         let sessions = KairosSession.all(on: day)
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Kairos")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(KairosBoard.ink)
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Kairos")
+                        .font(.system(size: 19, weight: .bold))
+                        .foregroundStyle(KairosBoard.ink)
+                    Text(KairosLook.title(day))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(KairosBoard.muted)
+                }
                 Spacer()
-                Text(KairosLook.title(day))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(KairosBoard.muted)
-                settings
+                Button(action: open) {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(KairosBoard.muted)
+                        .frame(width: 26, height: 26)
+                        .background(Circle().fill(KairosBoard.line.opacity(0.55)))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Open Kairos in its own window")
             }
             .padding(.horizontal, 18)
             .padding(.top, 20)
@@ -207,52 +247,173 @@ private struct KairosToday: View {
             Rectangle().fill(KairosBoard.line).frame(height: 1)
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
+                    if runner.running, let live = runner.live, let beat = live.beat, let state = runner.state {
+                        now(live, beat, state)
+                    }
                     if sessions.isEmpty {
-                        empty
+                        Text("Nothing to run today.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(KairosBoard.muted)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 30)
                     }
                     ForEach(ScheduleSlot.allCases) { slot in
                         let list = sessions.filter { $0.slot == slot }
                         if !list.isEmpty {
                             KairosLook.kicker(slot == .morning ? "Morning" : "Tonight · from \(KairosLook.hour(store.book.nightFrom))")
-                                .padding(.top, slot == .morning ? 0 : 8)
+                                .padding(.top, 6)
                             ForEach(list) { session in
-                                KairosSessionRow(session: session, running: runner.isRunning(session)) { runner.start(session) }
+                                Button(action: open) {
+                                    KairosSessionRow(session: session, running: runner.isRunning(session), action: nil)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
-                    journalTeaser
-                        .padding(.top, 10)
                 }
                 .padding(16)
             }
             .scrollIndicators(.never)
-            HStack {
-                Text("⌥K opens Kairos")
-                Spacer()
-                Text("Same ticks as Orario")
-            }
-            .font(.system(size: 11))
-            .foregroundStyle(KairosBoard.faint)
-            .padding(.horizontal, 18)
-            .padding(.bottom, 14)
+            Button("Open Kairos", action: open)
+                .buttonStyle(KairosPrimary(height: 38))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
         }
+        .id(KairosBoard.theme.id)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(BoardBackdrop(theme: KairosBoard.theme))
+        .ignoresSafeArea()
+        .appTheme(KairosBoard.theme)
     }
 
-    private var settings: some View {
-        Menu {
-            Toggle("Chime at each change", isOn: $sound)
-            Toggle("Wait for a click before each step", isOn: $hold)
-        } label: {
-            Image(systemName: "gearshape")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(KairosBoard.muted)
-                .frame(width: 26, height: 26)
-                .contentShape(Circle())
+    private func now(_ live: KairosLive, _ beat: KairosBeat, _ state: KairosRunState) -> some View {
+        Button(action: open) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    KairosLook.kicker("Now · \(KairosSession.title(live.routine, on: state.day))")
+                    Text(beat.name)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(KairosBoard.ink)
+                    Text("Step \(beat.step + 1) of \(live.steps.count)\(state.paused ? " · paused" : "")")
+                        .font(.system(size: 11))
+                        .foregroundStyle(KairosBoard.muted)
+                }
+                Spacer()
+                if beat.counted {
+                    Text(KairosPlan.clock(runner.remaining))
+                        .font(.system(size: 24, weight: .light))
+                        .monospacedDigit()
+                        .foregroundStyle(KairosBoard.ink)
+                }
+            }
+            .padding(14)
+            .background(RoundedRectangle(cornerRadius: 14).fill(KairosBoard.accent.opacity(0.12)))
+            .boardEdge(14)
+            .contentShape(RoundedRectangle(cornerRadius: 14))
         }
-        .menuStyle(.button)
-        .menuIndicator(.hidden)
         .buttonStyle(.plain)
-        .fixedSize()
+    }
+}
+
+private struct KairosBoardView: View {
+    @ObservedObject var runner: KairosRunner
+    @ObservedObject var store: ScheduleStore
+    @ObservedObject var journal: KairosJournal
+    @ObservedObject var themes = AppThemeStore.shared
+    @State private var page = KairosPage.today
+
+    var body: some View {
+        HStack(spacing: 0) {
+            KairosSidebar(runner: runner, store: store, page: $page)
+                .frame(width: 280)
+                .background(KairosBoard.sidebar)
+            Rectangle().fill(KairosBoard.line).frame(width: 1)
+            stage
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .id(KairosBoard.theme.id)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(BoardBackdrop(theme: KairosBoard.theme))
+        .ignoresSafeArea()
+        .appTheme(KairosBoard.theme)
+    }
+
+    @ViewBuilder private var stage: some View {
+        if let state = runner.state, let live = runner.live {
+            Group {
+                if state.finished != nil {
+                    KairosDone(runner: runner, journal: journal, live: live, state: state)
+                } else {
+                    KairosRun(runner: runner, journal: journal, live: live, state: state)
+                }
+            }
+            .frame(maxWidth: 640)
+            .padding(.horizontal, 24)
+            .padding(.top, 28)
+            .padding(.bottom, 20)
+        } else if page == .journal {
+            KairosJournalView(journal: journal) { page = .today }
+                .frame(maxWidth: 720)
+                .padding(.top, 14)
+        } else {
+            KairosUpNext(runner: runner, store: store)
+                .frame(maxWidth: 620)
+                .padding(.horizontal, 24)
+                .padding(.top, 40)
+                .padding(.bottom, 24)
+        }
+    }
+}
+
+private struct KairosSidebar: View {
+    @ObservedObject var runner: KairosRunner
+    @ObservedObject var store: ScheduleStore
+    @Binding var page: KairosPage
+    @State private var sound = KairosRunner.sound
+    @State private var hold = KairosRunner.hold
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Kairos")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(KairosBoard.ink)
+                Text(KairosLook.title(store.today))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(KairosBoard.muted)
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 40)
+            .padding(.bottom, 14)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let state = runner.state, let live = runner.live {
+                        steps(live, state)
+                    } else {
+                        sessions
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 14)
+            }
+            .scrollIndicators(.never)
+            Rectangle().fill(KairosBoard.line).frame(height: 1)
+            VStack(alignment: .leading, spacing: 10) {
+                if runner.state == nil {
+                    HStack(spacing: 6) {
+                        Button("Today") { page = .today }.buttonStyle(KairosChip(on: page == .today))
+                        Button("Journal") { page = .journal }.buttonStyle(KairosChip(on: page == .journal))
+                    }
+                }
+                Toggle("Chime at each change", isOn: $sound)
+                Toggle("Wait for a click before each step", isOn: $hold)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .font(.system(size: 11))
+            .foregroundStyle(KairosBoard.muted)
+            .padding(14)
+        }
         .onChange(of: sound) { _, on in
             KairosRunner.sound = on
             note("kairos setting changed sound=\(on)")
@@ -263,64 +424,159 @@ private struct KairosToday: View {
         }
     }
 
-    private var empty: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "figure.mind.and.body")
-                .font(.system(size: 24, weight: .light))
-                .foregroundStyle(KairosBoard.faint)
-            Text("Nothing to run today")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(KairosBoard.ink)
-            Text("Timed routines from Orario show up here on the days they run.")
-                .font(.system(size: 12))
-                .foregroundStyle(KairosBoard.muted)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 30)
-    }
-
-    private var journalTeaser: some View {
-        let latest = journal.sorted.first { $0.tag != "feel" && !$0.body.isEmpty }
-        return Button(action: openJournal) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    KairosLook.kicker("Journal")
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(KairosBoard.faint)
-                }
-                if let latest {
-                    Text("“\(latest.body.replacingOccurrences(of: "\n", with: " "))”")
-                        .font(.system(size: 13))
-                        .italic()
-                        .foregroundStyle(KairosBoard.ink)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    Text("\(latest.title ?? latest.routineName ?? "") · \(journal.entries.count) \(journal.entries.count == 1 ? "entry" : "entries")")
-                        .font(.system(size: 11))
-                        .foregroundStyle(KairosBoard.muted)
-                } else {
-                    Text("What you write in a session is kept here, on every device.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(KairosBoard.muted)
+    private var sessions: some View {
+        let list = KairosSession.all(on: store.today)
+        return VStack(alignment: .leading, spacing: 8) {
+            if list.isEmpty {
+                Text("Nothing to run today. Timed routines from Orario show up here on the days they run.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(KairosBoard.muted)
+                    .padding(.horizontal, 4)
+            }
+            ForEach(ScheduleSlot.allCases) { slot in
+                let group = list.filter { $0.slot == slot }
+                if !group.isEmpty {
+                    KairosLook.kicker(slot == .morning ? "Morning" : "Tonight · from \(KairosLook.hour(store.book.nightFrom))")
+                        .padding(.top, 6)
+                        .padding(.horizontal, 4)
+                    ForEach(group) { session in
+                        KairosSessionRow(session: session, running: false, action: session.finished ? nil : { runner.start(session) })
+                    }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
-            .background(RoundedRectangle(cornerRadius: 14).fill(KairosBoard.column.opacity(0.6)))
-            .boardEdge(14)
-            .contentShape(RoundedRectangle(cornerRadius: 14))
         }
-        .buttonStyle(.plain)
+    }
+
+    private func steps(_ live: KairosLive, _ state: KairosRunState) -> some View {
+        let items = store.items(on: state.day, slot: state.slot, in: [live.routine])
+        let current = live.beat?.step ?? 0
+        return VStack(alignment: .leading, spacing: 4) {
+            KairosLook.kicker("\(KairosSession.title(live.routine, on: state.day)) · \(state.slot.label)")
+                .padding(.horizontal, 6)
+            if state.finished == nil {
+                Text("\(KairosPlan.minutes(Int(runner.sessionLeft(live)))) min left")
+                    .font(.system(size: 12))
+                    .monospacedDigit()
+                    .foregroundStyle(KairosBoard.muted)
+                    .padding(.horizontal, 6)
+                    .padding(.bottom, 6)
+            }
+            ForEach(Array(live.steps.enumerated()), id: \.offset) { index, step in
+                let done = items.first { $0.step.id == step.id }?.done ?? false
+                let here = index == current && state.finished == nil
+                Button {
+                    if state.finished == nil { runner.jump(to: index) }
+                } label: {
+                    HStack(spacing: 10) {
+                        ZStack {
+                            if done {
+                                Circle().fill(KairosBoard.accentStyle)
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 8, weight: .heavy))
+                                    .foregroundStyle(KairosLook.onAccent)
+                            } else {
+                                Circle().strokeBorder(here ? KairosBoard.accent : KairosBoard.faint, lineWidth: 1.5)
+                            }
+                        }
+                        .frame(width: 16, height: 16)
+                        Text(KairosPlan.split(step.title).name)
+                            .font(.system(size: 13, weight: here ? .semibold : .regular))
+                            .foregroundStyle(done && !here ? KairosBoard.muted : KairosBoard.ink)
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(KairosPlan.clock(state.spent[String(index)] ?? KairosPlan.estimate(step)))
+                            .font(.system(size: 11))
+                            .monospacedDigit()
+                            .foregroundStyle(KairosBoard.muted)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 9).fill(here ? KairosBoard.accent.opacity(0.12) : Color.clear))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(state.finished == nil ? "Jump to this step" : "")
+            }
+            Text("Each step ticks in Orario as you finish it.")
+                .font(.system(size: 11))
+                .foregroundStyle(KairosBoard.faint)
+                .padding(.horizontal, 6)
+                .padding(.top, 8)
+        }
+    }
+}
+
+private struct KairosUpNext: View {
+    @ObservedObject var runner: KairosRunner
+    @ObservedObject var store: ScheduleStore
+
+    var body: some View {
+        let list = KairosSession.all(on: store.today)
+        let open = list.filter { !$0.finished }
+        let next = open.first { $0.slot == store.slotNow } ?? open.first
+        VStack(alignment: .leading, spacing: 16) {
+            if let next {
+                KairosLook.kicker(next.slot == store.slotNow ? "Up next" : "Later today")
+                Text(KairosSession.dayNumber(next.routine, on: next.day).map { "\(next.routine.name) · Day \($0.n) of \($0.of)" } ?? next.routine.name)
+                    .font(.system(size: 30, weight: .semibold))
+                    .foregroundStyle(KairosBoard.ink)
+                Text("\(next.slot.label) · \(next.total) steps · about \(KairosPlan.minutes(next.seconds)) min\(next.writing > 0 ? " · \(next.writing) to write" : "")")
+                    .font(.system(size: 13))
+                    .foregroundStyle(KairosBoard.muted)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(next.steps.enumerated()), id: \.offset) { index, step in
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            Text("\(index + 1)")
+                                .font(.system(size: 12, weight: .semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(KairosBoard.faint)
+                                .frame(width: 16, alignment: .trailing)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(ScheduleStepText.plain(step.title))
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(KairosBoard.ink)
+                                Text(KairosPlan.howLabel(step))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(KairosBoard.muted)
+                            }
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                        .overlay(alignment: .bottom) { Rectangle().fill(KairosBoard.line).frame(height: 1) }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 16).fill(KairosBoard.column))
+                .boardEdge(16)
+                Spacer(minLength: 0)
+                Button(next.done > 0 ? "Continue" : "Start") { runner.start(next) }
+                    .buttonStyle(KairosPrimary(height: 48))
+                    .keyboardShortcut(.return, modifiers: [])
+            } else {
+                Spacer()
+                VStack(spacing: 8) {
+                    Image(systemName: list.isEmpty ? "figure.mind.and.body" : "checkmark.circle")
+                        .font(.system(size: 34, weight: .light))
+                        .foregroundStyle(KairosBoard.faint)
+                    Text(list.isEmpty ? "Nothing to run today" : "All done for today")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(KairosBoard.ink)
+                    Text(list.isEmpty ? "Timed routines from Orario show up here on the days they run." : "Every session is ticked in Orario.")
+                        .font(.system(size: 13))
+                        .foregroundStyle(KairosBoard.muted)
+                }
+                .frame(maxWidth: .infinity)
+                Spacer()
+            }
+        }
     }
 }
 
 private struct KairosSessionRow: View {
     let session: KairosSession
     let running: Bool
-    let start: () -> Void
+    let action: (() -> Void)?
 
     private var summary: String {
         if session.finished {
@@ -356,8 +612,8 @@ private struct KairosSessionRow: View {
                     .foregroundStyle(KairosBoard.muted)
             }
             Spacer(minLength: 8)
-            if !session.finished || running {
-                Button(running ? "Resume" : session.done > 0 ? "Continue" : "Start", action: start)
+            if let action, !session.finished || running {
+                Button(running ? "Resume" : session.done > 0 ? "Continue" : "Start", action: action)
                     .buttonStyle(KairosPrimary(height: 30))
                     .fixedSize()
             }
