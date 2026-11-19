@@ -160,7 +160,7 @@ final class ScheduleStore: ObservableObject {
         return try encoder.encode(book)
     }
 
-    private func tick() {
+    func tick() {
         let before = (today, slotNow)
         now = Date()
         if before != (today, slotNow) { note("schedule moved day=\(today) slot=\(slotNow.rawValue)") }
