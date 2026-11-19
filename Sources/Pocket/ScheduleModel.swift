@@ -14,6 +14,73 @@ struct ScheduleStep: Codable, Identifiable, Equatable {
     var id = UUID()
     var title: String
     var tip: String = ""
+    var run: Loose? = nil
+}
+
+indirect enum Loose: Codable, Equatable {
+    case null
+    case bool(Bool)
+    case number(Double)
+    case string(String)
+    case array([Loose])
+    case object([String: Loose])
+
+    init(from decoder: Decoder) throws {
+        let value = try decoder.singleValueContainer()
+        if value.decodeNil() { self = .null }
+        else if let flag = try? value.decode(Bool.self) { self = .bool(flag) }
+        else if let number = try? value.decode(Double.self) { self = .number(number) }
+        else if let text = try? value.decode(String.self) { self = .string(text) }
+        else if let list = try? value.decode([Loose].self) { self = .array(list) }
+        else { self = .object(try value.decode([String: Loose].self)) }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var value = encoder.singleValueContainer()
+        switch self {
+        case .null: try value.encodeNil()
+        case .bool(let flag): try value.encode(flag)
+        case .number(let number):
+            if number.rounded() == number, abs(number) < 1e15 { try value.encode(Int64(number)) } else { try value.encode(number) }
+        case .string(let text): try value.encode(text)
+        case .array(let list): try value.encode(list)
+        case .object(let map): try value.encode(map)
+        }
+    }
+
+    subscript(key: String) -> Loose? {
+        if case .object(let map) = self { return map[key] }
+        return nil
+    }
+
+    var string: String? {
+        switch self {
+        case .string(let text): return text
+        case .number(let number): return number.rounded() == number ? String(Int64(number)) : String(number)
+        default: return nil
+        }
+    }
+
+    var number: Double? {
+        switch self {
+        case .number(let number): return number
+        case .string(let text): return Double(text)
+        default: return nil
+        }
+    }
+
+    var flag: Bool {
+        switch self {
+        case .bool(let flag): return flag
+        case .number(let number): return number != 0
+        default: return false
+        }
+    }
+
+    var list: [Loose] {
+        if case .array(let list) = self { return list }
+        return []
+    }
 }
 
 enum ScheduleStepText {

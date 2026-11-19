@@ -75,9 +75,9 @@ Reference integration: Preparo, the exam practice app at `~/Desktop/workspace/pe
 
 ## Backups: setting up and restoring data
 
-Pocket's data is four JSON files under `~/Library/Application Support/Pocket` (`$ROOT` below): `Pomodoro/board.json`
-(projects and sessions), `todos.json`, `schedule.json` (Orario routines and check-offs) and `calendar.json` (Calendar
-events). Everything else there can be rebuilt. Where copies live:
+Pocket's data is five JSON files under `~/Library/Application Support/Pocket` (`$ROOT` below): `Pomodoro/board.json`
+(projects and sessions), `todos.json`, `schedule.json` (Orario routines and check-offs), `calendar.json` (Calendar
+events) and `runner.json` (the Kairos journal). Everything else there can be rebuilt. Where copies live:
 
 | Copy | Location |
 | --- | --- |
@@ -151,9 +151,9 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 
 Aurelius and Orario (Schedule) reach every device through a Supabase table (`cloud/schema.sql`, one row per item,
 open to the app's anon key, no sign-in), synced by `Sources/Pocket/CloudSync.swift` on the Mac and by the installable web app in `web/`
-everywhere else. The main web app shows only the Hair routine; `web/orario/` has all of Orario and `web/aurelius/` a view-only Aurelius (no timer). To-do, Calendar and Matinee stay
+everywhere else. The main web app shows only the Hair routine; `web/orario/` has all of Orario, `web/aurelius/` a view-only Aurelius (no timer) and `web/kairos/` the Kairos runner. To-do, Calendar and Matinee stay
 Mac-only. Setup, the record
-kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md); the three web apps side by side are in
+kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md); the four web apps side by side are in
 [docs/kb/web-pages.md](docs/kb/web-pages.md). Rules to keep true:
 - To sync another vault file, give it a `CloudDocument.all` row and its store an `adopt(_:)` registered with `CloudSync.shared.register`.
 - Never push deletes for a file that is missing, unreadable or suddenly empty; the delete guard in `sync()` stays.
@@ -198,6 +198,18 @@ Views: `CalendarApp.swift` (the dropdown: month grid with colour dots and the se
 `CalendarBoard.swift` (the expanded window: Month and Week views, Up next sidebar, default alert), `CalendarEditor.swift`
 (the add/edit card). Double-click a day or an hour to add an event; click an event to edit it. Everything draws with the
 shared `Board` theme tokens; there is no theme picker inside Calendar.
+
+## Kairos app
+
+Runs today's timed routines step by step (`⌥K`); its code, app id, data file and record kind say `runner`. Details in
+[docs/kb/apps/kairos.md](docs/kb/apps/kairos.md). Rules to keep true:
+- Code holds only templates. Every workout number, move name, timer, cue, affirmation line and writing prompt lives in the
+  `run` object on each Orario step in the database, so a routine change is a data change. Never hard-code them.
+- `ScheduleStep.run` is loose JSON (`Loose`) and must round-trip untouched; the Orario editor never touches it.
+- Finishing a step ticks Orario through `ScheduleStore.shared.set(_:done:)` on the Mac and a `schedule.check` record on the
+  web, never anything Kairos-specific.
+- The journal is `$ROOT/runner.json` (`{"entries": [...]}`) through `DataVault` as `runner`, synced as `runner.entry`.
+- The web app is `web/kairos/`; keep `web/kairos/plan.js` and `KairosPlan` (`KairosModel.swift`) producing the same beats.
 
 ## Changing Pocket itself
 
