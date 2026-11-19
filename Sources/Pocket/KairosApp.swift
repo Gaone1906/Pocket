@@ -77,7 +77,7 @@ final class KairosApp: PocketApp {
 }
 
 private enum KairosLook {
-    static let rest = Color(red: 0.435, green: 0.592, blue: 0.702)
+    static let rest = Color(red: 0.396, green: 0.643, blue: 0.522)
     static var onAccent: Color { KairosBoard.theme.isDark ? KairosBoard.backdrop : .white }
 
     static let dateFormat: DateFormatter = {

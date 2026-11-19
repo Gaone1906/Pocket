@@ -15,8 +15,8 @@ Related: [cloud-sync.md](cloud-sync.md) (the table, sync rules, setup link, dev 
 | Who uses it | Pranav's parents | Pranav | Pranav | Pranav |
 | Shows | The Hair routine only | Every Orario routine | Aurelius focus sessions | Today's timed routines, one step at a time, and the journal |
 | Writes | Never | Step check-offs, night start hour, its theme | Never | Step check-offs and `runner.entry` journal entries |
-| Default theme | Sage, from the synced `settings.prefs`/`prefs` record | Butter, synced as `settings.prefs`/`orario` | Rose, kept per device in `localStorage` (`aurelius.web.theme`) | Apricot, fixed |
-| Icon | Shared Pocket icon | Sun on the horizon, in Butter | Tomato, in Rose | Balanced stones, in Apricot |
+| Default theme | Sage, from the synced `settings.prefs`/`prefs` record | Butter, synced as `settings.prefs`/`orario` | Rose, kept per device in `localStorage` (`aurelius.web.theme`) | Sky, fixed |
+| Icon | Shared Pocket icon | Sun on the horizon, in Butter | Tomato, in Rose | Balanced stones, in Sky |
 | Title and Home Screen name | Routine | Orario | Aurelius | Kairos |
 | Local state key | `pocket.cloud.v1` | `orario.cloud.v1` | `aurelius.cloud.v1` | `runner.cloud.v1` |
 | Cache prefix (`sw.js`) | `pocket-` (`pocket-v10`) | `orario-master-` (`orario-master-v4`) | `aurelius-web-` (`aurelius-web-v1`) | `runner-` (`runner-v1`) |

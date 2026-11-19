@@ -80,7 +80,7 @@ given any theme from `BoardTheme.all`. The Pocket theme still colours the dropdo
 | --- | --- | --- |
 | Orario | `butter` | `/Pocket/orario/` |
 | Aurelius | `rose` | `/Pocket/aurelius/` |
-| Kairos | `apricot` | `/Pocket/kairos/` |
+| Kairos | `sky` | `/Pocket/kairos/` |
 
 The Hair web app (`/Pocket/`) defaults to Sage, but it has no Mac app of its own: Hair lives inside Orario.
 
