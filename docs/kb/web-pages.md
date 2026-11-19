@@ -1,25 +1,25 @@
 # The four web pages on GitHub Pages
 
-Pocket's data reaches phones, iPads and other laptops through four small installable web apps, all served from this repo by GitHub Pages and all reading the same Supabase table. They are separate apps on purpose (Pranav, 2026-11-19): one is shared with his parents, one is his own Orario, one is a view of his focus sessions, and Kairos runs his timed routines step by step. Each has its own folder, its own local copy of the data, its own service worker and its own Home Screen entry, so changing one never touches the others.
+Pocket's data reaches phones, iPads and other laptops through five small installable web apps, all served from this repo by GitHub Pages and all reading the same Supabase table. They are separate apps on purpose (Pranav, 2026-11-19): one is shared with his parents, one is his own Orario, one is a view of his focus sessions, Kairos runs his timed routines step by step, and Misura tracks his calories. Each has its own folder, its own local copy of the data, its own service worker and its own Home Screen entry, so changing one never touches the others.
 
 Not to be confused with [apps/web-apps.md](apps/web-apps.md), which covers the websites (WhatsApp, Slack and so on) wrapped inside the Mac menu bar.
 
-Related: [cloud-sync.md](cloud-sync.md) (the table, sync rules, setup link, dev server), [apps/schedule.md](apps/schedule.md) (Orario on the Mac), [apps/pomodoro.md](apps/pomodoro.md) (Aurelius on the Mac), [apps/kairos.md](apps/kairos.md) (Kairos on both).
+Related: [cloud-sync.md](cloud-sync.md) (the table, sync rules, setup link, dev server), [apps/schedule.md](apps/schedule.md) (Orario on the Mac), [apps/pomodoro.md](apps/pomodoro.md) (Aurelius on the Mac), [apps/kairos.md](apps/kairos.md) (Kairos on both), [apps/misura.md](apps/misura.md) (Misura on both).
 
 ## At a glance
 
-| | Routine | Orario | Aurelius | Kairos |
-| --- | --- | --- | --- | --- |
-| URL | `https://gaone1906.github.io/Pocket/` | `https://gaone1906.github.io/Pocket/orario/` | `https://gaone1906.github.io/Pocket/aurelius/` | `https://gaone1906.github.io/Pocket/kairos/` |
-| Folder | `web/` (top-level files only) | `web/orario/` | `web/aurelius/` | `web/kairos/` |
-| Who uses it | Pranav's parents | Pranav | Pranav | Pranav |
-| Shows | The Hair routine only | Every Orario routine | Aurelius focus sessions | Today's timed routines, one step at a time, and the journal |
-| Writes | Never | Step check-offs, night start hour, its theme | Never | Step check-offs and `runner.entry` journal entries |
-| Default theme | Sage, from the synced `settings.prefs`/`prefs` record | Butter, synced as `settings.prefs`/`orario` | Rose, kept per device in `localStorage` (`aurelius.web.theme`) | Apricot, fixed |
-| Icon | Shared Pocket icon | Sun on the horizon, in Butter | Tomato, in Rose | Balanced stones, in Apricot |
-| Title and Home Screen name | Routine | Orario | Aurelius | Kairos |
-| Local state key | `pocket.cloud.v1` | `orario.cloud.v1` | `aurelius.cloud.v1` | `runner.cloud.v1` |
-| Cache prefix (`sw.js`) | `pocket-` (`pocket-v10`) | `orario-master-` (`orario-master-v4`) | `aurelius-web-` (`aurelius-web-v1`) | `runner-` (`runner-v1`) |
+| | Routine | Orario | Aurelius | Kairos | Misura |
+| --- | --- | --- | --- | --- | --- |
+| URL | `https://gaone1906.github.io/Pocket/` | `https://gaone1906.github.io/Pocket/orario/` | `https://gaone1906.github.io/Pocket/aurelius/` | `https://gaone1906.github.io/Pocket/kairos/` | `https://gaone1906.github.io/Pocket/misura/` |
+| Folder | `web/` (top-level files only) | `web/orario/` | `web/aurelius/` | `web/kairos/` | `web/misura/` |
+| Who uses it | Pranav's parents | Pranav | Pranav | Pranav | Pranav |
+| Shows | The Hair routine only | Every Orario routine | Aurelius focus sessions | Today's timed routines, one step at a time, and the journal | Calories eaten and burned against the day, week and month goals |
+| Writes | Never | Step check-offs, night start hour, its theme | Never | Step check-offs and `runner.entry` journal entries | `calorie.entry`, `calorie.weight` and the plan (`calorie.settings`) |
+| Default theme | Sage, from the synced `settings.prefs`/`prefs` record | Butter, synced as `settings.prefs`/`orario` | Rose, kept per device in `localStorage` (`aurelius.web.theme`) | Apricot, fixed | Sage, fixed |
+| Icon | Shared Pocket icon | Sun on the horizon, in Butter | Tomato, in Rose | Balanced stones, in Apricot | Balance scale, in Sage |
+| Title and Home Screen name | Routine | Orario | Aurelius | Kairos | Misura |
+| Local state key | `pocket.cloud.v1` | `orario.cloud.v1` | `aurelius.cloud.v1` | `runner.cloud.v1` | `misura.cloud.v1` |
+| Cache prefix (`sw.js`) | `pocket-` (`pocket-v10`) | `orario-master-` (`orario-master-v4`) | `aurelius-web-` (`aurelius-web-v1`) | `runner-` (`runner-v1`) | `misura-` (`misura-v1`) |
 
 `web/pomodoro/index.html` is only a redirect to `../aurelius/` that keeps the query and hash, so old bookmarks and setup links still work.
 
@@ -66,11 +66,23 @@ The guided routine runner (built 2026-11-19), the web half of [apps/kairos.md](a
 
 Files: `index.html`, `app.js` (views and runner), `plan.js` (templates to beats), `routines.js` (schedule and journal access), `store.js`, `util.js`, `style.css`, `sw.js`, `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png`.
 
+## Misura (`web/misura/`)
+
+The calorie tracker (built 2026-11-19), the web half of [apps/misura.md](apps/misura.md).
+- First run asks for the setup link, then the plan (born, sex, height, activity, weight, start day, goal weight and day, pace, lowest budget).
+- Day: week strip with a dot per logged day (red when over), a ring of kcal left, the day's entries and weight, and Meal, Workout and Weight buttons. Tap an entry to edit or delete it. "Poha 380" in the name field fills the kcal too.
+- Week: deficit against what is due with the "Under the limit" or "Over the limit" badge, a bar per day (eaten, and workout beside it) on one baseline with a dashed budget line, and a table of Day, kg, Eaten and Deficit / goal.
+- Month: a calendar coloured green or red per logged day, weight lost against the month's target with the trend, and the month's deficit.
+- Settings: the plan, Watch share, Eat back, Show kcal left, export and sync.
+- Connects without asking in a browser that already holds a link under `orario.cloud.v1`, `runner.cloud.v1` or `pocket.cloud.v1`.
+
+Files: `index.html`, `app.js` (views and sheets), `plan.js` (the math, mirroring `MisuraMath`), `store.js`, `util.js`, `style.css` (Sage tokens, Nunito), `sw.js`, `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png`.
+
 ## Shared rules
 
-- **One backend.** All four use the same Supabase table, `public.records`, with the same record kinds and the same sync code shape (`store.js`: local outbox, push within half a second, pull every 4 s while visible). See [cloud-sync.md](cloud-sync.md).
+- **One backend.** All five use the same Supabase table, `public.records`, with the same record kinds and the same sync code shape (`store.js`: local outbox, push within half a second, pull every 4 s while visible). See [cloud-sync.md](cloud-sync.md).
 - **No sign-in.** The table is open to the anon key. A device connects with a setup link ending in `#connect=…` (made by `node web/dev/link.mjs <url> <key>`); each app reads the hash, saves the URL and key, and clears the hash from the address bar. The link is the only key, so never commit it or the anon key, and never paste it into an issue or PR.
 - **Home Screen apps have their own storage** on iPhone and iPad, so each installed app asks for the setup link once.
-- **Service worker caches are scoped.** Each `sw.js` deletes only old caches with its own prefix (see the table), because all four share one origin and would otherwise wipe each other's offline copy. When you change a file an app caches, bump that app's `CACHE` version and list any new file in its `SHELL`.
+- **Service worker caches are scoped.** Each `sw.js` deletes only old caches with its own prefix (see the table), because all five share one origin and would otherwise wipe each other's offline copy. When you change a file an app caches, bump that app's `CACHE` version and list any new file in its `SHELL`.
 - **Deploy.** `.github/workflows/pages.yml` copies `web/` (minus `web/dev`) to Pages on every push to `main` that touches `web/**`. A new web app is just a new folder under `web/` with its own manifest, `id`/`scope` of `./`, and a cache prefix no other app uses.
-- **Testing.** Run `web/dev/server.mjs` and open `/`, `/orario/`, `/aurelius/` or `/kairos/` on it; never test against the real project.
+- **Testing.** Run `web/dev/server.mjs` and open `/`, `/orario/`, `/aurelius/`, `/kairos/` or `/misura/` on it; never test against the real project.

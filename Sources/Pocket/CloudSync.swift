@@ -25,7 +25,11 @@ struct CloudDocument {
                        metaKind: "schedule.settings"),
          CloudDocument(name: "runner", file: PocketData.runner,
                        collections: [CloudCollection(kind: "runner.entry", key: "entries", sortKey: nil)],
-                       metaKind: nil)]
+                       metaKind: nil),
+         CloudDocument(name: "calorie", file: PocketData.calorie,
+                       collections: [CloudCollection(kind: "calorie.entry", key: "entries", sortKey: nil),
+                                     CloudCollection(kind: "calorie.weight", key: "weights", sortKey: nil)],
+                       metaKind: "calorie.settings")]
     }
 }
 
