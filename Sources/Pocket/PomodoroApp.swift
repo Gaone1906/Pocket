@@ -506,18 +506,22 @@ struct PomodoroView: View {
             .padding(.top, 14)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay(alignment: .topTrailing) {
-            Button(action: openBoard) {
-                Image(systemName: "arrow.up.left.and.arrow.down.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Flap.muted)
-                    .frame(width: 26, height: 26)
-                    .background(Circle().fill(Flap.chip))
-                    .contentShape(Circle())
+        .overlay(alignment: .top) {
+            HStack {
+                Text("Ignis").font(.system(size: 17, weight: .bold)).foregroundStyle(Flap.ink)
+                Spacer()
+                Button(action: openBoard) {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Flap.muted)
+                        .frame(width: 26, height: 26)
+                        .background(Circle().fill(Flap.chip))
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Open the Ignis board in its own window")
             }
-            .buttonStyle(.plain)
-            .help("Open the Ignis board in its own window")
-            .padding(12)
+            .padding(16)
         }
         .background(RadialGradient(colors: Flap.backdrop, center: UnitPoint(x: 0.5, y: 0.4), startRadius: 0, endRadius: 280))
         .ignoresSafeArea()

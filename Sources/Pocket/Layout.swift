@@ -78,7 +78,7 @@ final class Layout: ObservableObject {
             added.append(app.id)
         }
         var moved: [String] = []
-        if !defaults.bool(forKey: "shortcuts.elements") {
+        if !defaults.bool(forKey: "shortcuts.elements.2") {
             for (id, code) in Layout.elementKeys where known.contains(id) {
                 let key = Shortcut.option(code)
                 map.filter { $0.key != id && $0.value == key }.forEach { map[$0.key] = nil }
@@ -87,7 +87,7 @@ final class Layout: ObservableObject {
                     moved.append(id)
                 }
             }
-            defaults.set(true, forKey: "shortcuts.elements")
+            defaults.set(true, forKey: "shortcuts.elements.2")
         }
         shortcuts = map
         extraShortcuts = defaults.data(forKey: "shortcuts.extra").flatMap { try? JSONDecoder().decode([String: [Shortcut]].self, from: $0) } ?? [:]
@@ -101,7 +101,7 @@ final class Layout: ObservableObject {
 
     static let elementKeys: [(String, UInt32)] = [
         ("pomodoro", UInt32(kVK_ANSI_1)), ("runner", UInt32(kVK_ANSI_2)),
-        ("schedule", UInt32(kVK_ANSI_3)), ("calorie", UInt32(kVK_ANSI_4)),
+        ("schedule", UInt32(kVK_ANSI_3)), ("calorie", UInt32(kVK_ANSI_4)), ("preparo", UInt32(kVK_ANSI_9)),
     ]
 
     var tray: [String] { shelves.flatMap(\.apps) }

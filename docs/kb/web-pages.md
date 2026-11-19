@@ -15,11 +15,11 @@ Related: [cloud-sync.md](cloud-sync.md) (the table, sync rules, setup link, dev 
 | Who uses it | Pranav's parents | Pranav | Pranav | Pranav | Pranav |
 | Shows | The Hair routine only | Every Aqua routine | Ignis focus sessions | Today's timed routines, one step at a time, and the journal | Calories eaten and burned against the day, week and month goals |
 | Writes | Never | Step check-offs, night start hour, its theme | Never | Step check-offs and `runner.entry` journal entries | `calorie.entry`, `calorie.weight` and the plan (`calorie.settings`) |
-| Default theme | Sage, from the synced `settings.prefs`/`prefs` record | Sky, synced as `settings.prefs`/`orario` (field `aquaTheme`; the old `theme` field, Butter by default, is ignored) | Rose, kept per device in `localStorage` (`aurelius.web.theme`) | Stone, fixed | Sage, fixed |
-| Icon | Shared Pocket icon | Koi whose fins flow into ripples, blue on pale blue | Lion whose mane turns to flame, rose on pale rose | Eagle dissolving into wind, stone on pale stone | Mantis built from leaves, green on pale green |
+| Default theme | Sage, from the synced `settings.prefs`/`prefs` record | Sky, synced as `settings.prefs`/`orario` (field `aquaTheme`; the old `theme` field, Butter by default, is ignored) | Ember, kept per device in `localStorage` (`ignis.web.theme`) | Flint, fixed | Sage, fixed |
+| Icon | Shared Pocket icon | Koi whose fins flow into ripples, blue on pale blue | Lion whose mane turns to flame, red on pale red | Eagle dissolving into wind, stone on pale stone | Mantis built from leaves, green on pale green |
 | Title and Home Screen name | Routine | Aqua | Ignis | Ventus | Terra |
 | Local state key | `pocket.cloud.v1` | `orario.cloud.v1` | `aurelius.cloud.v1` | `runner.cloud.v1` | `misura.cloud.v1` |
-| Cache prefix (`sw.js`) | `pocket-` (`pocket-v10`) | `aqua-web-` (`aqua-web-v1`, also clears `orario-master-`) | `ignis-web-` (`ignis-web-v1`, also clears `aurelius-web-`) | `runner-` (`runner-v3`) | `terra-web-` (`terra-web-v2`, also clears `misura-`) |
+| Cache prefix (`sw.js`) | `pocket-` (`pocket-v10`) | `aqua-web-` (`aqua-web-v2`, also clears `orario-master-`) | `ignis-web-` (`ignis-web-v2`, also clears `aurelius-web-`) | `runner-` (`runner-v4`) | `terra-web-` (`terra-web-v2`, also clears `misura-`) |
 
 `web/pomodoro/`, `web/aurelius/`, `web/orario/`, `web/kairos/` and `web/misura/` hold only an `index.html` that redirects to `../ignis/`, `../ignis/`, `../aqua/`, `../ventus/` and `../terra/`, keeping the query and hash, so old bookmarks, Home Screen icons and setup links still work. The folders were renamed on 2026-11-19 with the apps (Aurelius → Ignis, Kairos → Ventus, Orario → Aqua, Misura → Terra).
 

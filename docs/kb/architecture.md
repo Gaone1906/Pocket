@@ -137,7 +137,7 @@ The catalog (order = setup order):
 | `calculator` | Calculator | `plusminus.circle` | – | ⌥C | native | no | no |
 | `scratchpad` | Scratchpad | `note.text` | – | ⌥N | native | no | no |
 | `stats` | System Stats | `gauge.with.dots.needle.33percent` | – | none | native | no | no |
-| `preparo` | Preparo | `graduationcap.fill` | `Glyphs.preparo` | none | link `http://localhost:8960/` in `com.ardia.browser` | no | no |
+| `preparo` | Preparo | `graduationcap.fill` | `Glyphs.preparo` | ⌥9 | link `http://localhost:8960/` in `com.ardia.browser` | no | no |
 | `matinee` | Matinee | `ticket.fill` | `Glyphs.matinee` | none | web `http://127.0.0.1:47811/` (`MatineeApp`) | no | no |
 
 Web store UUIDs are `6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A0n`, n = 1..6 in the order whatsapp, slack, spotify, gmail,
