@@ -1,14 +1,14 @@
 :root {
-  --backdrop: #eaf4ee;
-  --sidebar: #e0eee5;
-  --card: #f3faf6;
-  --line: #c9ddd0;
-  --ink: #1b3325;
-  --muted: #4a5f52;
-  --faint: #8fa597;
-  --accent: #4fa874;
-  --accent-ink: #2b6a45;
-  --shadow: rgba(30, 60, 40, 0.1);
+  --backdrop: #f4e3e4;
+  --sidebar: #efd7d9;
+  --card: #faeff0;
+  --line: #dec2c4;
+  --ink: #371b1d;
+  --muted: #69494b;
+  --faint: #ae8f91;
+  --accent: #c25159;
+  --accent-ink: #7c272d;
+  --shadow: rgba(70, 20, 25, 0.1);
   --pill: rgba(255, 255, 255, 0.85);
   --radius: 18px;
   --safe-b: env(safe-area-inset-bottom, 0px);
@@ -156,7 +156,7 @@ header {
 }
 
 .sync.ok {
-  background: var(--accent);
+  background: hsl(145 45% 46%);
 }
 
 .sync.pending {
