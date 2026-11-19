@@ -29,12 +29,6 @@ struct ScheduleEditorOverlay: View {
                         .padding(.vertical, 16)
                 }
                 .frame(maxHeight: .infinity)
-                Rectangle().fill(Board.line).frame(height: 1)
-                ScheduleEditorNotes(store: store, routine: routine)
-                    .id(routine.id)
-                    .padding(.horizontal, 22)
-                    .padding(.top, 14)
-                    .padding(.bottom, 18)
             } else {
                 emptyState
             }
@@ -546,55 +540,5 @@ private struct ScheduleStepEditor: View {
         let trimmedTip = tip.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedTitle != step.title || trimmedTip != step.tip else { return }
         store.updateStep(routine, weekday: weekday, slot: slot, step: step.id, title: trimmedTitle, tip: trimmedTip)
-    }
-}
-
-private struct ScheduleEditorNotes: View {
-    @ObservedObject var store: ScheduleStore
-    let routine: ScheduleRoutine
-
-    @State private var text = ""
-    @State private var pending: DispatchWorkItem?
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("NOTES AND GENERAL TIPS")
-                .font(.system(size: 10, weight: .semibold))
-                .tracking(1.6)
-                .foregroundStyle(Board.muted)
-            TextEditor(text: $text)
-                .font(.system(size: 12))
-                .foregroundStyle(Board.ink)
-                .scrollContentBackground(.hidden)
-                .padding(8)
-                .frame(height: 76)
-                .background(RoundedRectangle(cornerRadius: 12).fill(Board.column))
-                .boardEdge(12)
-                .focused($focused)
-                .onChange(of: text) { _, value in queue(value) }
-                .onChange(of: focused) { _, on in if !on { flush() } }
-            Text("Changes save as you type. Weeks repeat; put a step on each day you want it.")
-                .font(.system(size: 11))
-                .foregroundStyle(Board.faint)
-        }
-        .onAppear { text = routine.notes }
-        .onDisappear(perform: flush)
-    }
-
-    private func queue(_ value: String) {
-        pending?.cancel()
-        guard value != routine.notes else { return }
-        let id = routine.id
-        let work = DispatchWorkItem { [store] in store.setNotes(id, value) }
-        pending = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: work)
-    }
-
-    private func flush() {
-        guard let work = pending, !work.isCancelled else { return }
-        work.cancel()
-        pending = nil
-        if text != store.routine(routine.id)?.notes { store.setNotes(routine.id, text) }
     }
 }

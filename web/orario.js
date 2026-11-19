@@ -397,10 +397,6 @@ function editorView() {
       <div class="ed-day">${LONG[wd]}</div>
       ${slotBlock("morning")}
       ${slotBlock("night")}
-      <div class="card list">
-        <h3>Notes and general tips</h3>
-        <textarea class="notes-input" data-ed-notes="${r.id}" rows="6" placeholder="Anything that applies to the whole routine">${esc(r.notes || "")}</textarea>
-      </div>
       <p class="hint">Weeks repeat; put a step on each day you want it.</p>`;
   } else {
     body = `<div class="card empty big">Add a routine with + above.</div>`;
@@ -452,31 +448,12 @@ function saveStepForm(form) {
   });
 }
 
-let notesTimer = null;
-
-export function onInput(e) {
-  const t = e.target;
-  if (t.matches("[data-ed-notes]")) {
-    clearTimeout(notesTimer);
-    const id = t.dataset.edNotes;
-    const value = t.value;
-    notesTimer = setTimeout(() => updateRoutine(id, (r) => (r.notes = value)), 800);
-    return true;
-  }
-  return false;
-}
-
 export function onChange(e) {
   const t = e.target;
   if (t.matches("[data-orario-filter]")) {
     ui.filter = t.value || null;
     writeLocal("orario.filter", ui.filter);
     return "render";
-  }
-  if (t.matches("[data-ed-notes]")) {
-    clearTimeout(notesTimer);
-    updateRoutine(t.dataset.edNotes, (r) => (r.notes = t.value));
-    return true;
   }
   return false;
 }
@@ -620,11 +597,6 @@ export function onClick(d) {
     return "render";
   }
   if (d.edClose !== undefined) {
-    const notes = document.querySelector("[data-ed-notes]");
-    if (notes) {
-      clearTimeout(notesTimer);
-      updateRoutine(notes.dataset.edNotes, (r) => (r.notes = notes.value));
-    }
     ui.editor = null;
     ui.confirm = null;
     return "render";

@@ -304,10 +304,6 @@ final class ScheduleStore: ObservableObject {
         updateRoutine(id, reason: "renamed to=\(trimmed)") { $0.name = trimmed }
     }
 
-    func setNotes(_ id: UUID, _ notes: String) {
-        updateRoutine(id, reason: "notes chars=\(notes.count)") { $0.notes = notes }
-    }
-
     func deleteRoutine(_ id: UUID) {
         guard let routine = routine(id) else { return }
         if let data = try? Self.encode(book) { DataVault.shared.keepAside(data, name: "schedule", reason: "before-delete") }
