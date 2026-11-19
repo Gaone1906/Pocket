@@ -130,8 +130,10 @@ The catalog (order = setup order):
 | `outlook` | Outlook | `tray.full.fill` | – | none | web | no | no |
 | `calendar` | Calendar | `calendar` | – | ⌥D | native | no | no |
 | `todo` | To-do | `checklist` | – | ⌥T | native | no | no |
-| `pomodoro` | Ignis | `timer` | – | ⌥P | native | no | no |
-| `schedule` | Aqua | `sun.horizon` | – | ⌥O | native | **yes** | **yes** |
+| `pomodoro` | Ignis | `timer` | `Glyphs.ignis` | ⌥1 | native | no | no |
+| `schedule` | Aqua | `sun.horizon` | `Glyphs.aqua` | ⌥3 | native | **yes** | **yes** |
+| `runner` | Ventus | `figure.mind.and.body` | `Glyphs.ventus` | ⌥2 | native | no | no |
+| `calorie` | Terra | `scalemass.fill` | `Glyphs.terra` | ⌥4 | native | no | no |
 | `calculator` | Calculator | `plusminus.circle` | – | ⌥C | native | no | no |
 | `scratchpad` | Scratchpad | `note.text` | – | ⌥N | native | no | no |
 | `stats` | System Stats | `gauge.with.dots.needle.33percent` | – | none | native | no | no |

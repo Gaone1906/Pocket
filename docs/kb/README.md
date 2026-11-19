@@ -21,10 +21,10 @@ This knowledge base is the full context for agents working on Pocket, a macOS me
 | WhatsApp, Slack, Spotify, Gmail, Outlook, Preparo | ⌥W ⌥S ⌥M ⌥G, none, none | [apps/web-apps.md](apps/web-apps.md) |
 | Calendar | ⌥D | [apps/calendar.md](apps/calendar.md) |
 | To-do | ⌥T | [apps/todo.md](apps/todo.md) |
-| Ignis (and its board, the visual reference for every other board) | ⌥P | [apps/pomodoro.md](apps/pomodoro.md) |
-| Aqua (weekly routines, built 2026-11-19) | ⌥O | [apps/schedule.md](apps/schedule.md) |
-| Ventus (runs today's routines step by step, journal) | ⌥K | [apps/kairos.md](apps/kairos.md) |
-| Terra (calories against daily, weekly and monthly goals) | ⌥E | [apps/misura.md](apps/misura.md) |
+| Ignis (and its board, the visual reference for every other board) | ⌥1 | [apps/pomodoro.md](apps/pomodoro.md) |
+| Aqua (weekly routines, built 2026-11-19) | ⌥3 | [apps/schedule.md](apps/schedule.md) |
+| Ventus (runs today's routines step by step, journal) | ⌥2 | [apps/kairos.md](apps/kairos.md) |
+| Terra (calories against daily, weekly and monthly goals) | ⌥4 | [apps/misura.md](apps/misura.md) |
 | Calculator | ⌥C | [apps/calculator.md](apps/calculator.md) |
 | Scratchpad | ⌥N | [apps/scratchpad.md](apps/scratchpad.md) |
 | System Stats | none | [apps/stats.md](apps/stats.md) |

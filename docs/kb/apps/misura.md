@@ -1,6 +1,6 @@
 # Terra
 
-Terra (internal id `calorie`) is the calorie tracker, built on 2026-11-19. It works out Pranav's BMR and the daily deficit his weight goal needs, takes meal calories and Apple Watch workout calories, and shows how each day, week and month stands against that goal. It is pastel green (Sage, hue 145) with rounded type: SF Rounded on the Mac (`design: .rounded`), Nunito on the web. Its icon is a mantis built from leaves (`Glyphs.terra`, the mantis face, in the menu bar) and its Mac shortcut is ⌥E.
+Terra (internal id `calorie`) is the calorie tracker, built on 2026-11-19. It works out Pranav's BMR and the daily deficit his weight goal needs, takes meal calories and Apple Watch workout calories, and shows how each day, week and month stands against that goal. It is pastel green (Sage, hue 145) with rounded type: SF Rounded on the Mac (`design: .rounded`), Nunito on the web. Its icon is a mantis built from leaves (`Glyphs.terra`, the mantis face, in the menu bar) and its Mac shortcut is ⌥4 (⌥E until 2026-11-19).
 
 It exists twice: on the Mac (`MisuraModel.swift`, `MisuraApp.swift`) and as the web app at `/Pocket/terra/` (`web/terra/`). Both read and write the same records.
 
