@@ -34,7 +34,11 @@ function defaultDevice() {
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...blank(), ...JSON.parse(raw) };
+    if (raw) {
+      const saved = { ...blank(), ...JSON.parse(raw) };
+      if (saved.config) saved.config = cleanConfig(saved.config.url, saved.config.key);
+      return saved;
+    }
   } catch (e) {}
   return blank();
 }
@@ -99,9 +103,15 @@ export function setDevice(name) {
   emit();
 }
 
+function cleanConfig(url, key) {
+  return {
+    url: String(url || "").replace(/[^\x21-\x7e]/g, "").replace(/\/+$/, ""),
+    key: String(key || "").replace(/[^A-Za-z0-9._-]/g, ""),
+  };
+}
+
 export function configure(url, key) {
-  const clean = url.trim().replace(/\/+$/, "");
-  state.config = { url: clean, key: key.trim() };
+  state.config = cleanConfig(url, key);
   state.cursor = "1970-01-01T00:00:00Z";
   state.problem = null;
   emit();
@@ -117,7 +127,12 @@ async function call(path, options = {}) {
   const { url, key } = state.config;
   const headers = { apikey: key, "Content-Type": "application/json", ...(options.headers || {}) };
   if (!key.startsWith("sb_")) headers.Authorization = "Bearer " + key;
-  const res = await fetch(url + path, { ...options, headers });
+  let res;
+  try {
+    res = await fetch(url + path, { ...options, headers });
+  } catch (e) {
+    throw new Error(navigator.onLine ? "Can't reach the database. Check the setup link, or Disconnect and paste it again." : "Offline. Changes are kept on this device.");
+  }
   if (!res.ok) {
     let message = res.status + " " + res.statusText;
     try {
