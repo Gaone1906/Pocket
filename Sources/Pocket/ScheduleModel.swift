@@ -43,10 +43,19 @@ struct ScheduleRoutine: Codable, Identifiable, Equatable {
     var starts: String
     var plan: [String: [ScheduleStep]] = [:]
     var notes: String = ""
+    var ends: String?
+    var dated: [String: [ScheduleStep]]?
 
     static func key(_ weekday: Int, _ slot: ScheduleSlot) -> String { "\(weekday)-\(slot.rawValue)" }
+    static func key(_ day: String, _ slot: ScheduleSlot) -> String { "\(day)-\(slot.rawValue)" }
 
     func steps(_ weekday: Int, _ slot: ScheduleSlot) -> [ScheduleStep] { plan[Self.key(weekday, slot)] ?? [] }
+
+    func runs(on day: String) -> Bool { starts <= day && ends.map { day <= $0 } ?? true }
+
+    func steps(on day: String, _ slot: ScheduleSlot) -> [ScheduleStep] {
+        dated?[Self.key(day, slot)] ?? steps(ScheduleDays.weekday(day), slot)
+    }
 }
 
 struct ScheduleCheck: Codable, Identifiable, Equatable {
@@ -142,6 +151,7 @@ final class ScheduleStore: ObservableObject {
         vault.register("schedule") { [weak self] data in self?.merge(data) }
         CloudSync.shared.register("schedule") { [weak self] data in self?.adopt(data) }
         defer {
+            addFitnessIfDue()
             if let id = filter, !book.routines.contains(where: { $0.id == id }) { filter = nil }
             let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in self?.tick() }
             RunLoop.main.add(timer, forMode: .common)
@@ -220,10 +230,9 @@ final class ScheduleStore: ObservableObject {
     func routine(_ id: UUID) -> ScheduleRoutine? { book.routines.first { $0.id == id } }
 
     func items(on day: String, slot: ScheduleSlot, in routines: [ScheduleRoutine]? = nil) -> [ScheduleItem] {
-        let weekday = ScheduleDays.weekday(day)
         let done = Set(book.checks.lazy.filter { $0.day == day && $0.slot == slot }.map(\.id))
-        return (routines ?? shown).filter { $0.starts <= day }.flatMap { routine in
-            routine.steps(weekday, slot).map { step in
+        return (routines ?? shown).filter { $0.runs(on: day) }.flatMap { routine in
+            routine.steps(on: day, slot).map { step in
                 let item = ScheduleItem(routine: routine, step: step, slot: slot, day: day, done: false)
                 return ScheduleItem(routine: routine, step: step, slot: slot, day: day, done: done.contains(item.id))
             }
@@ -286,6 +295,18 @@ final class ScheduleStore: ObservableObject {
             day = ScheduleDays.shift(day, by: 1)
         }
         return result
+    }
+
+    private func addFitnessIfDue() {
+        let flag = "schedule.seeded.fitness-2026-11"
+        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        UserDefaults.standard.set(true, forKey: flag)
+        var routine = ScheduleSeed.fitness()
+        guard today <= routine.ends ?? today, !book.routines.contains(where: { $0.name == routine.name }) else { return }
+        routine.hue = (book.routines.map(\.hue).max() ?? -1) + 1
+        book.routines.append(routine)
+        note("schedule routine seeded name=\(routine.name) starts=\(routine.starts) ends=\(routine.ends ?? "never") days=\(routine.dated?.count ?? 0)")
+        save()
     }
 
     @discardableResult
@@ -459,6 +480,73 @@ enum ScheduleSeed {
         Extra shedding in the first 4–8 weeks is normal. Wear a cap outdoors; tretinoin makes the scalp sun-sensitive.
         Use a wooden comb and a scalp massager. Get the lab tests done before the review visit.
         Ask the clinic whether Halovate is layered with the night Minokem and serum, or replaces one of them.
+        """
+        return routine
+    }
+
+    static func fitness() -> ScheduleRoutine {
+        let warmTip = "March in place for 2 minutes, then 10 leg swings each way on each leg, 10 ankle circles each way, 10 arm circles and 10 slow squats."
+        let cardioTip = "Rotate jumping jacks, high knees, butt kicks and skater steps, one per interval. Work at a pace where talking is hard but possible; rest fully in the gaps. Land softly on the balls of your feet. On a mat or rug if you have one."
+        let calfTip = "Calf raises on a step edge: up for 1 second, down slowly for 3. Then toe raises with your back against a wall, lifting your toes toward your shins. This gets your shins and calves ready for running and rope."
+        let runTip = "Jog slow enough to talk in short sentences. Take short, quick steps and land under your hips, not on your heels. Walk briskly in the gaps. Sharp pain in the shins or knees means walk the rest today; tired legs are fine."
+        let ropeTip = "Tiny hops, about an inch off the ground, on the balls of your feet with soft knees. Turn the rope with your wrists and keep your elbows by your sides. Rest 30–60 seconds between sets. A trip doesn't reset the set; keep counting."
+        let stretchTip = "Hold each for 30 seconds without bouncing: calves against a wall, hamstrings, quads, hip flexors in a low lunge, chest in a doorway."
+        let mobilityTip = "Slow and easy: 10 cat-cows, 10 hip circles each way, 10 world's greatest stretches a side, 10 shoulder rolls, 1 minute in a deep squat holding onto something, 1 minute of child's pose. Then the full stretch twice."
+        let circuitTips = [
+            "A": "Per round: 10 squats, 5 incline push-ups with your hands on a bed or table, 10 glute bridges, a 20-second plank, 10 bird dogs a side. Rest 60 seconds between rounds.",
+            "B": "Per round: 12 squats, 8 knee push-ups, 8 reverse lunges a leg, a 30-second plank, 10 mountain climbers a leg. Rest 60 seconds between rounds.",
+            "C": "Per round: 15 squats, 10 push-ups (on your knees if needed), 10 lunges a leg, a 40-second plank, 8 step-back burpees. Rest 60–90 seconds between rounds."
+        ]
+        func warm() -> ScheduleStep { ScheduleStep(title: "Warm-up | 5 min", tip: warmTip) }
+        func stretch() -> ScheduleStep { ScheduleStep(title: "Stretch | 5 min", tip: stretchTip) }
+        func cardio(_ detail: String) -> ScheduleStep { ScheduleStep(title: "Cardio | \(detail)", tip: cardioTip) }
+        func calves(_ detail: String) -> ScheduleStep { ScheduleStep(title: "Calves and shins | \(detail)", tip: calfTip) }
+        func run(_ detail: String) -> ScheduleStep { ScheduleStep(title: "Run | \(detail)", tip: runTip) }
+        func rope(_ detail: String) -> ScheduleStep { ScheduleStep(title: "Jump rope | \(detail)", tip: ropeTip) }
+        func circuit(_ name: String, _ rounds: Int) -> ScheduleStep {
+            ScheduleStep(title: "Circuit \(name) | \(rounds) rounds", tip: circuitTips[name] ?? "")
+        }
+        func recovery() -> [ScheduleStep] {
+            [ScheduleStep(title: "Mobility | 20 min easy", tip: mobilityTip + " No hard work today; this is when your body catches up.")]
+        }
+        let days: [[ScheduleStep]] = [
+            [warm(), cardio("6 × (30s on, 30s rest)"), circuit("A", 2), calves("2 × 12 each"), stretch()],
+            [warm(), cardio("8 × (30s on, 30s rest)"), circuit("A", 3), stretch()],
+            [warm(), cardio("8 × (40s on, 20s rest)"), circuit("A", 3), calves("2 × 15 each"), stretch()],
+            [warm(), cardio("10 × (40s on, 20s rest)"), circuit("B", 2), stretch()],
+            recovery(),
+            [warm(), cardio("12 × (40s on, 20s rest)"), circuit("B", 3), calves("3 × 15 each"), stretch()],
+            [warm(), cardio("12 × (45s on, 15s rest)"), circuit("B", 3), stretch()],
+            [warm(), cardio("15 × (45s on, 15s rest)"), circuit("C", 2), calves("3 × 20 each"), stretch()],
+            [warm(), cardio("18 × (45s on, 15s rest)"), circuit("C", 3), stretch()],
+            recovery(),
+            [warm(), run("6 × (1 min jog, 1 min walk)"), rope("300, 6 × 50"), calves("2 × 20 each"), stretch()],
+            [warm(), circuit("C", 3), rope("300, 6 × 50"), stretch()],
+            [warm(), run("5 × (2 min jog, 1 min walk)"), rope("400, 8 × 50"), stretch()],
+            [warm(), circuit("C", 3), rope("500, 10 × 50"), calves("3 × 20 each"), stretch()],
+            recovery(),
+            [warm(), run("3 × (4 min jog, 1 min walk)"), rope("600, 6 × 100"), stretch()],
+            [warm(), circuit("C", 3), rope("700, 7 × 100"), stretch()],
+            [warm(), run("2 × (6 min jog, 1 min walk)"), rope("800, 8 × 100"), stretch()],
+            [warm(), circuit("C", 2), rope("900, 9 × 100"), calves("3 × 20 each"), stretch()],
+            [warm(), ScheduleStep(title: "Walk | 15 min easy", tip: "An easy day before the test. Brisk enough to warm up, nothing more."), rope("500 easy, 5 × 100"), stretch()],
+            [warm(), ScheduleStep(title: "Run | 1 km", tip: "The test. Start slower than feels right; about 7–8 minutes at an easy jog. If you need it, take one 30-second walk break and carry on; finishing matters, speed doesn't."),
+             ScheduleStep(title: "Jump rope | 1000, 10 × 100", tip: ropeTip + " This is the daily target from here on."), stretch()]
+        ]
+        let starts = "2026-11-20"
+        var routine = ScheduleRoutine(name: "Fitness", hue: 1, starts: starts)
+        var dated: [String: [ScheduleStep]] = [:]
+        for (offset, steps) in days.enumerated() {
+            dated[ScheduleRoutine.key(ScheduleDays.shift(starts, by: offset), .morning)] = steps
+        }
+        routine.dated = dated
+        routine.ends = ScheduleDays.shift(starts, by: days.count - 1)
+        routine.notes = """
+        21 mornings to build endurance before the gym starts on 11 Dec. Days 1 to 10 (20 to 29 Nov) are home exercises only, building stamina and strong calves and shins.
+        Running and jump rope start on 30 Nov, on alternate days with strength circuits. By day 21: run 1 km and jump rope 1000 times. Recovery days are 24 Nov, 29 Nov and 4 Dec.
+        If a session feels too hard, repeat it the next day instead of moving on. Sharp pain (not tiredness) means stop and walk.
+        Wear cushioned running shoes, and jump rope on a mat, wood or packed earth rather than bare concrete.
+        For fat loss, food does most of the work: a small calorie deficit, protein at every meal, plenty of water and 7–8 hours of sleep.
         """
         return routine
     }

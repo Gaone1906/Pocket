@@ -166,7 +166,9 @@ A weekly routine tracker (`⌥O`); its code, app id and data file still use `sch
 `$ROOT/schedule.json` through `DataVault` as `schedule`):
 - `routines`: each has a name, a hue, a start day, notes, and a `plan` keyed `"<weekday>-<morning|night>"` (Calendar
   weekdays, 1 = Sunday), so 7 × 2 cells, each its own ordered list of steps (`title`, `tip`). Weeks repeat; there are no
-  other repeat rules.
+  other repeat rules. A routine may also have `ends` (last day, inclusive) and `dated`, keyed `"<yyyy-MM-dd>-<morning|night>"`,
+  whose lists replace that day's weekly cell; this is how fixed-length programs like the 21-day Fitness routine are stored.
+  The editor changes only the weekly `plan`.
 - `checks`: one per ticked step per day, with the deterministic id `routine|day|slot|step` (UUIDs and a `yyyy-MM-dd` day),
   so merging two copies is a union by id. Sync counts both check ids and routine ids as "seen".
 - The day rolls over at 4am (`dayFrom`), so a 1am night routine still counts for the day before; the night slot starts at
