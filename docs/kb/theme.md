@@ -61,13 +61,13 @@ Dark, from `dusk(id, name, ground:, glow:, depth:)`: a deep background tinted wi
 | `moonlit-sage` | Moonlit Sage | 160 | 140 |
 | `harbour` | Harbour | 218 | 24 |
 | `aurora` | Aurora | 268 | 158 |
-| `nocturne` | Nocturne | 242 | 268 |
-| `candlelight` | Candlelight | 345 | 44 |
-| `mint-cocoa` | Mint Cocoa | 22 (depth 0.9) | 156 |
-| `coral-reef` | Coral Reef | 192 | 12 |
+| `nocturne` | Nocturne | 256 | 272 |
+| `candlelight` | Candlelight | 336 | 44 |
+| `mint-cocoa` | Mint Cocoa | 28 (depth 0.7) | 156 |
+| `coral-reef` | Coral Reef | 178 | 12 |
 | `plum-blossom` | Plum Blossom | 302 | 334 |
 
-`dusk` tones (saturation, lightness): backdrop ground 34/11, sidebar 36/8.5, card 28/15.5, line 22/23, muted 18/70, faint 14/48; ink glow 40/93, accent 62/76, accentInk 70/81; project tints glow + `projectOffsets` at 55/74. On dark themes, text over an accent fill uses `backdrop`, not white.
+`dusk` tones (saturation, lightness): backdrop ground 46/11, sidebar 48/8.5, card 36/15.5, line 28/23, muted 18/70, faint 14/48; ink glow 40/93, accent 62/76, accentInk 70/81; project tints glow + `projectOffsets` at 55/74. On dark themes, text over an accent fill uses `backdrop`, not white.
 
 Bronze and the three embroidered themes were removed on 2026-11-19 at the owner's request; a saved id from them falls back to Sage.
 

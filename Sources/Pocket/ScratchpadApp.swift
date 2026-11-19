@@ -360,7 +360,7 @@ struct ScratchView: View {
                     .lineLimit(1)
                 Text(page.updated, format: .dateTime.day().month(.abbreviated).hour().minute())
                     .font(.system(size: 10))
-                    .foregroundStyle(Board.faint)
+                    .foregroundStyle(selected ? Board.muted : Board.faint)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 8)

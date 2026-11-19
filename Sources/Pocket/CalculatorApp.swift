@@ -123,7 +123,7 @@ private struct CatKey: View {
         let equals = label == "="
         Button { press(label) } label: {
             Text(label)
-                .font(.system(size: 13))
+                .font(.system(size: 13, weight: equals ? .bold : .regular))
                 .foregroundStyle(equals ? (Board.theme.isDark ? Board.backdrop : Color.white) : CatStyle.ink)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(

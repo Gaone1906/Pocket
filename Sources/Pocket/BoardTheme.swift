@@ -81,11 +81,11 @@ struct BoardTheme: Identifiable, Equatable {
         }
         return BoardTheme(
             id: id, name: name, isDark: true,
-            backdrop: base(34, 11), sidebar: base(36, 8.5), card: base(28, 15.5), line: base(22, 23),
+            backdrop: base(46, 11), sidebar: base(48, 8.5), card: base(36, 15.5), line: base(28, 23),
             ink: lit(40, 93), muted: base(18, 70), faint: base(14, 48),
             accent: lit(62, 76), accentInk: lit(70, 81), shadow: Color.black.opacity(0.45),
-            pill: base(26, 20),
-            swatch: base(34, 14), swatchEdge: lit(50, 62), swatchRing: lit(70, 81),
+            pill: base(32, 20),
+            swatch: base(46, 14), swatchEdge: lit(50, 62), swatchRing: lit(70, 81),
             projectTints: projectOffsets.map { Color(hue: glow + $0, saturation: 55, lightness: 74) }
         )
     }
@@ -102,10 +102,10 @@ struct BoardTheme: Identifiable, Equatable {
         dusk("moonlit-sage", "Moonlit Sage", ground: 160, glow: 140),
         dusk("harbour", "Harbour", ground: 218, glow: 24),
         dusk("aurora", "Aurora", ground: 268, glow: 158),
-        dusk("nocturne", "Nocturne", ground: 242, glow: 268),
-        dusk("candlelight", "Candlelight", ground: 345, glow: 44),
-        dusk("mint-cocoa", "Mint Cocoa", ground: 22, glow: 156, depth: 0.9),
-        dusk("coral-reef", "Coral Reef", ground: 192, glow: 12),
+        dusk("nocturne", "Nocturne", ground: 256, glow: 272),
+        dusk("candlelight", "Candlelight", ground: 336, glow: 44),
+        dusk("mint-cocoa", "Mint Cocoa", ground: 28, glow: 156, depth: 0.7),
+        dusk("coral-reef", "Coral Reef", ground: 178, glow: 12),
         dusk("plum-blossom", "Plum Blossom", ground: 302, glow: 334),
     ]
 
