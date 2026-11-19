@@ -1,6 +1,6 @@
 # Theme
 
-One theme covers every native Pocket app: Pomodoro (dropdown timer and board window), Schedule (dropdown, board window, editor), To-do, Scratchpad, System Stats, Calculator and the Pocket Settings window. The `DeclareSession` sheet also uses the tokens. Web apps (Gmail, WhatsApp, Slack, Spotify, Outlook, Matinee) and link apps (Preparo) are not themed. The theme is picked only in Pocket Settings → Appearance (`SettingsWindow.swift`, `PocketSettings.shared.show(section:)`, also "Pocket Settings…" in every status item's right-click menu); the Pomodoro and Schedule settings panels show a `ThemeLinkRow` that opens it. The code is in `Sources/Pocket/BoardTheme.swift` (palette, store, helpers, `BoardBackdrop`, `.boardEdge`). The `Board` token enum lives in `Sources/Pocket/PomodoroBoard.swift`.
+One theme covers every native Pocket app: Aurelius (dropdown timer and board window), Schedule (dropdown, board window, editor), To-do, Scratchpad, System Stats, Calculator and the Pocket Settings window. The `DeclareSession` sheet also uses the tokens. Web apps (Gmail, WhatsApp, Slack, Spotify, Outlook, Matinee) and link apps (Preparo) are not themed. The theme is picked only in Pocket Settings → Appearance (`SettingsWindow.swift`, `PocketSettings.shared.show(section:)`, also "Pocket Settings…" in every status item's right-click menu); the Aurelius and Schedule settings panels show a `ThemeLinkRow` that opens it. The code is in `Sources/Pocket/BoardTheme.swift` (palette, store, helpers, `BoardBackdrop`, `.boardEdge`). The `Board` token enum lives in `Sources/Pocket/PomodoroBoard.swift`.
 
 Related: [apps/pomodoro.md](apps/pomodoro.md), [apps/schedule.md](apps/schedule.md), [architecture.md](architecture.md), [data-and-backups.md](data-and-backups.md), [operations.md](operations.md) (install and bundling).
 
@@ -81,7 +81,7 @@ Bronze and the three embroidered themes were removed on 2026-11-19 at the owner'
 Who reacts to a change:
 - **SwiftUI views** observe `BoardThemeStore.shared` and set `.environment(\.colorScheme, theme.colorScheme)`. `PomodoroView` also uses `.id(theme.id)` to rebuild on a switch.
 - **AppKit hosts** subscribe to `$theme`:
-  - the Pomodoro and Schedule dropdown `NSHostingView.appearance`;
+  - the Aurelius and Schedule dropdown `NSHostingView.appearance`;
   - the board windows' `appearance` and `backgroundColor` (`NSColor(theme.backdrop)`).
 
 ## `Board` tokens (`PomodoroBoard.swift`, `enum Board`)
@@ -92,7 +92,7 @@ These are static computed proxies to `BoardThemeStore.shared.theme`. Use them in
 - project colors: `hue(i)` (= `projectTint(i)`) and `hueCount`;
 - animation: `glide`.
 
-The same enum also carries Pomodoro formatting helpers (`sessionLabel`, `units`, `duration`, `days`, `dayDate`, `dayTag`); those are documented in [apps/pomodoro.md](apps/pomodoro.md). `Flap` (private, `PomodoroApp.swift`) is the dropdown timer's own token set, derived from the same theme.
+The same enum also carries Aurelius formatting helpers (`sessionLabel`, `units`, `duration`, `days`, `dayDate`, `dayTag`); those are documented in [apps/pomodoro.md](apps/pomodoro.md). `Flap` (private, `PomodoroApp.swift`) is the dropdown timer's own token set, derived from the same theme.
 
 Because the tokens are computed, a view only updates on a theme change if it observes `BoardThemeStore.shared` (or an ancestor rebuilds it).
 
@@ -109,7 +109,7 @@ Both are in `BoardTheme.swift`. `BoardBackdrop(theme:)` fills with `theme.backdr
   - Observe `BoardThemeStore.shared`.
   - Set `.environment(\.colorScheme, …)`.
   - Use `BoardBackdrop` for full-window backgrounds.
-  - For a panel, return `ThemedHostingView(rootView:)` from `makeContent()`; it keeps `appearance` in step with the theme. For a window, set `appearance` and `backgroundColor` and subscribe to `$theme`, as `PocketSettings`, `ScheduleBoardWindow` and the Pomodoro board do.
+  - For a panel, return `ThemedHostingView(rootView:)` from `makeContent()`; it keeps `appearance` in step with the theme. For a window, set `appearance` and `backgroundColor` and subscribe to `$theme`, as `PocketSettings`, `ScheduleBoardWindow` and the Aurelius board do.
 - **Gate macOS 26 APIs** (`glassEffect`) with `#available(macOS 26, *)`, and keep the `.ultraThinMaterial` fallback.
 
 ## Logging
@@ -124,4 +124,4 @@ Both are in `BoardTheme.swift`. `BoardBackdrop(theme:)` fills with `theme.backdr
 
 ## Open questions
 
-- The two section-title and Backup-section duplicates (Pomodoro and Schedule) could be shared views. This hasn't been done.
+- The two section-title and Backup-section duplicates (Aurelius and Schedule) could be shared views. This hasn't been done.

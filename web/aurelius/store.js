@@ -1,5 +1,5 @@
-const KEY = "pomodoro.cloud.v1";
-const OTHER_KEYS = ["pocket.cloud.v1", "orario.cloud.v1"];
+const KEY = "aurelius.cloud.v1";
+const OTHER_KEYS = ["pomodoro.cloud.v1", "pocket.cloud.v1", "orario.cloud.v1"];
 const EPOCH_2001 = 978307200;
 const SHARED = "00000000-0000-0000-0000-000000000000";
 

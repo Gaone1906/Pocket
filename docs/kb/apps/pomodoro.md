@@ -1,4 +1,6 @@
-# Pomodoro
+# Aurelius (formerly Pomodoro)
+
+Renamed from Pomodoro on 2026-11-19. Only the names people see changed; the code, app id `pomodoro`, routes, data folder and keys did not.
 
 A focus, break and long-break timer with a split-flap dropdown and a live countdown in the menu bar. It also has a
 separate **board** window: finished focus sessions are filed there as glowing dots and tally marks under projects. The
@@ -14,11 +16,11 @@ Related: [architecture](../architecture.md), [theme](../theme.md) (`BoardTheme`,
 
 | Thing | Value |
 | --- | --- |
-| Catalog entry | `Catalog.swift`: `AppSpec(id: "pomodoro", name: "Pomodoro", symbol: "timer", hotKey: kVK_ANSI_P)`. Built by `Factory.swift` `case "pomodoro": PomodoroApp(spec:)` |
+| Catalog entry | `Catalog.swift`: `AppSpec(id: "pomodoro", name: "Aurelius", symbol: "timer", hotKey: kVK_ANSI_P)`. Built by `Factory.swift` `case "pomodoro": PomodoroApp(spec:)` |
 | Default shortcut | ⌥P |
 | Dropdown | 340 × 330, fixed (`defaultSize` = `minSize`, `resizable = false`) |
 | Menu-bar item | Idle: the plain `timer` symbol. Active (running or paused): the symbol tinted, followed by ` MM:SS` in semibold monospaced digits. The tint is **gold** in focus and **silver** in rest/long (`PomodoroPalette`, with light and dark variants). A paused phase shows a frozen countdown in the same colour |
-| Right-click menu item | **Open Pomodoro board** (`menuItems()`) |
+| Right-click menu item | **Open Aurelius board** (`menuItems()`) |
 | Board window | 980 × 620 to start (min 640 × 420), resizable, frame autosaved as `pomodoro.board` |
 
 What the user does:
@@ -104,7 +106,7 @@ a long break.
 - `ended` is the scheduled end, not the tick time.
 - `projectId(named:)` matches case-insensitively, or creates a project via `addProject()` + `rename`.
 
-**Notifications.** `notify(title: "Pomodoro", body:)` posts a `UNNotificationRequest` straight away and plays
+**Notifications.** `notify(title: "Aurelius", body:)` posts a `UNNotificationRequest` straight away and plays
 `NSSound "Glass"`. The bodies are:
 - "Focus done — take a N min break" or "… long break";
 - "Break over — back to focus";
@@ -143,7 +145,7 @@ This was added for API clients such as Preparo, which want the user to come back
 | `remoteStop` | `reset(reason: "stopped from <source>")`; `project = nil` |
 
 API ranges (`PocketServer.minutes`) are focus 1–240, rest 1–90 and long 1–120. These are wider than the settings UI
-(see below), and a plan never touches the settings. If Pomodoro isn't enabled, every route answers `409`. The full API
+(see below), and a plan never touches the settings. If Aurelius isn't enabled, every route answers `409`. The full API
 contract is in `CLAUDE.md`.
 
 ## Board window

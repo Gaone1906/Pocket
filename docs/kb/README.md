@@ -20,7 +20,7 @@ This knowledge base is the full context for agents working on Pocket, a macOS me
 | WhatsApp, Slack, Spotify, Gmail, Outlook, Preparo | ⌥W ⌥S ⌥M ⌥G, none, none | [apps/web-apps.md](apps/web-apps.md) |
 | Calendar | ⌥D | [apps/calendar.md](apps/calendar.md) |
 | To-do | ⌥T | [apps/todo.md](apps/todo.md) |
-| Pomodoro (and its board, the visual reference for every other board) | ⌥P | [apps/pomodoro.md](apps/pomodoro.md) |
+| Aurelius (and its board, the visual reference for every other board) | ⌥P | [apps/pomodoro.md](apps/pomodoro.md) |
 | Orario (weekly routines, built 2026-11-19) | ⌥O | [apps/schedule.md](apps/schedule.md) |
 | Calculator | ⌥C | [apps/calculator.md](apps/calculator.md) |
 | Scratchpad | ⌥N | [apps/scratchpad.md](apps/scratchpad.md) |
@@ -32,7 +32,7 @@ Shortcuts are the defaults from `Catalog.swift`. The user can rebind them, or ad
 ## Elsewhere in the repo
 
 - [../../README.md](../../README.md): user-facing overview and install.
-- [../../CLAUDE.md](../../CLAUDE.md): the Pomodoro HTTP API integration guide and rules to keep true.
+- [../../CLAUDE.md](../../CLAUDE.md): the Aurelius HTTP API integration guide and rules to keep true.
 
 ## Keeping this current
 
