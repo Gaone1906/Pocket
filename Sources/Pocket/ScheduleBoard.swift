@@ -14,6 +14,7 @@ final class ScheduleBoardWindow: NSObject, NSWindowDelegate {
         if let day {
             if ScheduleDays.date(day) != nil {
                 focus.selected = max(day, store.firstDay)
+                focus.span = .day
                 UserDefaults.standard.set(ScheduleBoardMode.schedule, forKey: ScheduleBoardMode.key)
             } else {
                 note("schedule board bad day requested day=\(day)")
@@ -62,11 +63,22 @@ final class ScheduleBoardWindow: NSObject, NSWindowDelegate {
     }
 }
 
+private enum ScheduleSpan: String {
+    case day
+    case week
+}
+
 private final class ScheduleBoardFocus: ObservableObject {
     @Published var selected: String
+    @Published var span: ScheduleSpan {
+        didSet { UserDefaults.standard.set(span.rawValue, forKey: Self.spanKey) }
+    }
+
+    private static let spanKey = "schedule.board.span"
 
     init(day: String) {
         selected = day
+        span = UserDefaults.standard.string(forKey: Self.spanKey).flatMap(ScheduleSpan.init) ?? .day
     }
 }
 
@@ -126,13 +138,6 @@ private enum ScheduleBoardDates {
     static func hour(_ value: Int) -> String {
         let twelve = value % 12 == 0 ? 12 : value % 12
         return "\(twelve) \(value < 12 || value == 24 ? "AM" : "PM")"
-    }
-
-    static func tag(_ day: String, today: String) -> String? {
-        if day == today { return "Today" }
-        if day == ScheduleDays.shift(today, by: -1) { return "Yesterday" }
-        if day == ScheduleDays.shift(today, by: 1) { return "Tomorrow" }
-        return nil
     }
 }
 
@@ -454,9 +459,10 @@ private struct ScheduleSidebar: View {
                 figure("Rest", "nothing planned", accent: true, size: 22)
             } else if done == items.count {
                 Text("All done for now!")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 17, weight: .bold))
                     .foregroundStyle(Board.accentInkStyle)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             } else {
                 figure("\(done) of \(items.count)", items.count == 1 ? "step done" : "steps done", accent: true)
             }
@@ -509,8 +515,6 @@ private struct ScheduleWeekStrip: View {
 
     var body: some View {
         let start = ScheduleBoardDates.weekStart(focus.selected)
-        let earliest = ScheduleBoardDates.weekStart(store.firstDay)
-        let latest = ScheduleBoardDates.weekStart(ScheduleDays.shift(ScheduleBoardDates.monthShift(store.today, by: 2), by: -1))
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 Text(ScheduleBoardDates.weekRange(start))
@@ -518,14 +522,7 @@ private struct ScheduleWeekStrip: View {
                     .foregroundStyle(Board.muted)
                     .monospacedDigit()
                 Spacer()
-                if ScheduleBoardDates.weekStart(store.today) != start {
-                    Button("This week") { move(to: store.today) }
-                        .buttonStyle(.plain)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Board.accentInkStyle)
-                }
-                chevron("chevron.left", enabled: start > earliest) { move(to: max(ScheduleDays.shift(focus.selected, by: -7), store.firstDay)) }
-                chevron("chevron.right", enabled: start < latest) { move(to: ScheduleDays.shift(focus.selected, by: 7)) }
+                ScheduleWeekNav(store: store, focus: focus)
             }
             HStack(spacing: 8) {
                 ForEach(0..<7, id: \.self) { offset in
@@ -535,30 +532,16 @@ private struct ScheduleWeekStrip: View {
         }
     }
 
-    private func move(to day: String) {
-        withAnimation(Board.glide) { focus.selected = day }
-    }
-
-    private func chevron(_ symbol: String, enabled: Bool, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(enabled ? Board.ink : Board.faint)
-                .frame(width: 26, height: 26)
-                .background(Circle().fill(Board.column))
-                .overlay(Circle().stroke(Board.line, lineWidth: 1))
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-    }
-
     private func chip(_ day: String) -> some View {
         let before = day < store.firstDay
-        let selected = day == focus.selected
+        let selected = focus.span == .day && day == focus.selected
         let today = day == store.today
         return Button {
-            move(to: day)
+            if focus.span == .week { note("schedule board span=day day=\(day) from=week") }
+            withAnimation(Board.glide) {
+                focus.selected = day
+                focus.span = .day
+            }
         } label: {
             VStack(spacing: 4) {
                 Text(ScheduleDays.short(ScheduleDays.weekday(day)).uppercased())
@@ -585,6 +568,39 @@ private struct ScheduleWeekStrip: View {
         .buttonStyle(.plain)
         .disabled(before)
         .help(before ? "Before the schedule starts" : ScheduleBoardDates.dayTitle(day))
+    }
+}
+
+private struct ScheduleWeekNav: View {
+    @ObservedObject var store: ScheduleStore
+    @ObservedObject var focus: ScheduleBoardFocus
+
+    var body: some View {
+        let start = ScheduleBoardDates.weekStart(focus.selected)
+        let earliest = ScheduleBoardDates.weekStart(store.firstDay)
+        let latest = ScheduleBoardDates.weekStart(ScheduleDays.shift(ScheduleBoardDates.monthShift(store.today, by: 2), by: -1))
+        HStack(spacing: 10) {
+            chevron("chevron.left", enabled: start > earliest) { move(to: max(ScheduleDays.shift(focus.selected, by: -7), store.firstDay)) }
+            chevron("chevron.right", enabled: start < latest) { move(to: ScheduleDays.shift(focus.selected, by: 7)) }
+        }
+    }
+
+    private func move(to day: String) {
+        withAnimation(Board.glide) { focus.selected = day }
+    }
+
+    private func chevron(_ symbol: String, enabled: Bool, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(enabled ? Board.ink : Board.faint)
+                .frame(width: 26, height: 26)
+                .background(Circle().fill(Board.column))
+                .overlay(Circle().stroke(Board.line, lineWidth: 1))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 }
 
@@ -752,6 +768,179 @@ private struct ScheduleNotesCard: View {
     }
 }
 
+private struct ScheduleSpanToggle: View {
+    @ObservedObject var store: ScheduleStore
+    @ObservedObject var focus: ScheduleBoardFocus
+    @Namespace private var pill
+
+    var body: some View {
+        HStack(spacing: 2) {
+            option("Today", .day)
+            option("This week", .week)
+        }
+        .padding(3)
+        .background(Capsule().fill(Board.column))
+        .overlay(Capsule().strokeBorder(Board.line, lineWidth: 1))
+        .fixedSize()
+    }
+
+    private func option(_ title: String, _ span: ScheduleSpan) -> some View {
+        let on = focus.span == span
+        return Button {
+            note("schedule board span=\(span.rawValue) day=\(store.today) from=\(focus.span.rawValue)")
+            withAnimation(Board.glide) {
+                focus.span = span
+                focus.selected = store.today
+            }
+        } label: {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(on ? Board.ink : Board.muted)
+                .padding(.horizontal, 12)
+                .frame(height: 26)
+                .background {
+                    if on {
+                        Capsule()
+                            .fill(Board.theme.pill)
+                            .shadow(color: Board.shadow, radius: 3, y: 1)
+                            .matchedGeometryEffect(id: "span", in: pill)
+                    }
+                }
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private enum ScheduleTint {
+    static let done = Color(red: 0.42, green: 0.74, blue: 0.48).opacity(0.22)
+    static let missed = Color(red: 0.92, green: 0.45, blue: 0.42).opacity(0.18)
+}
+
+private struct ScheduleWeekGrid: View {
+    @ObservedObject var store: ScheduleStore
+    @ObservedObject var focus: ScheduleBoardFocus
+    let wide: Bool
+
+    var body: some View {
+        let start = ScheduleBoardDates.weekStart(focus.selected)
+        let days = (0..<7).map { ScheduleDays.shift(start, by: $0) }
+        if wide {
+            HStack(alignment: .top, spacing: 6) {
+                ForEach(days, id: \.self) { day in
+                    VStack(alignment: .leading, spacing: 12) {
+                        header(day)
+                        ForEach(ScheduleSlot.allCases, id: \.self) { slot in
+                            slotBlock(day, slot)
+                        }
+                    }
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Board.column.opacity(0.55)))
+                    .boardEdge(14, color: day == store.today ? Board.accent.opacity(0.7) : Board.line)
+                    .opacity(day < store.firstDay ? 0.4 : 1)
+                }
+            }
+        } else {
+            VStack(spacing: 8) {
+                ForEach(days, id: \.self) { day in
+                    HStack(alignment: .top, spacing: 14) {
+                        header(day).frame(width: 44, alignment: .leading)
+                        ForEach(ScheduleSlot.allCases, id: \.self) { slot in
+                            slotBlock(day, slot).frame(maxWidth: .infinity, alignment: .topLeading)
+                        }
+                    }
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Board.column.opacity(0.55)))
+                    .boardEdge(14, color: day == store.today ? Board.accent.opacity(0.7) : Board.line)
+                    .opacity(day < store.firstDay ? 0.4 : 1)
+                }
+            }
+        }
+    }
+
+    private func header(_ day: String) -> some View {
+        let today = day == store.today
+        let before = day < store.firstDay
+        return Button {
+            note("schedule board span=day day=\(day) from=week")
+            withAnimation(Board.glide) {
+                focus.selected = day
+                focus.span = .day
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(ScheduleDays.short(ScheduleDays.weekday(day)).uppercased())
+                    .font(.system(size: 10, weight: .semibold))
+                    .tracking(1)
+                    .foregroundStyle(Board.muted)
+                Text(ScheduleBoardDates.number(day))
+                    .font(.system(size: 17, weight: .bold))
+                    .monospacedDigit()
+                    .foregroundStyle(today ? Board.accentInkStyle : AnyShapeStyle(Board.ink))
+            }
+            .padding(.leading, 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(before)
+        .help(before ? "Before the schedule starts" : "Open \(ScheduleBoardDates.dayTitle(day))")
+    }
+
+    private func slotBlock(_ day: String, _ slot: ScheduleSlot) -> some View {
+        let items = day < store.firstDay ? [] : store.items(on: day, slot: slot)
+        let status = store.status(on: day, slot: slot)
+        let lapsed: Bool = {
+            switch status {
+            case .missed, .partial: return true
+            default: return false
+            }
+        }()
+        return VStack(alignment: .leading, spacing: 5) {
+            Image(systemName: slot.symbol)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Board.muted)
+                .help(slot.label)
+            if items.isEmpty {
+                Text("—")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Board.faint)
+            }
+            ForEach(items) { item in
+                event(item, missed: lapsed && !item.done)
+            }
+        }
+    }
+
+    private func event(_ item: ScheduleItem, missed: Bool) -> some View {
+        let future = item.day > store.today
+        return Button {
+            withAnimation(.smooth(duration: 0.15)) { store.toggle(item) }
+        } label: {
+            HStack(alignment: .top, spacing: 5) {
+                if store.filter == nil && store.shown.count > 1 {
+                    Circle().fill(Board.hue(item.routine.hue)).frame(width: 5, height: 5).padding(.top, 5)
+                }
+                Text(item.step.title)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Board.ink.opacity(item.done ? 0.75 : 0.95))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 5)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 8).fill(item.done ? ScheduleTint.done : missed ? ScheduleTint.missed : Board.column))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(item.done || missed ? Color.clear : Board.line, lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
+        .disabled(future)
+        .help(item.step.tip.isEmpty ? item.step.title : item.step.tip)
+    }
+}
+
 private struct ScheduleDayView: View {
     @ObservedObject var store: ScheduleStore
     @ObservedObject var focus: ScheduleBoardFocus
@@ -762,11 +951,20 @@ private struct ScheduleDayView: View {
             let layout = narrow ? AnyLayout(VStackLayout(alignment: .leading, spacing: 14)) : AnyLayout(HStackLayout(alignment: .top, spacing: 14))
             ScrollView(.vertical) {
                 VStack(alignment: .leading, spacing: 20) {
-                    ScheduleWeekStrip(store: store, focus: focus)
+                    if focus.span == .day {
+                        ScheduleWeekStrip(store: store, focus: focus)
+                            .transition(.opacity)
+                    }
                     title
-                    layout {
-                        ScheduleSlotCard(store: store, day: focus.selected, slot: .morning)
-                        ScheduleSlotCard(store: store, day: focus.selected, slot: .night)
+                    if focus.span == .week {
+                        ScheduleWeekGrid(store: store, focus: focus, wide: geo.size.width >= 700)
+                            .transition(.opacity)
+                    } else {
+                        layout {
+                            ScheduleSlotCard(store: store, day: focus.selected, slot: .morning)
+                            ScheduleSlotCard(store: store, day: focus.selected, slot: .night)
+                        }
+                        .transition(.opacity)
                     }
                     ScheduleNotesCard(store: store)
                 }
@@ -774,6 +972,7 @@ private struct ScheduleDayView: View {
                 .padding(.top, 4)
                 .padding(.bottom, 24)
                 .animation(Board.glide, value: narrow)
+                .animation(Board.glide, value: focus.span)
             }
             .scrollIndicators(.automatic)
         }
@@ -781,16 +980,17 @@ private struct ScheduleDayView: View {
 
     private var title: some View {
         let day = focus.selected
-        return HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(ScheduleBoardDates.dayTitle(day))
+        return HStack(alignment: .center, spacing: 12) {
+            Text(focus.span == .week ? ScheduleBoardDates.weekRange(ScheduleBoardDates.weekStart(day)) : ScheduleBoardDates.dayTitle(day))
                 .font(.system(size: 22, weight: .bold))
                 .foregroundStyle(Board.ink)
-            if let tag = ScheduleBoardDates.tag(day, today: store.today) {
-                Text(tag)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Board.accentInkStyle)
-            }
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            ScheduleSpanToggle(store: store, focus: focus)
             Spacer()
+            if focus.span == .week {
+                ScheduleWeekNav(store: store, focus: focus)
+            }
         }
     }
 }
@@ -898,9 +1098,11 @@ private struct ScheduleCalendarView: View {
                     .monospacedDigit()
                     .foregroundStyle(today ? Board.accentInkStyle : AnyShapeStyle(Board.ink))
                 Spacer(minLength: 0)
-                HStack {
-                    Spacer(minLength: 0)
-                    ScheduleSplitMark(morning: store.status(on: day, slot: .morning), night: store.status(on: day, slot: .night))
+                if day <= store.today {
+                    HStack {
+                        Spacer(minLength: 0)
+                        ScheduleSplitMark(morning: store.status(on: day, slot: .morning), night: store.status(on: day, slot: .night))
+                    }
                 }
             }
             .padding(10)
@@ -1237,6 +1439,7 @@ private struct ScheduleBoardView: View {
     private func openDay(_ day: String) {
         note("schedule board calendar opened day=\(day) status=\(store.status(on: day))")
         focus.selected = day
+        focus.span = .day
         withAnimation(Board.glide) { mode = ScheduleBoardMode.schedule }
     }
 
