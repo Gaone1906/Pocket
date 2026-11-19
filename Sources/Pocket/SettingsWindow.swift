@@ -114,7 +114,7 @@ struct PocketSettingsView: View {
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-            Rectangle().fill(Board.line.opacity(themes.theme.embroidery == nil ? 1 : 0.25)).frame(width: 1)
+            Rectangle().fill(Board.line).frame(width: 1)
             ScrollViewReader { reader in
                 ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 0) {
@@ -133,14 +133,14 @@ struct PocketSettingsView: View {
         }
         .animation(Board.glide, value: focus.section)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ReadableBackdrop(theme: themes.theme, dim: 0.5))
+        .background(BoardBackdrop(theme: themes.theme))
         .ignoresSafeArea()
         .environment(\.colorScheme, themes.theme.colorScheme)
         .tint(themes.theme.accent)
     }
 
     private func reveal(_ reader: ScrollViewProxy) {
-        guard focus.section == .appearance, themes.theme.family != "Pastel" else { return }
+        guard focus.section == .appearance, themes.theme.isDark else { return }
         let id = themes.theme.id
         DispatchQueue.main.async { reader.scrollTo(id, anchor: .center) }
     }
@@ -236,7 +236,7 @@ struct PocketSettingsView: View {
 private struct ThemeGallery: View {
     @ObservedObject var themes: BoardThemeStore
 
-    private let families = ["Pastel", "Metal", "Embroidered"]
+    private let families = ["Light", "Dark"]
     private let columns = [GridItem(.adaptive(minimum: 172, maximum: 220), spacing: 16, alignment: .top)]
 
     var body: some View {
@@ -309,10 +309,6 @@ private struct ThemePreview: View {
     var body: some View {
         ZStack(alignment: .topLeading) {
             theme.backdrop
-            if let embroidery = theme.embroidery {
-                RadialGradient(colors: [embroidery.tigerThread.opacity(0.55), .clear], center: UnitPoint(x: 0.05, y: 1.05), startRadius: 2, endRadius: 90)
-                RadialGradient(colors: [embroidery.dragonThread.opacity(0.6), .clear], center: UnitPoint(x: 0.98, y: -0.05), startRadius: 2, endRadius: 90)
-            }
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 6) {
                     Capsule().fill(theme.muted.opacity(0.55)).frame(width: 20, height: 3)
@@ -325,7 +321,7 @@ private struct ThemePreview: View {
                 .padding(.top, 14)
                 .frame(width: 40, alignment: .leading)
                 .frame(maxHeight: .infinity, alignment: .top)
-                .background(theme.embroidery == nil ? theme.sidebar : Color.black.opacity(0.35))
+                .background(theme.sidebar)
                 HStack(alignment: .top, spacing: 6) {
                     column(0, rows: 3)
                     column(1, rows: 2)
@@ -384,7 +380,7 @@ private struct ThemedAppStrip: View {
                 .frame(height: 26)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Capsule().fill(theme.card))
-                .overlay(Capsule().stroke(theme.line.opacity(theme.embroidery == nil ? 1 : 0.5), lineWidth: 1))
+                .overlay(Capsule().stroke(theme.line, lineWidth: 1))
             }
         }
     }
@@ -453,7 +449,7 @@ private struct GeneralSettings: View {
     }
 
     private var hairline: some View {
-        Rectangle().fill(theme.line.opacity(theme.embroidery == nil ? 1 : 0.35)).frame(height: 1).padding(.horizontal, 18)
+        Rectangle().fill(theme.line).frame(height: 1).padding(.horizontal, 18)
     }
 
     private func toggle(_ title: String, _ detail: String, isOn: Binding<Bool>) -> some View {

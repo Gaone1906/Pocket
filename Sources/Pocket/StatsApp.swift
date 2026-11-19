@@ -409,7 +409,7 @@ private struct StatsView: View {
                          detail: battery.charging ? "Charging" : battery.onAC ? "On power" : "On battery")
             }
             Spacer(minLength: 0)
-            Rectangle().fill(Board.line.opacity(themes.theme.embroidery == nil ? 1 : 0.35)).frame(height: 1)
+            Rectangle().fill(Board.line).frame(height: 1)
             Toggle("Show CPU in menu bar", isOn: $model.cpuInBar)
                 .toggleStyle(.switch)
                 .font(.system(size: 12))
@@ -427,7 +427,7 @@ private struct StatsView: View {
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .id(themes.theme.id)
-        .background(ReadableBackdrop(theme: themes.theme, dim: 0.6).ignoresSafeArea())
+        .background(BoardBackdrop(theme: themes.theme).ignoresSafeArea())
         .environment(\.colorScheme, themes.theme.colorScheme)
         .tint(themes.theme.accent)
     }

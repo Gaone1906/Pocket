@@ -107,8 +107,8 @@ private enum CatStyle {
     static var muted: Color { Board.muted }
     static var keyBorder: Color { Board.line }
     static var line: Color { Board.line }
-    static var surface: Color { Board.theme.embroidery == nil ? Board.backdrop : Color(hex: 0x111113) }
-    static var surface2: Color { Board.theme.embroidery == nil ? Board.column : Color(hex: 0x1B1B1E) }
+    static var surface: Color { Board.backdrop }
+    static var surface2: Color { Board.column }
     static let gap: CGFloat = 5
     static let keyHeight: CGFloat = 31
 }
@@ -124,7 +124,7 @@ private struct CatKey: View {
         Button { press(label) } label: {
             Text(label)
                 .font(.system(size: 13))
-                .foregroundStyle(equals ? Color.white : CatStyle.ink)
+                .foregroundStyle(equals ? (Board.theme.isDark ? Board.backdrop : Color.white) : CatStyle.ink)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 4)

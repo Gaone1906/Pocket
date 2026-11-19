@@ -260,7 +260,7 @@ struct TodoView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ReadableBackdrop(theme: themes.theme, dim: 0.55).ignoresSafeArea())
+        .background(BoardBackdrop(theme: themes.theme).ignoresSafeArea())
         .environment(\.colorScheme, themes.theme.colorScheme)
         .tint(themes.theme.accent)
         .onAppear { addFocused = true }

@@ -394,7 +394,7 @@ private struct ScheduleRow: View {
                         Circle()
                             .strokeBorder(item.done ? Color.clear : Board.faint, lineWidth: 1.5)
                         if item.done {
-                            Circle().fill(tagged ? AnyShapeStyle(Board.theme.sheen(tint)) : Board.accentStyle)
+                            Circle().fill(tagged ? AnyShapeStyle(tint) : Board.accentStyle)
                             Image(systemName: "checkmark")
                                 .font(.system(size: 9, weight: .heavy))
                                 .foregroundStyle(Board.theme.isDark ? Board.backdrop : .white)

@@ -154,7 +154,7 @@ private struct ScheduleSectionTitle: View {
 
 private struct ScheduleHairline: View {
     var body: some View {
-        Rectangle().fill(Board.line.opacity(Board.theme.embroidery == nil ? 1 : 0.35)).frame(height: 1)
+        Rectangle().fill(Board.line).frame(height: 1)
     }
 }
 
@@ -762,7 +762,7 @@ private struct ScheduleNotesCard: View {
             }
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 16).fill(Board.column.opacity(Board.theme.embroidery == nil ? 0.55 : 1)))
+            .background(RoundedRectangle(cornerRadius: 16).fill(Board.column.opacity(0.55)))
             .boardEdge(16)
         }
     }
@@ -1322,7 +1322,7 @@ private struct ScheduleBoardView: View {
                 if showStats {
                     HStack(spacing: 0) {
                         ScheduleSidebar(store: store, prefsOpen: showPanel, edit: openEditor, prefs: togglePanel)
-                        Rectangle().fill(Board.line.opacity(Board.theme.embroidery == nil ? 1 : 0.2)).frame(width: 1)
+                        Rectangle().fill(Board.line).frame(width: 1)
                     }
                     .transition(.move(edge: .leading).combined(with: .opacity))
                 }

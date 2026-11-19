@@ -337,13 +337,12 @@ struct ScratchView: View {
             .padding(.top, 34)
             .frame(width: 150)
             .background(themes.theme.panel)
-            Rectangle().fill(Board.line.opacity(themes.theme.embroidery == nil ? 1 : 0.3)).frame(width: 1)
+            Rectangle().fill(Board.line).frame(width: 1)
             VStack(spacing: 0) {
                 toolbar
-                Rectangle().fill(Board.line.opacity(themes.theme.embroidery == nil ? 1 : 0.3)).frame(height: 1)
+                Rectangle().fill(Board.line).frame(height: 1)
                 ScratchEditor(store: store) { view in DispatchQueue.main.async { editor = view } }
             }
-            .background(themes.theme.embroidery == nil ? Color.clear : Color.black.opacity(0.55))
         }
         .background(BoardBackdrop(theme: themes.theme))
         .ignoresSafeArea()

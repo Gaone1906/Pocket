@@ -385,7 +385,7 @@ private struct TallyGroup: View {
 
     func mark(_ stick: TallyStick, length: CGFloat) -> some View {
         Capsule()
-            .fill(Board.theme.sheen(tint))
+            .fill(tint)
             .opacity(stick.fraction < 1 ? 0.75 : 1)
             .frame(width: 3, height: max(6, length * stick.fraction))
             .padding(.horizontal, 4)
@@ -857,7 +857,7 @@ struct PomodoroBoardView: View {
             if showStats {
                 HStack(spacing: 0) {
                     BoardStats(store: store)
-                    Rectangle().fill(Board.line.opacity(Board.theme.embroidery == nil ? 1 : 0.2)).frame(width: 1)
+                    Rectangle().fill(Board.line).frame(width: 1)
                 }
                 .transition(.move(edge: .leading).combined(with: .opacity))
             }
@@ -908,7 +908,7 @@ struct PomodoroBoardView: View {
                                     }
                                     .foregroundStyle(Board.muted)
                                     .frame(width: 200, height: 110)
-                                    .background(RoundedRectangle(cornerRadius: 16).fill(Board.theme.embroidery == nil ? Color.clear : Board.column))
+                                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.clear))
                                     .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Board.line, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5])))
                                     .contentShape(Rectangle())
                                 }
