@@ -110,6 +110,7 @@ final class DataVault: ObservableObject {
             DispatchQueue.main.async { self.lastSnapshot = Date() }
         }
         scheduleSync(after: 90)
+        CloudSync.shared.schedule(after: 4)
     }
 
     func snapshots(_ name: String) -> [VaultSnapshot] {

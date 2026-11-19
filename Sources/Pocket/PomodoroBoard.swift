@@ -34,6 +34,7 @@ final class PomodoroBoardStore: ObservableObject {
     private init() {
         let vault = DataVault.shared
         vault.register("board") { [weak self] data in self?.merge(data) }
+        CloudSync.shared.register("board") { [weak self] data in self?.adopt(data) }
         if FileManager.default.fileExists(atPath: file.path) {
             do {
                 let saved = try JSONDecoder().decode(Saved.self, from: Data(contentsOf: file))
@@ -72,6 +73,20 @@ final class PomodoroBoardStore: ObservableObject {
             note("pomodoro board merged projectsAdded=\(newProjects.count) sessionsAdded=\(newSessions.count) sessions=\(sessions.count)")
         } catch {
             note("pomodoro board merge failed bytes=\(data.count) error=\(error.localizedDescription)")
+        }
+    }
+
+    func adopt(_ data: Data) {
+        do {
+            let incoming = try JSONDecoder().decode(Saved.self, from: data)
+            guard incoming.projects != projects || incoming.sessions != sessions else { return }
+            let before = sessions.count
+            projects = incoming.projects
+            sessions = incoming.sessions.sorted { $0.ended < $1.ended }
+            save()
+            note("pomodoro board adopted cloud projects=\(projects.count) sessionsBefore=\(before) sessionsAfter=\(sessions.count)")
+        } catch {
+            note("pomodoro board adopt failed bytes=\(data.count) error=\(error.localizedDescription)")
         }
     }
 

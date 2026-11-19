@@ -19,6 +19,20 @@ final class TodoStore: ObservableObject {
     init() {
         fileURL = PocketData.todos
         DataVault.shared.register("todos") { [weak self] data in self?.merge(data) }
+        CloudSync.shared.register("todos") { [weak self] data in self?.adopt(data) }
+    }
+
+    func adopt(_ data: Data) {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        do {
+            let incoming = try decoder.decode([TodoItem].self, from: data)
+            let before = items.count
+            mutate { $0 = incoming }
+            note("pocket todo adopted cloud before=\(before) after=\(items.count)")
+        } catch {
+            note("pocket todo adopt failed bytes=\(data.count) error=\(error.localizedDescription)")
+        }
     }
 
     func merge(_ data: Data) {
