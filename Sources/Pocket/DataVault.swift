@@ -12,6 +12,7 @@ enum PocketData {
     static var board: URL { root.appendingPathComponent("Pomodoro/board.json") }
     static var todos: URL { root.appendingPathComponent("todos.json") }
     static var schedule: URL { root.appendingPathComponent("schedule.json") }
+    static var calendar: URL { root.appendingPathComponent("calendar.json") }
     static var backups: URL { root.appendingPathComponent("Backups", isDirectory: true) }
     static var repo: URL { root.appendingPathComponent("DataRepo", isDirectory: true) }
     static var syncState: URL { root.appendingPathComponent("sync-state.json") }
@@ -25,7 +26,8 @@ private struct VaultFile {
     static var all: [VaultFile] {
         [VaultFile(name: "board", source: PocketData.board, noun: "session"),
          VaultFile(name: "todos", source: PocketData.todos, noun: "to-do"),
-         VaultFile(name: "schedule", source: PocketData.schedule, noun: "check-off")]
+         VaultFile(name: "schedule", source: PocketData.schedule, noun: "check-off"),
+         VaultFile(name: "calendar", source: PocketData.calendar, noun: "event")]
     }
 
     static func noun(_ name: String) -> String { all.first { $0.name == name }?.noun ?? "item" }
@@ -338,6 +340,7 @@ final class DataVault: ObservableObject {
         switch name {
         case "board": list = object?["sessions"] as? [Any] ?? []
         case "schedule": list = (object?["checks"] as? [Any] ?? []) + (object?["routines"] as? [Any] ?? [])
+        case "calendar": list = object?["events"] as? [Any] ?? []
         default: list = json as? [Any] ?? []
         }
         return Set(list.compactMap { ($0 as? [String: Any])?["id"] as? String })

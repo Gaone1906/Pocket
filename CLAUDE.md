@@ -72,15 +72,15 @@ Reference integration: Preparo, the exam practice app at `~/Desktop/workspace/pe
 
 ## Backups: setting up and restoring data
 
-Pocket's data is three JSON files under `~/Library/Application Support/Pocket` (`$ROOT` below): `Pomodoro/board.json`
-(projects and sessions), `todos.json`, and `schedule.json` (Orario routines and check-offs). Everything else there can
-be rebuilt. Where copies live:
+Pocket's data is four JSON files under `~/Library/Application Support/Pocket` (`$ROOT` below): `Pomodoro/board.json`
+(projects and sessions), `todos.json`, `schedule.json` (Orario routines and check-offs) and `calendar.json` (Calendar
+events). Everything else there can be rebuilt. Where copies live:
 
 | Copy | Location |
 | --- | --- |
-| Daily snapshots | `$ROOT/Backups/board/board-YYYY-MM-DD.json`, `$ROOT/Backups/todos/todos-YYYY-MM-DD.json`, `$ROOT/Backups/schedule/schedule-YYYY-MM-DD.json` |
-| Kept-aside and broken files | `board-before-restore-*.json` in the same folder (`schedule-before-delete-*`, `-before-merge-*`, `-before-restore-*` for the schedule); unreadable originals as `$ROOT/Pomodoro/board.broken-*.json` or `$ROOT/schedule.broken-*.json` |
-| Git repo (optional) | `board.json`, `todos.json` and `schedule.json` at the root of the private repo in `pocket.backup.repo`, cloned to `$ROOT/DataRepo` |
+| Daily snapshots | `$ROOT/Backups/board/board-YYYY-MM-DD.json`, `$ROOT/Backups/todos/todos-YYYY-MM-DD.json`, `$ROOT/Backups/schedule/schedule-YYYY-MM-DD.json`, `$ROOT/Backups/calendar/calendar-YYYY-MM-DD.json` |
+| Kept-aside and broken files | `board-before-restore-*.json` in the same folder (`schedule-before-delete-*`, `-before-merge-*`, `-before-restore-*` for the schedule); `calendar-before-merge-*` for the calendar; unreadable originals as `$ROOT/Pomodoro/board.broken-*.json`, `$ROOT/schedule.broken-*.json` or `$ROOT/calendar.broken-*.json` |
+| Git repo (optional) | `board.json`, `todos.json`, `schedule.json` and `calendar.json` at the root of the private repo in `pocket.backup.repo`, cloned to `$ROOT/DataRepo` |
 | Mirror folder (optional) | `pocket.backup.folder`, or `My Drive/Pocket Backups/<name>/` when Google Drive for Desktop is installed |
 
 The owner's data repo is the private `Gaone1906/pocket-data`, synced with the `gh` account `Gaone1906`. Never put data in
@@ -104,6 +104,7 @@ session here still syncs normally. So on a new Mac the shortest path is: install
    cp /tmp/pocket-data/board.json ~/Library/Application\ Support/Pocket/Pomodoro/board.json
    cp /tmp/pocket-data/todos.json ~/Library/Application\ Support/Pocket/todos.json
    cp /tmp/pocket-data/schedule.json ~/Library/Application\ Support/Pocket/schedule.json
+   cp /tmp/pocket-data/calendar.json ~/Library/Application\ Support/Pocket/calendar.json
    ```
 4. Check it parses: `python3 -m json.tool < ~/Library/Application\ Support/Pocket/Pomodoro/board.json | head`.
 5. Only now turn on sync:
@@ -140,7 +141,7 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 - `pull failed` usually means two Macs pushed at once. Fix it in `$ROOT/DataRepo` (`git pull --rebase`, keep the copy with
   more sessions), or delete `$ROOT/DataRepo` and Pocket will clone it again.
 - "GitHub has N … this Mac doesn't": another Mac (or an older install) pushed data this one lacks. Use the buttons
-  described above; the log line `pocket vault sync held name=<board|todos|schedule> unseen=<n>` gives the counts.
+  described above; the log line `pocket vault sync held name=<board|todos|schedule|calendar> unseen=<n>` gives the counts.
 - To turn sync off: `defaults delete com.pranav.pocket pocket.backup.repo`.
 
 ## Orario app (formerly Schedule)
@@ -158,6 +159,27 @@ A weekly routine tracker (`⌥O`); its code, app id and data file still use `sch
 Views: `ScheduleApp.swift` (the dropdown: today's morning/night checklist with tips), `ScheduleBoard.swift` (the expanded
 window: Schedule and Calendar views, routine filter, settings sidebar with backups), `ScheduleEditor.swift` (the
 "Change the schedule" weekly editor overlay). Views call the store's editing methods; the store does the logging.
+
+## Calendar app
+
+Pocket's own calendar (`⌥D`). It no longer reads macOS Calendar (no EventKit, no Calendars permission). Data model in
+`Sources/Pocket/CalendarModel.swift` (`CalendarStore.shared`, saved to `$ROOT/calendar.json` through `DataVault` as
+`calendar`, shaped `{"events": [...]}`):
+- Each event has `id` (UUID), `title`, `start`, `end` (ISO 8601), `allDay`, `hue` (theme tint index), `location`,
+  `notes`, `alert` (minutes before start, absent for none), `repeats` (`never`, `daily`, `weekdays`, `weekly`, `monthly`,
+  `yearly`), optional `until` (last day, inclusive), `created` and `updated`. All-day events start at local midnight and
+  end at the midnight after their last day. Missing fields decode to defaults.
+- Merging another copy is a union by id where the newer `updated` wins. Sync counts event ids as "seen".
+- The store reads and writes only through the `CalendarPersistence` protocol (`CalendarVaultPersistence` today), so a
+  different backend can replace the vault file without touching views.
+- Alerts are local notifications scheduled by `CalendarAlerts` for the next 14 days (at most 48, ids prefixed
+  `pocket.calendar.`), rebuilt on every change, at launch, when the day changes and every 6 hours. All-day alerts fire at
+  9 AM on the day, or 9 AM the day before. Clicking one opens the Calendar dropdown. Disabling Calendar clears them.
+
+Views: `CalendarApp.swift` (the dropdown: month grid with colour dots and the selected day's agenda),
+`CalendarBoard.swift` (the expanded window: Month and Week views, Up next sidebar, default alert), `CalendarEditor.swift`
+(the add/edit card). Double-click a day or an hour to add an event; click an event to edit it. Everything draws with the
+shared `Board` theme tokens; there is no theme picker inside Calendar.
 
 ## Changing Pocket itself
 
@@ -178,8 +200,6 @@ window: Schedule and Calendar views, routine filter, settings sidebar with backu
 - Log every remote action with the `note(...)` helper, including the source, project and the values that shaped the outcome.
 - No comments in code.
 - Build with `swift build`. Install and relaunch with `scripts/install.sh`. Then check routes with `curl`.
-- Embroidered themes (`Sources/Pocket/Embroidery.swift`) load their tiger and dragon art from
-  `Resources/Embroidery/*.jpg`, which `scripts/install.sh` copies into `Contents/Resources/Embroidery`. A plain
-  `swift run` has no bundle, so the art is missing there and `board embroidery art missing` is logged. A new colourway
-  needs a tiger and a dragon on flat black fabric (tiger lower left facing right, dragon upper right facing left), an
-  `Embroidery` entry and a place in `BoardTheme.all`.
+- Themes live in `Sources/Pocket/BoardTheme.swift`: `pastel(...)` for light themes and `dusk(..., ground:, glow:)` for
+  dark ones (a deep tinted ground with a pastel glow). One theme covers every native app and is picked only in Pocket
+  Settings (`SettingsWindow.swift`). Theme ids are persisted, so never rename one.

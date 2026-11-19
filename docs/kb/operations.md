@@ -48,8 +48,7 @@ Env knobs: `POCKET_APP_DIR`, `POCKET_SIGN_IDENTITY`, `POCKET_NO_OPEN`. Only run 
 replaces and relaunches the real app, which then runs against real data.
 
 `Info.plist` (`Resources/Info.plist`): `CFBundleIdentifier com.pranav.pocket`, version `2.0` (build `2`),
-`LSMinimumSystemVersion 14.0`, `LSUIElement true`, and usage strings for microphone, camera, calendars (full access and
-legacy).
+`LSMinimumSystemVersion 14.0`, `LSUIElement true`, and usage strings for microphone and camera (the calendar usage strings were removed with EventKit).
 
 ## Testing safely with `POCKET_DATA_DIR`
 
@@ -235,8 +234,7 @@ is through runtime TCC prompts or user settings:
 
 | Permission | Needed by | How it's obtained |
 | --- | --- | --- |
-| Notifications | web app new-message banners, Pomodoro phase ends | `requestAuthorization(.alert, .sound, .badge)` at every launch |
-| Calendars (full access) | Calendar app | `requestFullAccessToEvents` from setup step 2 or `CalendarApp`; usage strings in `Info.plist` |
+| Notifications | web app new-message banners, Pomodoro phase ends, Calendar alerts | `requestAuthorization(.alert, .sound, .badge)` at every launch |
 | Microphone / Camera | calls in WhatsApp/Slack | WebKit prompts; `WebApp` grants media only to the app's own `hosts`; usage strings in `Info.plist` |
 | Full Disk Access | OTP from Messages (`chat.db`) | manual, System Settings → Privacy & Security → Full Disk Access; setup deep-links there |
 | Login item | "Open Pocket at login" | `SMAppService.mainApp.register()`; may show "Waiting for approval in System Settings" |

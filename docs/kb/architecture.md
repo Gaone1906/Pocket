@@ -158,7 +158,9 @@ the gotcha on unbundled runs below).
 | Key | Type | Meaning |
 | --- | --- | --- |
 | `layout.bar` | `[String]` | ids shown as their own status items, in order |
-| `layout.tray` | `[String]` | ids in the dropdown, in order |
+| `layout.shelves` | Data (JSON `[Shelf]`) | dropdown shelves in order: custom shelves, then Unorganized (id `unorganized`, always last) |
+| `layout.tray` | `[String]` | every shelf's ids flattened, kept in step with `layout.shelves`; the migration source when `layout.shelves` is absent |
+| `layout.collapsed` | `[String]` | shelf ids (or `bar`) folded in the dropdown |
 | `layout.offered` | `[String]` | every catalog id this install has already seen (migration bookkeeping) |
 | `setup.done` | Bool | setup finished at least once |
 | `hotkeys.enabled` | Bool | global shortcuts on (default true when absent) |
@@ -167,13 +169,21 @@ the gotcha on unbundled runs below).
 | `shortcuts.offered` | `[String]` | ids whose default shortcut has already been offered |
 | `size.<id>` | String (`NSStringFromSize`) | saved panel size (written by `PocketApp`) |
 
-Published: `bar`, `tray` (private set), `setupDone`, `hotKeys`, `otp`, `shortcuts` (private set). `enabled = bar +
-tray`. Stale ids not in the catalog are dropped on load.
+Published: `bar`, `shelves`, `collapsed` (private set), `setupDone`, `hotKeys`, `otp`, `shortcuts` (private set).
+`tray` is every shelf's apps flattened and `enabled = bar + tray`. Stale ids not in the catalog are dropped on load, and
+`Layout.normalized` keeps each app in exactly one place with Unorganized last.
+
+Shelves (`Shelf { id, name, apps }`, `ShelfSpot = .bar | .shelf(id)`) are edited only through `Layout`, so the dropdown,
+the Shelves settings pane and the right-click menu share one model: `move(_:to:before:)`, `addShelf(named:)`,
+`renameShelf(_:to:)`, `deleteShelf(_:)` (its apps move to Unorganized), `moveShelf(_:before:)` / `moveShelf(_:by:)`,
+`toggleCollapsed(_:)`, plus `spot(of:)` and `shelfName(_:)`. Every change logs `pocket layout changed reason=...`.
+The menu bar shelf and Unorganized can't be renamed, moved or deleted. On first launch after the upgrade the old
+dropdown apps become Unorganized (log `pocket shelves migrated from dropdown`).
 
 Migrations in `init()` (run every launch, idempotent):
 1. **New apps for existing setups.** `listed = layout.offered` (fallback when absent: every non-link catalog id).
    `fresh` = catalog ids not listed and not already placed. Only if `setup.done`: `pinnedByDefault` ones append to
-   `layout.bar` (log `pocket new apps added to menu bar`), the rest to `layout.tray` (`... to dropdown`). Then
+   `layout.bar` (log `pocket new apps added to menu bar`), the rest to Unorganized (`... to unorganized shelf`). Then
    `layout.offered` = all catalog ids. On a first run (`setup.done` false) nothing is placed; setup decides.
 2. **Default shortcuts.** `offered = shortcuts.offered` (fallback: keys of the stored map). For each catalog app not
    yet offered with a `hotKey`: if some app already holds ⌥+key, skip unless `claimsHotKey`, in which case the holders
@@ -210,11 +220,20 @@ main. Failures log `pocket hotkey failed app= keys= status=` (e.g. combo already
   temporarily and `performClick` is used to pop them.
 
 ### `Tray.swift` — `TrayApp` (the dropdown) and `TrayView`
-`TrayApp: PocketApp` with `traySpec`, fixed 392×404, content `NSHostingView(TrayView)`. `TrayView` shows two sections
-("Menu bar" = `layout.bar`, "Dropdown" = `layout.tray`) as 5-column grids of 64×56 tiles (template-tinted glyph + name,
-tooltip = summary). Tap → hide tray and `open(id, source: "dropdown")`. Drag-and-drop uses the id `String` as payload;
-dropping on a tile inserts before it, on the section appends (`layout.move`). "Set up…" button →
-`AppDelegate.presentSetup()`.
+`TrayApp: PocketApp` with `traySpec`, 436pt wide, not user-resizable. Its height follows the content: `TrayView`
+measures the shelf list (`TrayHeightKey`) and calls `fit`, which resizes the panel keeping its top edge under the menu
+bar, capped at the screen's visible height (beyond that the list scrolls). The view follows `BoardThemeStore` (Board
+tokens, `BoardBackdrop`, `colorScheme`, hosting `appearance`).
+
+Layout: a header ("Pocket", app and shelf count, an Organize toggle and a gear), `ShelfList`, and a footer with "Set
+up…". `ShelfList` renders the Menu bar shelf, the custom shelves, and Unorganized as `ShelfSection`s: a small-caps title
+with a count and a fold chevron, over a card with an adaptive grid of `AppTile`s (42pt glyph chip + name). Tap opens the
+app (`open(id, source: "dropdown")`); right-click offers "Move to" and "New shelf with …". Drag-and-drop uses the app id
+`String` as payload (on a tile inserts before it, on a shelf appends); a shelf's grip drags `shelf:<id>` to reorder.
+In Organize mode custom shelves get a name field, up/down and delete, and a "New shelf" row appears.
+`TrayActions.openSettings()` is the gear's single entry point, also behind the right-click "Organize shelves…"; it opens
+Pocket Settings on its Shelves section (`PocketSettings.shared.show(section: .shelves)`), where `ShelvesSettings`
+(`ShelvesSettings.swift`) shows the same `ShelfList` in organize mode.
 
 ### `Setup.swift` — first-run and "Set up Pocket…" window
 `SetupController.shared.present()` creates (or refocuses) a 720×640 titled, closable `NSWindow` hosting `SetupView`.
@@ -227,13 +246,12 @@ Shown automatically at launch while `setup.done` is false, and from the right-cl
   with status text. **Continue** → `SetupModel.apply()`: keeps existing order for already placed apps, appends new
   ones in catalog order, `layout.apply`, step 2.
 - Step 2 "Sign in & permissions" (`SignInStep`): a **Sign in** button per enabled web app (`app.show(anchor: nil,
-  source: "setup")`, a centred panel); Calendar access row (`EKEventStore.requestFullAccessToEvents`, or deep link
-  `x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars` when denied); Full Disk Access row when
+  source: "setup")`, a centred panel); Full Disk Access row when
   OTP is on (`...?Privacy_AllFiles`). **Done** → `setup.done = true`, close.
 - `ShortcutField`: click to record; a local `keyDown` monitor captures the next combo (Esc cancels, Delete/Forward
   Delete clears). While recording, `AppDelegate.recordingShortcut = true`, which unregisters all global hotkeys so the
   combo reaches the field. Only one field records at a time (`ShortcutField.active`).
-- Logs: `pocket setup opened|refocused|applied|done|closed`, `login item`, `calendar access`, `opened settings`,
+- Logs: `pocket setup opened|refocused|applied|done|closed`, `login item`, `opened settings`,
   `sign in`.
 
 ### `PocketServer.swift` — loopback HTTP API
@@ -283,7 +301,7 @@ or `##"…"##` when the SVG contains `"#`.
 | Remove | id leaves `layout.enabled` | `stop()` (base: detach delegate, `orderOut`, drop panel), removed from `apps` |
 | Quit | "Quit Pocket", SIGTERM (`pkill`, `install.sh`) | `applicationWillTerminate` → `stop()` on every app |
 
-Rules: `didShow` is where you refresh "now"-dependent state (Schedule `tick()`, Calendar reload, Stats fast polling).
+Rules: `didShow` is where you refresh "now"-dependent state (Schedule `tick()`, Calendar `tick()` and `catchUp`, Stats fast polling).
 `didHide` is where you slow down or schedule unloads (`WebApp.scheduleUnload`). Always call `super.stop()` from an
 override. Per-app overrides are listed in each `apps/*.md`.
 

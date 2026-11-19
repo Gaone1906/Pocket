@@ -1,6 +1,5 @@
 import AppKit
 import Carbon
-import EventKit
 import ServiceManagement
 import SwiftUI
 
@@ -18,8 +17,6 @@ private final class SetupModel: ObservableObject {
     @Published var picks: [String: Placement] = [:]
     @Published var loginItem = SMAppService.mainApp.status == .enabled
     @Published var loginStatus = SetupModel.describe(SMAppService.mainApp.status)
-    @Published var calendarStatus = EKEventStore.authorizationStatus(for: .event)
-    let store = EKEventStore()
     var onDone: () -> Void = {}
 
     init() {
@@ -73,16 +70,6 @@ private final class SetupModel: ObservableObject {
         step = 2
     }
 
-    func requestCalendar() {
-        store.requestFullAccessToEvents { [weak self] granted, error in
-            DispatchQueue.main.async {
-                let status = EKEventStore.authorizationStatus(for: .event)
-                note("pocket setup calendar access granted=\(granted) status=\(status.rawValue) error=\(error?.localizedDescription ?? "none")")
-                self?.calendarStatus = status
-            }
-        }
-    }
-
     func openSettings(_ url: String) {
         guard let target = URL(string: url) else { return }
         let opened = NSWorkspace.shared.open(target)
@@ -122,7 +109,7 @@ private struct AppRow: View {
             if enabled.wrappedValue {
                 Picker("", selection: placement) {
                     Text("Menu bar").tag(Placement.bar)
-                    Text("Dropdown").tag(Placement.tray)
+                    Text("Shelf").tag(Placement.tray)
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -252,7 +239,7 @@ private struct ChooseStep: View {
             }
             Divider()
             HStack {
-                Text("Drag apps between the menu bar and the dropdown any time from the Pocket icon.")
+                Text("Drag apps between the menu bar and your shelves any time from the Pocket icon.")
                     .font(.caption).foregroundColor(.secondary)
                 Spacer()
                 Button("Continue") { model.apply() }.keyboardShortcut(.defaultAction)
@@ -296,15 +283,12 @@ private struct SignInStep: View {
     @ObservedObject var layout = Layout.shared
 
     var webApps: [AppSpec] { catalog.filter { $0.web != nil && layout.enabled.contains($0.id) } }
-    var calendarOn: Bool { layout.enabled.contains("calendar") }
-    var calendarGranted: Bool { model.calendarStatus == .fullAccess }
-    var calendarDenied: Bool { model.calendarStatus == .denied || model.calendarStatus == .restricted || model.calendarStatus == .writeOnly }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    if webApps.isEmpty && !calendarOn && !layout.otp {
+                    if webApps.isEmpty && !layout.otp {
                         Text("Nothing to sign in to").foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, minHeight: 200)
                     } else {
@@ -319,20 +303,6 @@ private struct SignInStep: View {
                                     }
                                     .padding(.vertical, 6)
                                     Divider()
-                                }
-                                if calendarOn {
-                                    PermissionRow(symbol: "calendar", title: "Calendar access", detail: calendarDetail) {
-                                        if calendarGranted {
-                                            Label("Granted", systemImage: "checkmark.circle.fill").foregroundColor(.green)
-                                        } else if calendarDenied {
-                                            Button("Open Settings") {
-                                                model.openSettings("x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars")
-                                            }
-                                        } else {
-                                            Button("Allow access") { model.requestCalendar() }
-                                        }
-                                    }
-                                    if layout.otp { Divider() }
                                 }
                                 if layout.otp {
                                     PermissionRow(symbol: "lock.shield", title: "Full Disk Access",
@@ -351,7 +321,7 @@ private struct SignInStep: View {
             }
             Divider()
             HStack {
-                Text("Drag apps between the menu bar and the dropdown any time from the Pocket icon.")
+                Text("Drag apps between the menu bar and your shelves any time from the Pocket icon.")
                     .font(.caption).foregroundColor(.secondary)
                 Spacer()
                 Button("Back") { model.step = 1 }
@@ -359,12 +329,6 @@ private struct SignInStep: View {
             }
             .padding(16)
         }
-    }
-
-    var calendarDetail: String {
-        if calendarGranted { return "Pocket can read the events in your Calendar." }
-        if calendarDenied { return "Access is off. Enable Pocket under Privacy & Security > Calendars." }
-        return "Lets the Calendar app show your events."
     }
 }
 

@@ -1,200 +1,42 @@
 import AppKit
-import EventKit
+import Combine
 import SwiftUI
 
-struct CalendarEntry: Identifiable {
-    let id = UUID()
-    let title: String
-    let start: Date
-    let end: Date
-    let allDay: Bool
-    let color: Color
-}
-
-enum CalendarAccess {
-    case granted
-    case undetermined
-    case denied
-}
-
-final class CalendarModel: ObservableObject {
-    @Published var visibleMonth: Date
-    @Published var selectedDay: Date
-    @Published var eventsByDay: [Date: [CalendarEntry]] = [:]
-    @Published var access: CalendarAccess = CalendarModel.currentAccess()
-
-    var isPanelShown: () -> Bool = { false }
-
-    private let calendar = Calendar.current
-    private let fetchQueue = DispatchQueue(label: "pocket.calendar.fetch", qos: .userInitiated)
-    private var generation = 0
-    private var hasLoaded = false
-    private var isDirty = false
-    private var storeObserver: NSObjectProtocol?
+final class CalendarDropdownState: ObservableObject {
+    @Published var month: Date
+    @Published var selected: Date
+    private var shownToday: Date
 
     init() {
-        let today = Calendar.current.startOfDay(for: Date())
-        selectedDay = today
-        visibleMonth = Calendar.current.dateInterval(of: .month, for: today)?.start ?? today
+        let today = CalendarDays.day(Date())
+        shownToday = today
+        selected = today
+        month = CalendarDays.monthStart(today)
     }
 
-    static func currentAccess() -> CalendarAccess {
-        switch EKEventStore.authorizationStatus(for: .event) {
-        case .fullAccess, .authorized: return .granted
-        case .notDetermined: return .undetermined
-        default: return .denied
-        }
+    func catchUp(today: Date) {
+        guard today != shownToday else { return }
+        shownToday = today
+        selected = today
+        month = CalendarDays.monthStart(today)
     }
 
-    var gridStart: Date {
-        let weekday = calendar.component(.weekday, from: visibleMonth)
-        let offset = (weekday - calendar.firstWeekday + 7) % 7
-        return calendar.date(byAdding: .day, value: -offset, to: visibleMonth) ?? visibleMonth
+    func shift(_ months: Int) {
+        guard let moved = CalendarDays.calendar.date(byAdding: .month, value: months, to: month) else { return }
+        month = CalendarDays.monthStart(moved)
+        guard !CalendarDays.calendar.isDate(selected, equalTo: month, toGranularity: .month) else { return }
+        let today = CalendarDays.day(Date())
+        selected = CalendarDays.calendar.isDate(today, equalTo: month, toGranularity: .month) ? today : month
     }
 
-    var gridDays: [Date] {
-        let start = gridStart
-        return (0..<42).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
-    }
-
-    var weekdaySymbols: [String] {
-        let symbols = calendar.shortWeekdaySymbols
-        return (0..<7).map { symbols[(calendar.firstWeekday - 1 + $0) % 7] }
-    }
-
-    var monthTitle: String {
-        visibleMonth.formatted(.dateTime.month(.wide).year())
-    }
-
-    var selectedEntries: [CalendarEntry] {
-        eventsByDay[calendar.startOfDay(for: selectedDay)] ?? []
-    }
-
-    func entries(on day: Date) -> [CalendarEntry] {
-        eventsByDay[calendar.startOfDay(for: day)] ?? []
-    }
-
-    func isInVisibleMonth(_ day: Date) -> Bool {
-        calendar.isDate(day, equalTo: visibleMonth, toGranularity: .month)
-    }
-
-    func startObserving() {
-        guard storeObserver == nil else { return }
-        storeObserver = NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: CalendarApp.store, queue: .main) { [weak self] _ in
-            guard let self else { return }
-            if self.isPanelShown() { self.fetch() } else { self.isDirty = true }
-        }
-    }
-
-    func stopObserving() {
-        if let storeObserver { NotificationCenter.default.removeObserver(storeObserver) }
-        storeObserver = nil
-    }
-
-    func activate() {
-        access = Self.currentAccess()
-        guard access == .granted else { return }
-        if !hasLoaded || isDirty { fetch() }
-    }
-
-    func requestAccess() {
-        CalendarApp.requestAccess { [weak self] granted in
-            guard let self else { return }
-            self.access = Self.currentAccess()
-            if granted { self.fetch() }
-        }
-    }
-
-    func openPrivacySettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") else { return }
-        NSWorkspace.shared.open(url)
-    }
-
-    func shiftMonth(by months: Int) {
-        guard let moved = calendar.date(byAdding: .month, value: months, to: visibleMonth) else { return }
-        showMonth(of: moved, preferredDay: nil)
-    }
-
-    func goToToday() {
-        showMonth(of: Date(), preferredDay: calendar.startOfDay(for: Date()))
+    func goToday() {
+        selected = CalendarDays.day(Date())
+        month = CalendarDays.monthStart(selected)
     }
 
     func select(_ day: Date) {
-        selectedDay = calendar.startOfDay(for: day)
-        if !isInVisibleMonth(day) { showMonth(of: day, preferredDay: selectedDay) }
-    }
-
-    private func showMonth(of date: Date, preferredDay: Date?) {
-        let month = calendar.dateInterval(of: .month, for: date)?.start ?? date
-        visibleMonth = month
-        if let preferredDay {
-            selectedDay = preferredDay
-        } else if !isInVisibleMonth(selectedDay) {
-            let today = calendar.startOfDay(for: Date())
-            selectedDay = isInVisibleMonth(today) ? today : month
-        }
-        fetch()
-    }
-
-    private func monthLabel() -> String {
-        let parts = calendar.dateComponents([.year, .month], from: visibleMonth)
-        return String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)
-    }
-
-    func fetch() {
-        let label = monthLabel()
-        guard CalendarModel.currentAccess() == .granted else {
-            note("pocket calendar fetch skipped month=\(label) reason=no access")
-            return
-        }
-        generation += 1
-        let ticket = generation
-        hasLoaded = true
-        isDirty = false
-        let rangeStart = gridStart
-        let rangeEnd = calendar.date(byAdding: .day, value: 42, to: rangeStart) ?? rangeStart
-        let calendar = self.calendar
-        fetchQueue.async { [weak self] in
-            let store = CalendarApp.store
-            let predicate = store.predicateForEvents(withStart: rangeStart, end: rangeEnd, calendars: nil)
-            let events = store.events(matching: predicate)
-            let buckets = Self.bucket(events, calendar: calendar, rangeStart: rangeStart, rangeEnd: rangeEnd)
-            DispatchQueue.main.async {
-                guard let self, ticket == self.generation else { return }
-                self.eventsByDay = buckets
-                note("pocket calendar fetched month=\(label) events=\(events.count)")
-            }
-        }
-    }
-
-    private static func bucket(_ events: [EKEvent], calendar: Calendar, rangeStart: Date, rangeEnd: Date) -> [Date: [CalendarEntry]] {
-        var buckets: [Date: [CalendarEntry]] = [:]
-        for event in events {
-            guard let start = event.startDate, let end = event.endDate else { continue }
-            let cgColor: CGColor? = event.calendar?.cgColor
-            let entry = CalendarEntry(
-                title: event.title ?? "Untitled",
-                start: start,
-                end: end,
-                allDay: event.isAllDay,
-                color: cgColor.map { Color(cgColor: $0) } ?? .accentColor
-            )
-            let lastMoment = end > start ? end.addingTimeInterval(-1) : start
-            var day = max(calendar.startOfDay(for: start), rangeStart)
-            let lastDay = calendar.startOfDay(for: lastMoment)
-            while day <= lastDay && day < rangeEnd {
-                buckets[day, default: []].append(entry)
-                guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
-                day = next
-            }
-        }
-        for key in buckets.keys {
-            buckets[key]?.sort { lhs, rhs in
-                if lhs.allDay != rhs.allDay { return lhs.allDay }
-                return lhs.start < rhs.start
-            }
-        }
-        return buckets
+        selected = CalendarDays.day(day)
+        if !CalendarDays.calendar.isDate(day, equalTo: month, toGranularity: .month) { month = CalendarDays.monthStart(day) }
     }
 }
 
@@ -226,210 +68,250 @@ struct ScrollMonthStepper {
     }
 }
 
-struct CalendarRoot: View {
-    @ObservedObject var model: CalendarModel
+struct CalendarDropdown: View {
+    @ObservedObject var store: CalendarStore
+    @ObservedObject var state: CalendarDropdownState
+    @ObservedObject var themes = BoardThemeStore.shared
+    let open: (CalendarBoardRequest) -> Void
 
     var body: some View {
-        VStack(spacing: 10) {
+        let days = CalendarDays.monthGrid(state.month)
+        let buckets = store.byDay(from: days[0], to: CalendarDays.shift(days[41], days: 1))
+        VStack(spacing: 0) {
             header
-            switch model.access {
-            case .granted:
-                weekdayRow
-                monthGrid
-                Divider()
-                dayList
-            case .undetermined:
-                permissionPrompt(message: "Pocket shows the events from your Calendar app.", button: "Allow Calendar access") { model.requestAccess() }
-            case .denied:
-                permissionPrompt(message: "Calendar access is turned off for Pocket.", button: "Open Privacy Settings") { model.openPrivacySettings() }
+                .padding(.horizontal, 18)
+                .padding(.top, 20)
+                .padding(.bottom, 14)
+            VStack(spacing: 6) {
+                HStack(spacing: 4) {
+                    ForEach(Array(CalendarDays.weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
+                        Text(symbol.uppercased())
+                            .font(.system(size: 9, weight: .semibold))
+                            .tracking(1.2)
+                            .foregroundStyle(Board.muted)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                ForEach(0..<6, id: \.self) { row in
+                    HStack(spacing: 4) {
+                        ForEach(0..<7, id: \.self) { column in
+                            let day = days[row * 7 + column]
+                            CalendarMiniCell(day: day,
+                                             occurrences: buckets[day] ?? [],
+                                             inMonth: CalendarDays.calendar.isDate(day, equalTo: state.month, toGranularity: .month),
+                                             selected: day == state.selected,
+                                             today: day == store.today)
+                                .onTapGesture(count: 2) { open(.create(day)) }
+                                .onTapGesture { withAnimation(Board.glide) { state.select(day) } }
+                        }
+                    }
+                }
             }
+            .padding(.horizontal, 14)
+            .padding(.bottom, 14)
+            CalendarHairline()
+            CalendarAgenda(day: state.selected, today: store.today, occurrences: buckets[state.selected] ?? store.on(state.selected), open: open)
         }
-        .padding(.top, 28)
-        .padding(.horizontal, 16)
-        .padding(.bottom, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .id(themes.theme.id)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(BoardBackdrop(theme: themes.theme))
+        .ignoresSafeArea()
+        .environment(\.colorScheme, themes.theme.colorScheme)
     }
 
     private var header: some View {
         HStack(spacing: 8) {
-            Text(model.monthTitle)
-                .font(.title2.weight(.semibold))
-            Spacer()
-            Button { model.shiftMonth(by: -1) } label: { Image(systemName: "chevron.left") }
-            Button("Today") { model.goToToday() }
-            Button { model.shiftMonth(by: 1) } label: { Image(systemName: "chevron.right") }
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-    }
-
-    private var weekdayRow: some View {
-        HStack(spacing: 2) {
-            ForEach(Array(model.weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
-                Text(symbol)
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(state.month.formatted(.dateTime.month(.wide)))
+                    .font(.system(size: 19, weight: .bold))
+                    .foregroundStyle(Board.ink)
+                Text(state.month.formatted(.dateTime.year()))
+                    .font(.system(size: 19, weight: .regular))
+                    .foregroundStyle(Board.muted)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            Spacer(minLength: 6)
+            if !CalendarDays.calendar.isDate(state.month, equalTo: store.today, toGranularity: .month) {
+                Button("Today") { withAnimation(Board.glide) { state.goToday() } }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Board.accentInkStyle)
+            }
+            HStack(spacing: 6) {
+                CalendarCircleChip(symbol: "chevron.left", help: "Previous month") { withAnimation(Board.glide) { state.shift(-1) } }
+                CalendarCircleChip(symbol: "chevron.right", help: "Next month") { withAnimation(Board.glide) { state.shift(1) } }
+                CalendarCircleChip(symbol: "plus", help: "New event") { open(.create(state.selected)) }
+                CalendarCircleChip(symbol: "arrow.up.left.and.arrow.down.right", help: "Open the calendar in its own window") { open(.browse(state.selected)) }
             }
         }
-    }
-
-    private var monthGrid: some View {
-        let days = model.gridDays
-        return VStack(spacing: 2) {
-            ForEach(0..<6, id: \.self) { week in
-                HStack(spacing: 2) {
-                    ForEach(0..<7, id: \.self) { column in
-                        let day = days[week * 7 + column]
-                        DayCell(
-                            day: day,
-                            entries: model.entries(on: day),
-                            inMonth: model.isInVisibleMonth(day),
-                            selected: Calendar.current.isDate(day, inSameDayAs: model.selectedDay)
-                        )
-                        .onTapGesture { model.select(day) }
-                    }
-                }
-            }
-        }
-    }
-
-    private var dayList: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(model.selectedDay.formatted(.dateTime.weekday(.wide).month(.wide).day()))
-                .font(.headline)
-            let entries = model.selectedEntries
-            if entries.isEmpty {
-                Text("No events")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 6) {
-                        ForEach(entries) { entry in
-                            EntryRow(entry: entry)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private func permissionPrompt(message: String, button: String, action: @escaping () -> Void) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: "calendar.badge.exclamationmark")
-                .font(.system(size: 36))
-                .foregroundStyle(.secondary)
-            Text(message)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-            Button(button, action: action)
-                .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
-struct DayCell: View {
+private struct CalendarMiniCell: View {
     let day: Date
-    let entries: [CalendarEntry]
+    let occurrences: [CalendarOccurrence]
     let inMonth: Bool
     let selected: Bool
-
-    private var isToday: Bool { Calendar.current.isDateInToday(day) }
+    let today: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text("\(Calendar.current.component(.day, from: day))")
-                .font(.system(size: 11, weight: isToday ? .bold : .regular))
-                .foregroundStyle(isToday ? Color.white : Color.primary)
-                .frame(width: 18, height: 18)
-                .background(Circle().fill(isToday ? Color.accentColor : Color.clear))
-            ForEach(entries.prefix(2)) { entry in
-                HStack(spacing: 3) {
-                    Circle().fill(entry.color).frame(width: 5, height: 5)
-                    Text(entry.title)
-                        .font(.system(size: 9))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+        VStack(spacing: 5) {
+            Text("\(CalendarDays.calendar.component(.day, from: day))")
+                .font(.system(size: 12, weight: today || selected ? .bold : .medium))
+                .monospacedDigit()
+                .foregroundStyle(today ? Board.accentInkStyle : AnyShapeStyle(Board.ink))
+            HStack(spacing: 3) {
+                ForEach(occurrences.prefix(3)) { occurrence in
+                    Circle().fill(occurrence.tint).frame(width: 5, height: 5)
                 }
             }
-            if entries.count > 2 {
-                Text("+\(entries.count - 2)")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
+            .frame(height: 5)
         }
-        .padding(3)
-        .frame(maxWidth: .infinity, minHeight: 58, maxHeight: 58, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.04)))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(selected ? Color.accentColor : Color.clear, lineWidth: 1.5))
+        .frame(maxWidth: .infinity)
+        .frame(height: 42)
+        .background(RoundedRectangle(cornerRadius: 12).fill(selected ? Board.accent.opacity(0.16) : Board.column))
+        .boardEdge(12, color: today ? Board.accent : Board.line, width: today ? 1.5 : 1)
         .opacity(inMonth ? 1 : 0.4)
-        .contentShape(Rectangle())
+        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .help(occurrences.isEmpty ? CalendarDays.label(day) : occurrences.map(\.event.displayTitle).joined(separator: ", "))
     }
 }
 
-struct EntryRow: View {
-    let entry: CalendarEntry
+private struct CalendarAgenda: View {
+    let day: Date
+    let today: Date
+    let occurrences: [CalendarOccurrence]
+    let open: (CalendarBoardRequest) -> Void
 
-    private var timeText: String {
-        if entry.allDay { return "All day" }
-        let start = entry.start.formatted(date: .omitted, time: .shortened)
-        let end = entry.end.formatted(date: .omitted, time: .shortened)
-        return "\(start) – \(end)"
+    private var heading: String {
+        let date = day.formatted(.dateTime.weekday(.wide).day().month(.abbreviated)).uppercased()
+        if day == today { return "TODAY · \(date)" }
+        if day == CalendarDays.shift(today, days: 1) { return "TOMORROW · \(date)" }
+        return date
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            RoundedRectangle(cornerRadius: 2).fill(entry.color).frame(width: 4, height: 28)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(entry.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
-                Text(timeText).font(.system(size: 11)).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                CalendarSectionTitle(text: heading)
+                Spacer()
+                Button {
+                    open(.create(day))
+                } label: {
+                    Label("Add", systemImage: "plus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Board.accentInkStyle)
+                }
+                .buttonStyle(.plain)
             }
-            Spacer(minLength: 0)
+            if occurrences.isEmpty {
+                VStack(spacing: 6) {
+                    Text("Nothing planned")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Board.muted)
+                    Text("Double-click a day to add an event")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Board.faint)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(spacing: 6) {
+                        ForEach(occurrences) { occurrence in
+                            Button {
+                                open(.edit(occurrence.event.id))
+                            } label: {
+                                CalendarAgendaRow(occurrence: occurrence)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.bottom, 12)
+                }
+                .scrollIndicators(.never)
+                .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.86), .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom))
+            }
         }
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+}
+
+struct CalendarAgendaRow: View {
+    let occurrence: CalendarOccurrence
+    @State private var hover = false
+
+    private var detail: String {
+        var parts = [CalendarDays.span(occurrence)]
+        let place = occurrence.event.location.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !place.isEmpty { parts.append(place) }
+        if occurrence.event.repeats != .never { parts.append(occurrence.event.repeats.short) }
+        return parts.joined(separator: " · ")
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 2).fill(occurrence.tint).frame(width: 4, height: 30)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(occurrence.event.displayTitle)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Board.ink)
+                    .lineLimit(1)
+                Text(detail)
+                    .font(.system(size: 11))
+                    .foregroundStyle(Board.muted)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            if occurrence.event.alert != nil {
+                Image(systemName: "bell")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Board.faint)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 12).fill(hover ? occurrence.tint.opacity(0.18) : Board.column))
+        .boardEdge(12)
+        .contentShape(RoundedRectangle(cornerRadius: 12))
+        .onHover { hover = $0 }
+        .animation(.easeOut(duration: 0.12), value: hover)
     }
 }
 
 final class CalendarApp: PocketApp {
-    static let store = EKEventStore()
-
-    static var hasAccess: Bool { CalendarModel.currentAccess() == .granted }
-
-    static func requestAccess(done: @escaping (Bool) -> Void) {
-        store.requestFullAccessToEvents { granted, error in
-            if granted { store.reset() }
-            note("pocket calendar access requested granted=\(granted) error=\(error.map { "\($0)" } ?? "none")")
-            DispatchQueue.main.async { done(granted) }
-        }
-    }
-
-    let model = CalendarModel()
+    let state = CalendarDropdownState()
+    private var themeWatch: AnyCancellable?
     private var scrollMonitor: Any?
     private var stepper = ScrollMonthStepper()
 
-    override init(spec: AppSpec) {
-        super.init(spec: spec)
-        model.isPanelShown = { [weak self] in self?.isShown ?? false }
-    }
-
     override var resizable: Bool { false }
-    override var defaultSize: NSSize { NSSize(width: 560, height: 620) }
+    override var defaultSize: NSSize { NSSize(width: 400, height: 600) }
 
     override func makeContent() -> NSView {
-        NSHostingView(rootView: CalendarRoot(model: model))
+        let view = CalendarDropdown(store: CalendarStore.shared, state: state) { [weak self] request in
+            self?.openBoard(request, source: "dropdown")
+        }
+        let hosting = NSHostingView(rootView: view)
+        hosting.appearance = BoardThemeStore.shared.theme.appearance
+        themeWatch = BoardThemeStore.shared.$theme.sink { [weak hosting] theme in hosting?.appearance = theme.appearance }
+        return hosting
     }
 
     override func start() {
-        model.startObserving()
+        let store = CalendarStore.shared
+        store.refreshAlerts(reason: "launch")
+        note("calendar app started events=\(store.events.count) path=\(PocketData.calendar.path)")
     }
 
     override func didShow() {
+        let store = CalendarStore.shared
+        store.tick()
+        state.catchUp(today: store.today)
         installScrollMonitor()
-        model.activate()
     }
 
     override func didHide() {
@@ -438,17 +320,41 @@ final class CalendarApp: PocketApp {
 
     override func stop() {
         removeScrollMonitor()
-        model.stopObserving()
+        if !Layout.shared.enabled.contains(spec.id) { CalendarAlerts.shared.clear(reason: "disabled") }
         super.stop()
+    }
+
+    override func menuItems() -> [NSMenuItem] {
+        let open = NSMenuItem(title: "Open calendar", action: #selector(openFromMenu), keyEquivalent: "")
+        open.target = self
+        let add = NSMenuItem(title: "New event", action: #selector(newFromMenu), keyEquivalent: "")
+        add.target = self
+        return [open, add]
+    }
+
+    @objc private func openFromMenu() {
+        openBoard(.browse(CalendarStore.shared.today), source: "menu")
+    }
+
+    @objc private func newFromMenu() {
+        openBoard(.create(CalendarStore.shared.today), source: "menu")
+    }
+
+    private func openBoard(_ request: CalendarBoardRequest, source: String) {
+        hide(reason: "switched")
+        note("calendar board requested source=\(source) request=\(request.label)")
+        CalendarBoardWindow.shared.present(request)
     }
 
     private func installScrollMonitor() {
         guard scrollMonitor == nil else { return }
         stepper = ScrollMonthStepper()
         scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
-            guard let self, let panel = self.panelIfLoaded, event.window === panel, self.model.access == .granted else { return event }
+            guard let self, let panel = self.panelIfLoaded, event.window === panel else { return event }
+            let point = event.locationInWindow
+            guard point.y > panel.frame.height * 0.4 else { return event }
             let direction = self.stepper.step(for: event)
-            if direction != 0 { self.model.shiftMonth(by: direction) }
+            if direction != 0 { withAnimation(Board.glide) { self.state.shift(direction) } }
             return event
         }
     }

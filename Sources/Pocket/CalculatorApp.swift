@@ -99,15 +99,16 @@ final class CatCalculator: ObservableObject {
 }
 
 private enum CatStyle {
-    static let navy = Color(red: 0x13 / 255, green: 0x30 / 255, blue: 0x5A / 255)
-    static let blue = Color(red: 0x1F / 255, green: 0x63 / 255, blue: 0xC6 / 255)
-    static let blueTint = Color(red: 0xEA / 255, green: 0xF2 / 255, blue: 0xFD / 255)
-    static let ink = Color(red: 0x1A / 255, green: 0x1D / 255, blue: 0x23 / 255)
-    static let muted = Color(red: 0x6B / 255, green: 0x72 / 255, blue: 0x80 / 255)
-    static let keyBorder = Color(red: 0xC7 / 255, green: 0xCB / 255, blue: 0xD2 / 255)
-    static let line = Color(red: 0xDF / 255, green: 0xE3 / 255, blue: 0xE8 / 255)
-    static let surface = Color.white
-    static let surface2 = Color(red: 0xF5 / 255, green: 0xF7 / 255, blue: 0xFA / 255)
+    static var navy: Color { Board.theme.isDark ? Board.theme.card : Board.accentInk }
+    static var headerInk: Color { Board.theme.isDark ? Board.accentInk : .white }
+    static var blue: Color { Board.accent }
+    static var blueTint: Color { Board.accent.opacity(0.18) }
+    static var ink: Color { Board.ink }
+    static var muted: Color { Board.muted }
+    static var keyBorder: Color { Board.line }
+    static var line: Color { Board.line }
+    static var surface: Color { Board.backdrop }
+    static var surface2: Color { Board.column }
     static let gap: CGFloat = 5
     static let keyHeight: CGFloat = 31
 }
@@ -122,8 +123,8 @@ private struct CatKey: View {
         let equals = label == "="
         Button { press(label) } label: {
             Text(label)
-                .font(.system(size: 13))
-                .foregroundStyle(equals ? Color.white : CatStyle.ink)
+                .font(.system(size: 13, weight: equals ? .bold : .regular))
+                .foregroundStyle(equals ? (Board.theme.isDark ? Board.backdrop : Color.white) : CatStyle.ink)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: 4)
@@ -140,6 +141,7 @@ private struct CatKey: View {
 
 struct CalcView: View {
     @ObservedObject var calc: CatCalculator
+    @ObservedObject var themes = BoardThemeStore.shared
     let close: () -> Void
     @FocusState private var focused: Bool
 
@@ -159,7 +161,7 @@ struct CalcView: View {
                     .buttonStyle(.plain)
                     .help("Close calculator")
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(CatStyle.headerInk)
             .padding(.horizontal, 10)
             .frame(height: 30)
             .background(CatStyle.navy)
@@ -214,9 +216,10 @@ struct CalcView: View {
         }
         .frame(width: 280)
         .frame(maxHeight: .infinity, alignment: .top)
+        .id(themes.theme.id)
         .background(CatStyle.surface)
         .ignoresSafeArea()
-        .environment(\.colorScheme, .light)
+        .environment(\.colorScheme, themes.theme.colorScheme)
         .focusable()
         .focusEffectDisabled()
         .focused($focused)
@@ -258,8 +261,6 @@ final class CalculatorApp: PocketApp {
     override var resizable: Bool { false }
 
     override func makeContent() -> NSView {
-        let hosting = NSHostingView(rootView: CalcView(calc: calc) { [weak self] in self?.hide(reason: "close button") })
-        hosting.appearance = NSAppearance(named: .aqua)
-        return hosting
+        ThemedHostingView(rootView: CalcView(calc: calc) { [weak self] in self?.hide(reason: "close button") })
     }
 }
