@@ -310,13 +310,11 @@ export function exportDocuments() {
       projects: all("board.project").sort(byPos).map(strip),
       sessions: all("board.session").sort((a, b) => a.ended - b.ended).map(strip),
     },
-    todos: all("todo").sort(byPos).map(strip),
     schedule: {
       ...strip(settings),
       routines: all("schedule.routine").sort(byPos).map(strip),
       checks: all("schedule.check").map(strip),
     },
-    calendar: { events: all("calendar.event").sort(byPos).map(strip) },
   };
 }
 

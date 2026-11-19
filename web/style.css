@@ -31,8 +31,7 @@ body {
 
 button,
 input,
-select,
-textarea {
+select {
   font: inherit;
   color: inherit;
 }
@@ -212,15 +211,6 @@ header h2 {
   }
   .focus .stats {
     margin: 0 0 14px;
-  }
-  .calendar {
-    display: grid;
-    grid-template-columns: 1.3fr 1fr;
-    gap: 16px;
-    align-items: start;
-  }
-  .calendar .list {
-    margin: 0;
   }
   .settings {
     display: grid;
@@ -443,7 +433,6 @@ small {
   box-shadow: 0 6px 16px -8px var(--accent);
 }
 
-
 .primary.wide {
   width: 100%;
 }
@@ -511,22 +500,6 @@ h3 .link {
   font-style: normal;
 }
 
-.add {
-  display: flex;
-  align-items: center;
-  padding: 6px 6px 6px 16px;
-  margin-bottom: 14px;
-}
-
-.add input {
-  flex: 1;
-  border: 0;
-  background: none;
-  outline: none;
-  padding: 8px 0;
-  font-size: 16px;
-}
-
 .icon {
   width: 36px;
   height: 36px;
@@ -567,22 +540,10 @@ h3 .link {
   border-color: var(--accent);
 }
 
-.todo.done .grow,
 .step.done .grow > div:first-child {
   color: var(--faint);
   text-decoration: line-through;
   text-decoration-color: color-mix(in srgb, var(--faint) 60%, transparent);
-}
-
-.todo .icon {
-  width: 30px;
-  height: 30px;
-  opacity: 0.6;
-}
-
-.todo .icon svg {
-  width: 17px;
-  height: 17px;
 }
 
 .tip {
@@ -705,127 +666,6 @@ h3 .link {
   font-size: 13px;
 }
 
-.month {
-  padding: 8px 10px 10px;
-  margin-bottom: 14px;
-}
-
-.dow,
-.grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-}
-
-.dow span {
-  text-align: center;
-  font-size: 11px;
-  color: var(--faint);
-  padding: 8px 0 4px;
-}
-
-.cell {
-  aspect-ratio: 1 / 0.92;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  border-radius: 12px;
-}
-
-.cell b {
-  font-weight: 500;
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-}
-
-.cell.out {
-  color: var(--faint);
-  opacity: 0.55;
-}
-
-.cell.today b {
-  color: var(--accent-ink);
-  font-weight: 700;
-}
-
-.cell.on b {
-  background: var(--accent);
-  color: var(--on-accent, #fff);
-}
-
-.dots {
-  display: flex;
-  gap: 2px;
-  height: 5px;
-}
-
-.dots i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-}
-
-.event .bar {
-  width: 4px;
-  align-self: stretch;
-  border-radius: 4px;
-}
-
-.bell {
-  color: var(--faint);
-  font-size: 9px;
-}
-
-.sheet-back {
-  position: fixed;
-  inset: 0;
-  background: rgba(20, 30, 25, 0.28);
-  z-index: 20;
-}
-
-.sheet {
-  position: fixed;
-  z-index: 21;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: min(560px, 100%);
-  max-height: 92dvh;
-  overflow: auto;
-  padding: 14px 16px calc(var(--safe-b) + 18px);
-  border-radius: 22px 22px 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-@media (min-width: 700px) {
-  .sheet {
-    bottom: auto;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    border-radius: 22px;
-  }
-}
-
-.sheet-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.sheet-head h3 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.sheet input:not([type="checkbox"]):not([type="radio"]),
-.sheet select,
-.sheet textarea,
 .setup input {
   width: 100%;
   border: 1px solid var(--line);
@@ -836,65 +676,8 @@ h3 .link {
   font-size: 16px;
 }
 
-.sheet input:focus,
-.sheet select:focus,
-.sheet textarea:focus,
 .setup input:focus {
   border-color: var(--accent);
-}
-
-.sheet label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--muted);
-}
-
-.sheet .toggle {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  font-size: 15px;
-  color: var(--ink);
-}
-
-.two {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
-}
-
-.two input,
-.two select {
-  min-width: 0;
-}
-
-@media (max-width: 520px) {
-  .two.dates {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.hues {
-  display: flex;
-  gap: 10px;
-  padding: 2px 2px 4px;
-}
-
-.hues input {
-  display: none;
-}
-
-.hues i {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: block;
-}
-
-.hues input:checked + i {
-  box-shadow: 0 0 0 2px var(--card), 0 0 0 4px var(--ink);
 }
 
 .themes {

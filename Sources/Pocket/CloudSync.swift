@@ -19,16 +19,10 @@ struct CloudDocument {
                        collections: [CloudCollection(kind: "board.project", key: "projects", sortKey: "_pos"),
                                      CloudCollection(kind: "board.session", key: "sessions", sortKey: "ended")],
                        metaKind: nil),
-         CloudDocument(name: "todos", file: PocketData.todos,
-                       collections: [CloudCollection(kind: "todo", key: nil, sortKey: "_pos")],
-                       metaKind: nil),
          CloudDocument(name: "schedule", file: PocketData.schedule,
                        collections: [CloudCollection(kind: "schedule.routine", key: "routines", sortKey: "_pos"),
                                      CloudCollection(kind: "schedule.check", key: "checks", sortKey: nil)],
-                       metaKind: "schedule.settings"),
-         CloudDocument(name: "calendar", file: PocketData.root.appendingPathComponent("calendar.json"),
-                       collections: [CloudCollection(kind: "calendar.event", key: "events", sortKey: "start")],
-                       metaKind: "calendar.settings")]
+                       metaKind: "schedule.settings")]
     }
 }
 

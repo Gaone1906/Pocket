@@ -17,32 +17,29 @@ const WEEK = [2, 3, 4, 5, 6, 7, 1];
 const SHORT = ["", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const ICONS = {
   focus: '<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5"/></svg>',
-  todo: '<svg viewBox="0 0 24 24"><path d="M4 6.5l1.8 1.8L9 5M4 13.5l1.8 1.8L9 12M12 7h8M12 14h8M12 19.5h8M4.5 19.5h3"/></svg>',
   schedule: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3 2"/><path d="M17 3.5l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z"/></svg>',
-  calendar: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   settings: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
-  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
   check: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
-  close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   left: '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
   right: '<svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>',
   sun: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>',
   moon: '<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>',
-  trash: '<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4.5h4V7M7 7l1 13h8l1-13"/></svg>',
 };
 
 const ui = {
-  tab: localStorage.getItem("pocket.tab") || "focus",
+  tab: (() => {
+    try {
+      return localStorage.getItem("pocket.tab") || "focus";
+    } catch (e) {
+      return "focus";
+    }
+  })(),
   setupEmail: "",
   setupStep: "server",
   setupError: "",
   busy: false,
   slot: null,
   scheduleDay: null,
-  calMonth: null,
-  calDay: dayKey(new Date()),
-  editing: null,
-  showDone: true,
   toast: "",
 };
 
@@ -233,41 +230,6 @@ function viewFocus() {
   </section>`;
 }
 
-function todos() {
-  return store.all("todo").sort((a, b) => (a._pos ?? 0) - (b._pos ?? 0));
-}
-
-function viewTodo() {
-  const list = todos();
-  const open = list.filter((t) => !t.done);
-  const done = list.filter((t) => t.done);
-  const item = (t) => `
-    <div class="row todo ${t.done ? "done" : ""}">
-      <button class="tick ${t.done ? "on" : ""}" data-todo-toggle="${t.id}" aria-label="Toggle">${t.done ? ICONS.check : ""}</button>
-      <span class="grow" data-todo-edit="${t.id}">${esc(t.title)}</span>
-      <button class="icon quiet" data-todo-remove="${t.id}" aria-label="Delete">${ICONS.trash}</button>
-    </div>`;
-  return `
-  <section class="todo-view">
-    <form class="card add" data-form="todo">
-      <input name="title" placeholder="Add a to-do" autocomplete="off" enterkeyhint="done">
-      <button class="icon accent" aria-label="Add">${ICONS.plus}</button>
-    </form>
-    <div class="card list">
-      <h3>To do <span class="count">${open.length}</span></h3>
-      ${open.length ? open.map(item).join("") : `<div class="empty">Nothing left. Nice.</div>`}
-    </div>
-    ${
-      done.length
-        ? `<div class="card list">
-      <h3><button class="link" data-toggle-done>${ui.showDone ? "Hide" : "Show"} done</button> <span class="count">${done.length}</span><button class="link right" data-clear-done>Clear</button></h3>
-      ${ui.showDone ? done.map(item).join("") : ""}
-    </div>`
-        : ""
-    }
-  </section>`;
-}
-
 function scheduleBook() {
   const settings = store.get("schedule.settings", "book") || {};
   return {
@@ -368,121 +330,6 @@ function viewSchedule() {
   </section>`;
 }
 
-function events() {
-  return store.all("calendar.event");
-}
-
-function occursOn(ev, day) {
-  const start = new Date(ev.start);
-  const end = new Date(ev.end || ev.start);
-  const startDay = dayKey(start);
-  if (day < startDay) return false;
-  if (ev.until && day > dayKey(new Date(ev.until))) return false;
-  const rule = ev.repeats || "never";
-  if (rule === "never") {
-    const lastDay = ev.allDay ? dayKey(new Date(end.getTime() - 1)) : dayKey(end);
-    return day <= lastDay;
-  }
-  const d = parseDay(day);
-  if (rule === "daily") return true;
-  if (rule === "weekdays") return d.getDay() >= 1 && d.getDay() <= 5;
-  if (rule === "weekly") return d.getDay() === start.getDay();
-  if (rule === "monthly") return d.getDate() === start.getDate();
-  if (rule === "yearly") return d.getDate() === start.getDate() && d.getMonth() === start.getMonth();
-  return false;
-}
-
-function eventsOn(day) {
-  return events()
-    .filter((e) => occursOn(e, day))
-    .sort((a, b) => (b.allDay ? 1 : 0) - (a.allDay ? 1 : 0) || new Date(a.start).getHours() * 60 + new Date(a.start).getMinutes() - (new Date(b.start).getHours() * 60 + new Date(b.start).getMinutes()));
-}
-
-function viewCalendar() {
-  const sel = parseDay(ui.calDay);
-  const month = ui.calMonth ? parseDay(ui.calMonth) : new Date(sel.getFullYear(), sel.getMonth(), 1);
-  const first = new Date(month.getFullYear(), month.getMonth(), 1);
-  const gridStart = addDays(first, -((first.getDay() + 6) % 7));
-  const today = dayKey(new Date());
-  const cells = [];
-  for (let i = 0; i < 42; i++) {
-    const d = addDays(gridStart, i);
-    const k = dayKey(d);
-    const evs = eventsOn(k);
-    cells.push(`<button class="cell ${d.getMonth() !== month.getMonth() ? "out" : ""} ${k === today ? "today" : ""} ${k === ui.calDay ? "on" : ""}" data-cal-day="${k}">
-      <b>${d.getDate()}</b><span class="dots">${evs
-        .slice(0, 3)
-        .map((e) => `<i style="background:var(--tint-${(e.hue ?? 0) % 8})"></i>`)
-        .join("")}</span></button>`);
-    if (i === 34 && addDays(gridStart, 35).getMonth() !== month.getMonth()) break;
-  }
-  const agenda = eventsOn(ui.calDay);
-  return `
-  <section class="calendar">
-    <div class="card month">
-      <div class="week-head">
-        <button class="icon quiet" data-cal-month="-1">${ICONS.left}</button>
-        <h3>${month.toLocaleDateString([], { month: "long", year: "numeric" })}</h3>
-        <button class="icon quiet" data-cal-month="1">${ICONS.right}</button>
-      </div>
-      <div class="dow">${WEEK.map((w) => `<span>${SHORT[w].slice(0, 2)}</span>`).join("")}</div>
-      <div class="grid">${cells.join("")}</div>
-    </div>
-    <div class="card list">
-      <h3>${sel.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}<button class="icon accent right" data-event-new aria-label="Add event">${ICONS.plus}</button></h3>
-      ${
-        agenda.length
-          ? agenda
-              .map((e) => {
-                const s = new Date(e.start);
-                const en = new Date(e.end || e.start);
-                const when = e.allDay ? "All day" : `${fmtTime(s)} – ${fmtTime(en)}`;
-                return `<button class="row event" data-event="${e.id}"><i class="bar" style="background:var(--tint-${(e.hue ?? 0) % 8})"></i><div class="grow"><div>${esc(e.title || "Untitled")}</div><div class="tip">${when}${e.location ? " · " + esc(e.location) : ""}${e.repeats && e.repeats !== "never" ? " · repeats " + e.repeats : ""}</div></div>${e.alert != null ? '<span class="bell" title="Alert">●</span>' : ""}</button>`;
-              })
-              .join("")
-          : `<div class="empty">No events. Tap + to add one.</div>`
-      }
-    </div>
-  </section>
-  ${ui.editing ? viewEventSheet() : ""}`;
-}
-
-function toLocalInput(d) {
-  return `${dayKey(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function viewEventSheet() {
-  const e = ui.editing;
-  const s = new Date(e.start);
-  const en = new Date(e.end);
-  const alerts = e.allDay
-    ? [[null, "None"], [0, "9 AM on the day"], [1440, "9 AM the day before"]]
-    : [[null, "None"], [0, "At start"], [5, "5 min before"], [10, "10 min before"], [30, "30 min before"], [60, "1 hour before"], [1440, "1 day before"]];
-  return `
-  <div class="sheet-back" data-sheet-close></div>
-  <form class="sheet card" data-form="event">
-    <div class="sheet-head"><h3>${e.isNew ? "New event" : "Edit event"}</h3><button type="button" class="icon quiet" data-sheet-close>${ICONS.close}</button></div>
-    <input name="title" placeholder="Title" value="${esc(e.title)}" required>
-    <input name="location" placeholder="Location" value="${esc(e.location || "")}">
-    <label class="toggle"><input type="checkbox" name="allDay" ${e.allDay ? "checked" : ""} data-allday> All day</label>
-    ${
-      e.allDay
-        ? `<div class="two dates"><label>From<input type="date" name="startDay" value="${dayKey(s)}"></label><label>To<input type="date" name="endDay" value="${dayKey(new Date(en.getTime() - 1))}"></label></div>`
-        : `<div class="two dates"><label>Starts<input type="datetime-local" name="start" value="${toLocalInput(s)}"></label><label>Ends<input type="datetime-local" name="end" value="${toLocalInput(en)}"></label></div>`
-    }
-    <div class="two">
-      <label>Alert<select name="alert">${alerts.map(([v, l]) => `<option value="${v ?? ""}" ${(e.alert ?? null) === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
-      <label>Repeats<select name="repeats">${["never", "daily", "weekdays", "weekly", "monthly", "yearly"].map((r) => `<option ${(e.repeats || "never") === r ? "selected" : ""}>${r}</option>`).join("")}</select></label>
-    </div>
-    <div class="hues">${[0, 1, 2, 3, 4, 5, 6, 7].map((h) => `<label><input type="radio" name="hue" value="${h}" ${(e.hue ?? 0) === h ? "checked" : ""}><i style="background:var(--tint-${h})"></i></label>`).join("")}</div>
-    <textarea name="notes" placeholder="Notes" rows="3">${esc(e.notes || "")}</textarea>
-    <div class="controls">
-      <button class="primary">Save</button>
-      ${e.isNew ? "" : `<button type="button" class="ghost danger" data-event-delete>Delete</button>`}
-    </div>
-  </form>`;
-}
-
 function viewSettings() {
   const st = store.snapshot();
   const p = prefs();
@@ -520,7 +367,7 @@ function viewSettings() {
     </div>
     <div class="card list">
       <h3>Notifications</h3>
-      <div class="row"><span class="grow">Calendar alerts and focus/break changes</span><span class="sub">${perm === "granted" ? "On" : perm === "denied" ? "Blocked in browser settings" : perm === "unsupported" ? "Add to Home Screen first" : "Off"}</span></div>
+      <div class="row"><span class="grow">Focus and break changes</span><span class="sub">${perm === "granted" ? "On" : perm === "denied" ? "Blocked in browser settings" : perm === "unsupported" ? "Add to Home Screen first" : "Off"}</span></div>
       ${perm === "default" ? `<div class="controls left"><button class="ghost" data-notify-ask>Turn on</button></div>` : ""}
     </div>
   </section>`;
@@ -562,9 +409,7 @@ function viewSetup() {
 
 const TABS = [
   ["focus", "Focus"],
-  ["todo", "To-do"],
-  ["schedule", "Schedule"],
-  ["calendar", "Calendar"],
+  ["schedule", "Orario"],
   ["settings", "Settings"],
 ];
 
@@ -578,8 +423,9 @@ function render() {
   }
   const active = document.activeElement;
   const keep = active && active.name && active.closest("form") ? { form: active.closest("form").dataset.form, name: active.name, value: active.value, pos: active.selectionStart } : null;
-  const views = { focus: viewFocus, todo: viewTodo, schedule: viewSchedule, calendar: viewCalendar, settings: viewSettings };
+  const views = { focus: viewFocus, schedule: viewSchedule, settings: viewSettings };
   const syncState = st.problem ? "warn" : store.pendingCount() ? "pending" : "ok";
+  if (!TABS.some(([k]) => k === ui.tab)) ui.tab = "focus";
   const tabTitle = TABS.find(([k]) => k === ui.tab)[1];
   app.innerHTML = `
     <nav class="tabs">
@@ -622,57 +468,15 @@ async function notify(title, body, tag) {
   } catch (e) {}
 }
 
-function alertTimes(ev, day) {
-  if (ev.alert == null) return null;
-  const start = new Date(ev.start);
-  if (ev.allDay) {
-    const d = parseDay(day);
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate() - (ev.alert >= 1440 ? 1 : 0), 9, 0);
-  }
-  const d = parseDay(day);
-  const occ = new Date(d.getFullYear(), d.getMonth(), d.getDate(), start.getHours(), start.getMinutes());
-  return new Date(occ.getTime() - ev.alert * 60000);
-}
-
-function checkAlerts() {
-  let fired = {};
-  try {
-    fired = JSON.parse(localStorage.getItem("pocket.fired") || "{}");
-  } catch (e) {}
-  const now = Date.now();
-  const days = [dayKey(new Date()), dayKey(addDays(new Date(), 1))];
-  for (const ev of events()) {
-    for (const day of days) {
-      if (!occursOn(ev, day)) continue;
-      const at = alertTimes(ev, day);
-      if (!at) continue;
-      const key = `${ev.id}|${day}`;
-      if (fired[key]) continue;
-      if (at.getTime() <= now && now - at.getTime() < 10 * 60000) {
-        fired[key] = now;
-        const s = new Date(ev.start);
-        notify(ev.title || "Event", ev.allDay ? "Today" : `${fmtTime(s)}${ev.location ? " · " + ev.location : ""}`, key);
-      }
-    }
-  }
-  for (const k in fired) if (now - fired[k] > 3 * 86400000) delete fired[k];
-  try {
-    localStorage.setItem("pocket.fired", JSON.stringify(fired));
-  } catch (e) {}
-}
-
-function nextPos(list) {
-  return list.reduce((m, x) => Math.max(m, x._pos ?? 0), 0) + 1;
-}
-
 document.addEventListener("click", async (e) => {
-  const t = e.target.closest("button, [data-sheet-close], [data-todo-edit]");
+  const t = e.target.closest("button");
   if (!t) return;
   const d = t.dataset;
   if (d.tab) {
     ui.tab = d.tab;
-    ui.editing = null;
-    localStorage.setItem("pocket.tab", d.tab);
+    try {
+      localStorage.setItem("pocket.tab", d.tab);
+    } catch (err) {}
     render();
     window.scrollTo(0, 0);
   } else if (d.timer) {
@@ -684,22 +488,6 @@ document.addEventListener("click", async (e) => {
       ui.project = id;
       render();
     } else store.put("pomodoro.timer", "current", { ...tm, project: id });
-  } else if (d.todoToggle) {
-    const item = store.get("todo", d.todoToggle);
-    store.put("todo", item.id, { ...item, done: !item.done, _pos: nextPos(todos()) });
-  } else if (d.todoRemove) {
-    store.remove("todo", d.todoRemove);
-  } else if (d.todoEdit) {
-    const item = store.get("todo", d.todoEdit);
-    const title = prompt("Rename", item.title);
-    if (title && title.trim()) store.put("todo", item.id, { ...item, title: title.trim() });
-  } else if (d.toggleDone !== undefined) {
-    ui.showDone = !ui.showDone;
-    render();
-  } else if (d.clearDone !== undefined) {
-    todos()
-      .filter((x) => x.done)
-      .forEach((x) => store.remove("todo", x.id));
   } else if (d.schedDay) {
     ui.scheduleDay = d.schedDay;
     render();
@@ -714,30 +502,6 @@ document.addEventListener("click", async (e) => {
     const [routine, day, slot, step] = d.check.split("|");
     if (store.get("schedule.check", d.check)) store.remove("schedule.check", d.check);
     else store.put("schedule.check", d.check, { id: d.check, routine, day, slot, step, done: new Date().toISOString().replace(/\.\d{3}Z$/, "Z") });
-  } else if (d.calDay) {
-    ui.calDay = d.calDay;
-    const k = parseDay(d.calDay);
-    ui.calMonth = dayKey(new Date(k.getFullYear(), k.getMonth(), 1));
-    render();
-  } else if (d.calMonth) {
-    const base = ui.calMonth ? parseDay(ui.calMonth) : new Date(parseDay(ui.calDay).getFullYear(), parseDay(ui.calDay).getMonth(), 1);
-    ui.calMonth = dayKey(new Date(base.getFullYear(), base.getMonth() + Number(d.calMonth), 1));
-    render();
-  } else if (d.eventNew !== undefined) {
-    const base = parseDay(ui.calDay);
-    const s = new Date(base.getFullYear(), base.getMonth(), base.getDate(), Math.min(new Date().getHours() + 1, 22), 0);
-    ui.editing = { isNew: true, id: store.uuid(), title: "", start: s.toISOString(), end: new Date(s.getTime() + 3600000).toISOString(), allDay: false, alert: 10, hue: 0, repeats: "never", notes: "", location: "" };
-    render();
-  } else if (d.event) {
-    ui.editing = { ...store.get("calendar.event", d.event) };
-    render();
-  } else if (d.sheetClose !== undefined) {
-    ui.editing = null;
-    render();
-  } else if (d.eventDelete !== undefined) {
-    store.remove("calendar.event", ui.editing.id);
-    ui.editing = null;
-    render();
   } else if (d.theme) {
     savePrefs({ theme: d.theme });
   } else if (d.step) {
@@ -767,80 +531,16 @@ document.addEventListener("click", async (e) => {
 });
 
 document.addEventListener("change", (e) => {
-  if (e.target.matches("[data-allday]") && ui.editing) {
-    const form = e.target.closest("form");
-    readEventForm(form);
-    ui.editing.allDay = e.target.checked;
-    const s = new Date(ui.editing.start);
-    if (ui.editing.allDay) {
-      const day = new Date(s.getFullYear(), s.getMonth(), s.getDate());
-      ui.editing.start = day.toISOString();
-      ui.editing.end = addDays(day, 1).toISOString();
-      ui.editing.alert = ui.editing.alert == null ? null : 0;
-    } else {
-      const st = new Date(s.getFullYear(), s.getMonth(), s.getDate(), 9, 0);
-      ui.editing.start = st.toISOString();
-      ui.editing.end = new Date(st.getTime() + 3600000).toISOString();
-      ui.editing.alert = ui.editing.alert == null ? null : 10;
-    }
-    render();
-  } else if (e.target.matches("[data-device]")) {
-    store.setDevice(e.target.value);
-  }
+  if (e.target.matches("[data-device]")) store.setDevice(e.target.value);
 });
 
-function readEventForm(form) {
-  const f = new FormData(form);
-  const ev = ui.editing;
-  ev.title = (f.get("title") || "").trim();
-  ev.location = (f.get("location") || "").trim();
-  ev.notes = f.get("notes") || "";
-  ev.hue = Number(f.get("hue") ?? ev.hue ?? 0);
-  ev.repeats = f.get("repeats") || "never";
-  const alert = f.get("alert");
-  ev.alert = alert === "" || alert == null ? null : Number(alert);
-  if (ev.allDay && f.get("startDay")) {
-    const s = parseDay(f.get("startDay"));
-    const last = parseDay(f.get("endDay") || f.get("startDay"));
-    ev.start = s.toISOString();
-    ev.end = addDays(last < s ? s : last, 1).toISOString();
-  } else if (!ev.allDay && f.get("start")) {
-    const s = new Date(f.get("start"));
-    let en = new Date(f.get("end") || f.get("start"));
-    if (en <= s) en = new Date(s.getTime() + 3600000);
-    ev.start = s.toISOString();
-    ev.end = en.toISOString();
-  }
-}
 
 document.addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
   const kind = form.dataset.form;
   const f = new FormData(form);
-  if (kind === "todo") {
-    const title = (f.get("title") || "").trim();
-    if (!title) return;
-    const id = store.uuid();
-    const open = todos().filter((t) => !t.done);
-    const firstDone = todos().find((t) => t.done);
-    const pos = firstDone ? (open.length ? (open[open.length - 1]._pos + firstDone._pos) / 2 : firstDone._pos - 1) : nextPos(todos());
-    store.put("todo", id, { id, title, done: false, created: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"), _pos: pos });
-    form.reset();
-    $('form[data-form="todo"] input')?.focus();
-  } else if (kind === "event") {
-    readEventForm(form);
-    const now = new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-    const { isNew, ...ev } = ui.editing;
-    const clean = (iso) => new Date(iso).toISOString().replace(/\.\d{3}Z$/, "Z");
-    const out = { ...ev, start: clean(ev.start), end: clean(ev.end), updated: now, created: ev.created || now };
-    if (out.alert == null) delete out.alert;
-    if (!ev.title) return;
-    store.put("calendar.event", ev.id, out);
-    ui.calDay = dayKey(new Date(ev.start));
-    ui.editing = null;
-    render();
-  } else if (kind === "server") {
+  if (kind === "server") {
     store.configure(f.get("url"), f.get("key"));
     ui.setupError = "";
     render();
@@ -901,7 +601,5 @@ readSetupLink();
 store.subscribe(render);
 render();
 setInterval(tick, 1000);
-setInterval(checkAlerts, 20000);
-setTimeout(checkAlerts, 1500);
 if (store.signedIn()) store.syncNow();
 if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});

@@ -1,6 +1,6 @@
 # Cloud sync and the web app
 
-Pocket's data lives on every device, not only one Mac. A hosted Postgres database (Supabase, free tier) holds one row per item, the Mac app syncs its vault files to it, and an installable web app (`web/`) works on the phone, iPad and any other laptop. Each device keeps a full local copy, so it keeps working offline and a lost device loses nothing.
+Pomodoro and Orario (the Schedule app) live on every device, not only one Mac. A hosted Postgres database (Supabase, free tier) holds one row per item, the Mac app syncs those two vault files to it, and an installable web app (`web/`) works on the phone, iPad and any other laptop. To-do and Calendar stay Mac-only by choice (Pranav, 2026-11-19), since native apps cover them on other devices. Matinee is planned next. Each device keeps a full local copy, so it keeps working offline and a lost device loses nothing.
 
 Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs), [architecture.md](architecture.md) (local HTTP server).
 
@@ -9,8 +9,8 @@ Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs)
 | Piece | Where | Does |
 | --- | --- | --- |
 | Schema | `cloud/schema.sql` | One table, `public.records`, private per user through row-level security |
-| Mac sync | `Sources/Pocket/CloudSync.swift` | Two-way sync of `board`, `todos`, `schedule` and `calendar` with the table |
-| Web app | `web/` (`index.html`, `app.js`, `store.js`, `themes.js`, `style.css`, `sw.js`) | Focus timer and board, To-do, Schedule check-offs, Calendar with alerts, Settings and themes |
+| Mac sync | `Sources/Pocket/CloudSync.swift` | Two-way sync of `board` and `schedule` with the table |
+| Web app | `web/` (`index.html`, `app.js`, `store.js`, `themes.js`, `style.css`, `sw.js`) | Focus timer and board, Orario check-offs, Settings and themes |
 | Hosting | `.github/workflows/pages.yml` | Publishes `web/` (without `web/dev`) to GitHub Pages on pushes to `main` |
 | Dev backend | `web/dev/server.mjs` | A local stand-in for Supabase auth and REST, code always `123456`, for testing without a cloud project |
 | Setup link | `web/dev/link.mjs` | Prints a link that fills in the database URL and key on a new device |
@@ -23,15 +23,13 @@ Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs)
 | --- | --- | --- | --- |
 | `board.project` | project UUID | `{id, name, hue, _pos}` | `board.json` `projects` |
 | `board.session` | session UUID | `{id, ended, minutes, project?, started?, declared?}`; `ended` is seconds since 2001 | `board.json` `sessions` |
-| `todo` | UUID | `{id, title, done, created, _pos}` | `todos.json` |
 | `schedule.routine` | UUID | the routine, with `plan`, plus `_pos` | `schedule.json` `routines` |
 | `schedule.check` | `routine\|day\|slot\|step` | the check | `schedule.json` `checks` |
 | `schedule.settings` | `book` | `{nightFrom, dayFrom}` | `schedule.json` top-level scalars |
-| `calendar.event` | UUID | `{id, title, start, end, allDay, notes, alert?, hue, location, repeats, until?, created, updated}` | `calendar.json` `events` |
 | `pomodoro.timer` | `current` | the web timer: `{runId, phase, running, endsAt, remaining, focusMinutes, breakMinutes, longMinutes, cycle, project, device}` | web only |
 | `settings.prefs` | `prefs` | `{theme, focusMinutes, breakMinutes, longMinutes, longEvery}` | web only |
 
-`_pos` keeps list order (projects, to-dos, routines). It exists only in the cloud; the Mac strips it when it writes a file and puts its own index back when it reads one. `CloudDocument.all` in `CloudSync.swift` is the mapping; a new vault file gets one row there.
+`_pos` keeps list order (projects, routines). It exists only in the cloud; the Mac strips it when it writes a file and puts its own index back when it reads one. `CloudDocument.all` in `CloudSync.swift` is the mapping; a new vault file gets one row there.
 
 ## Sync rules
 
@@ -42,7 +40,7 @@ Same on both sides:
 
 Mac (`CloudSync.sync()`, on the `pocket.cloud` queue):
 1. Read each vault file and turn it into records. A record whose JSON differs from what was last synced (`$ROOT/cloud-state.json`, `seen`) is a local change.
-2. Pull. Rows that aren't local changes and differ from `seen` are applied on main: the file is re-read, patched and handed to the store's `adopt(_:)` (board, to-dos, schedule), which replaces its state and saves. Stores that aren't loaded yet (or Calendar on this branch) get the file written directly plus a snapshot.
+2. Pull. Rows that aren't local changes and differ from `seen` are applied on main: the file is re-read, patched and handed to the store's `adopt(_:)` (board, schedule), which replaces its state and saves. A store that isn't loaded yet gets the file written directly plus a snapshot.
 3. Push every local record that still differs from `seen`, and a tombstone for every `seen` item missing locally.
 4. **Delete guard.** If a file is missing or unreadable it is skipped. If it is empty, or more than half of a large set (over 20) vanished at once, deletes are held and logged as `pocket cloud delete held`, never pushed.
 
@@ -56,7 +54,7 @@ The web timer is a single `pomodoro.timer` record with `endsAt` in epoch ms, so 
 
 ## Notifications
 
-The web app asks for permission in Settings. While it is open (or installed and recently opened), it checks every 20 s and notifies for calendar alerts and focus/break changes. All-day alerts follow the Mac rule: `0` means 9 AM on the day, `1440` means 9 AM the day before. On iPhone and iPad this needs the app added to the Home Screen (iOS 16.4+). Alerts while every device is closed need web push, which is not built yet.
+The web app asks for permission in Settings and notifies when a focus or break ends while it is open or recently opened. On iPhone and iPad this needs the app added to the Home Screen (iOS 16.4+).
 
 ## Setting it up (owner, once)
 
@@ -95,6 +93,6 @@ It serves the web app at `http://127.0.0.1:8790` and fakes auth and REST; every 
 - A sign-in pane in the Mac app (today it's the two `curl` calls above); it belongs in the new Pocket settings window.
 - Tying the Mac menu-bar timer to `pomodoro.timer`, and syncing the Mac theme (`pomodoro.board.theme` in UserDefaults) with `settings.prefs`.
 - Editing routines on the web (it shows and checks them off; edit them on the Mac).
-- Web push for alerts while every device is closed.
-- Calendar's `CalendarStore.adopt(_:)` lives on `claude/project-thread-tvh5lw`. Whichever of the two branches merges second adds `CloudSync.shared.register("calendar") { [weak self] data in self?.adopt(data) }` to `CalendarStore.init`, next to `persistence.onIncoming`. Adopt's own save doesn't bounce back: applied rows are recorded in `seen` first, so only fields the store normalises differently are pushed, once.
+- Web push for focus/break alerts while every device is closed.
+- Matinee on other devices, once its rework settles.
 - `CloudSync.swift` has not been compiled yet; it was written on Linux. Build it on the Mac before merging.
