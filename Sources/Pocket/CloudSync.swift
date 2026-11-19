@@ -43,28 +43,21 @@ final class CloudSync: ObservableObject {
     static let shared = CloudSync()
     static let urlKey = "pocket.cloud.url"
     static let anonKey = "pocket.cloud.key"
-    static let emailKey = "pocket.cloud.email"
     static let deviceKey = "pocket.cloud.device"
-    private static let keychainAccount = "pocket-cloud-refresh"
+    private static let sharedUser = "00000000-0000-0000-0000-000000000000"
     private static let metaId = "book"
 
     @Published private(set) var lastSync: Date?
     @Published private(set) var problem: String?
-    @Published private(set) var email: String?
 
     private let queue = DispatchQueue(label: "pocket.cloud", qos: .utility)
     private let session = URLSession(configuration: .ephemeral)
     private var adopters: [String: (Data) -> Void] = [:]
-    private var accessToken: String?
-    private var accessExpiry = Date.distantPast
-    private var userId: String?
     private var pending = false
     private var poller: Timer?
     private var stateFile: URL { PocketData.root.appendingPathComponent("cloud-state.json") }
 
-    private init() {
-        email = UserDefaults.standard.string(forKey: Self.emailKey)
-    }
+    private init() {}
 
     var baseURL: String? {
         UserDefaults.standard.string(forKey: Self.urlKey).flatMap { $0.isEmpty ? nil : $0.trimmingCharacters(in: CharacterSet(charactersIn: "/ ")) }
@@ -73,14 +66,14 @@ final class CloudSync: ObservableObject {
     var key: String? { UserDefaults.standard.string(forKey: Self.anonKey).flatMap { $0.isEmpty ? nil : $0 } }
     var device: String { UserDefaults.standard.string(forKey: Self.deviceKey) ?? Host.current().localizedName ?? "Mac" }
     var configured: Bool { baseURL != nil && key != nil }
-    var signedIn: Bool { configured && !(Keychain.get(Self.keychainAccount) ?? "").isEmpty }
+    var signedIn: Bool { configured }
 
     func register(_ name: String, adopt: @escaping (Data) -> Void) {
         adopters[name] = adopt
     }
 
     func start() {
-        note("pocket cloud started url=\(baseURL ?? "none") signedIn=\(signedIn) email=\(email ?? "none")")
+        note("pocket cloud started url=\(baseURL ?? "none") configured=\(configured)")
         guard signedIn else { return }
         schedule(after: 5)
         poller?.invalidate()
@@ -108,74 +101,48 @@ final class CloudSync: ObservableObject {
     func status() -> [String: Any] {
         var out: [String: Any] = ["configured": configured, "signedIn": signedIn, "device": device]
         out["url"] = baseURL ?? NSNull()
-        out["email"] = email ?? NSNull()
         out["lastSync"] = lastSync.map { ISO8601DateFormatter().string(from: $0) } ?? NSNull()
         out["problem"] = problem ?? NSNull()
         return out
     }
 
-    func sendCode(email address: String) throws {
-        guard configured else { throw CloudFailure(status: 409, message: "set pocket.cloud.url and pocket.cloud.key first") }
-        _ = try call("POST", "/auth/v1/otp", body: ["email": address, "create_user": true] as [String: Any], anonymous: true)
-        UserDefaults.standard.set(address, forKey: Self.emailKey)
-        DispatchQueue.main.async { self.email = address }
-        note("pocket cloud code sent email=\(address)")
-    }
-
-    func verify(code: String) throws {
-        guard let address = UserDefaults.standard.string(forKey: Self.emailKey) else { throw CloudFailure(status: 400, message: "send a code first") }
-        let reply = try call("POST", "/auth/v1/verify", body: ["type": "email", "email": address, "token": code], anonymous: true)
-        try adopt(reply)
+    func connect(link: String) throws {
+        guard let range = link.range(of: "connect=") else { throw CloudFailure(status: 400, message: "that is not a Pocket setup link") }
+        let raw = String(link[range.upperBound...]).components(separatedBy: "&")[0]
+        guard let decoded = raw.removingPercentEncoding,
+              let data = Data(base64Encoded: decoded),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let url = json["url"] as? String, !url.isEmpty,
+              let key = json["key"] as? String, !key.isEmpty
+        else { throw CloudFailure(status: 400, message: "the setup link could not be read") }
+        UserDefaults.standard.set(url, forKey: Self.urlKey)
+        UserDefaults.standard.set(key, forKey: Self.anonKey)
         try? FileManager.default.removeItem(at: stateFile)
-        note("pocket cloud signed in email=\(address) user=\(userId ?? "-")")
+        note("pocket cloud connected url=\(url)")
         DispatchQueue.main.async { self.start() }
     }
 
-    func signOut() {
+    func disconnect() {
         queue.async { [self] in
-            _ = Keychain.set(Self.keychainAccount, "")
-            accessToken = nil
-            userId = nil
+            UserDefaults.standard.removeObject(forKey: Self.urlKey)
+            UserDefaults.standard.removeObject(forKey: Self.anonKey)
             try? FileManager.default.removeItem(at: stateFile)
             DispatchQueue.main.async {
                 self.poller?.invalidate()
                 self.poller = nil
                 self.lastSync = nil
-                note("pocket cloud signed out")
+                note("pocket cloud disconnected")
             }
         }
     }
 
-    private func adopt(_ reply: Any?) throws {
-        guard let json = reply as? [String: Any],
-              let access = json["access_token"] as? String,
-              let refresh = json["refresh_token"] as? String,
-              let user = json["user"] as? [String: Any],
-              let id = user["id"] as? String else { throw CloudFailure(status: 502, message: "unexpected auth reply") }
-        accessToken = access
-        accessExpiry = Date().addingTimeInterval(((json["expires_in"] as? Double) ?? 3600) - 60)
-        userId = id
-        guard Keychain.set(Self.keychainAccount, refresh) else { throw CloudFailure(status: 500, message: "could not save the session in the keychain") }
-    }
-
-    private func ensureToken() throws {
-        if accessToken != nil, Date() < accessExpiry { return }
-        guard let refresh = Keychain.get(Self.keychainAccount), !refresh.isEmpty else { throw CloudFailure(status: 401, message: "signed out") }
-        do {
-            try adopt(try call("POST", "/auth/v1/token?grant_type=refresh_token", body: ["refresh_token": refresh], anonymous: true))
-        } catch let failure as CloudFailure where failure.status == 400 || failure.status == 401 {
-            _ = Keychain.set(Self.keychainAccount, "")
-            throw CloudFailure(status: 401, message: "session expired; sign in again")
-        }
-    }
-
-    private func call(_ method: String, _ path: String, body: Any? = nil, prefer: String? = nil, anonymous: Bool = false) throws -> Any? {
+    private func call(_ method: String, _ path: String, body: Any? = nil, prefer: String? = nil) throws -> Any? {
         guard let base = baseURL, let key, let url = URL(string: base + path) else { throw CloudFailure(status: 409, message: "cloud not configured") }
         var request = URLRequest(url: url, timeoutInterval: 30)
         request.httpMethod = method
         request.setValue(key, forHTTPHeaderField: "apikey")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer " + (anonymous ? key : (accessToken ?? key)), forHTTPHeaderField: "Authorization")
+        if !key.hasPrefix("sb_") { request.setValue("Bearer " + key, forHTTPHeaderField: "Authorization") }
         if let prefer { request.setValue(prefer, forHTTPHeaderField: "Prefer") }
         if let body { request.httpBody = try JSONSerialization.data(withJSONObject: body) }
         let done = DispatchSemaphore(value: 0)
@@ -340,7 +307,6 @@ final class CloudSync: ObservableObject {
     private func sync() {
         guard signedIn else { return }
         do {
-            try ensureToken()
             var state = loadState()
             let docs = CloudDocument.all
             let before = Dictionary(uniqueKeysWithValues: docs.map { doc in (doc.name, Self.read(doc).map { Self.records(of: doc, in: $0) }) })
@@ -394,7 +360,7 @@ final class CloudSync: ObservableObject {
                 for (key, record) in local {
                     let text = Self.canonical(record.data)
                     guard state.seen[key] != text else { continue }
-                    upserts.append(["user_id": userId ?? "", "kind": record.kind, "id": record.id, "data": record.data, "deleted": false, "device": device])
+                    upserts.append(["user_id": Self.sharedUser, "kind": record.kind, "id": record.id, "data": record.data, "deleted": false, "device": device])
                     marks.append((key, text))
                 }
                 let kinds = Set(doc.collections.map(\.kind))
@@ -409,7 +375,7 @@ final class CloudSync: ObservableObject {
                 }
                 for key in gone {
                     let parts = key.split(separator: "|", maxSplits: 1).map(String.init)
-                    upserts.append(["user_id": userId ?? "", "kind": parts[0], "id": parts[1], "data": [String: Any](), "deleted": true, "device": device])
+                    upserts.append(["user_id": Self.sharedUser, "kind": parts[0], "id": parts[1], "data": [String: Any](), "deleted": true, "device": device])
                     marks.append((key, nil))
                 }
             }
