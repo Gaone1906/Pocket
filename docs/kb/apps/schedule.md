@@ -158,6 +158,7 @@ Two private structs share the name `ScheduleSlotCard`, one in `ScheduleApp.swift
 2. If the file exists, decode it.
 3. If decoding fails, quarantine the file, then `vault.recover` from the newest readable snapshot and save it.
 4. If there is no file and no snapshot, seed `hairCare()` and save.
+5. Once per Mac (UserDefaults `schedule.seeded.mindfulness-2026-11`), add `ScheduleSeed.mindfulness()` unless a routine named Mindfulness exists, with the next free hue. It is a weekly plan from 20 Nov 2026: morning meditation, visualization, affirmations and one action; night gratitude, wins, scripting and a body scan. Goal focus rotates: Mon/Thu government job, Tue/Fri six pack, Wed/Sat hair, Sun all three plus a weekly review. Its name has no "hair", so the parents' web app never shows it.
 
 ## Flows
 
@@ -241,7 +242,7 @@ Every line is written with `note(...)`.
 
 | Where | Line (identifiers) |
 | --- | --- |
-| Store load | `schedule loaded routines= checks= path=` · `schedule load failed path= error=` · `schedule recovered from= routines= checks=` · `schedule seeded routines= path=` |
+| Store load | `schedule loaded routines= checks= path=` · `schedule load failed path= error=` · `schedule recovered from= routines= checks=` · `schedule seeded routines= path=` · `schedule routine seeded name= starts= hue=` |
 | Clock | `schedule moved day= slot=` (only when the day or slot changes) |
 | Filter | `schedule filter changed routine=<name or all>` |
 | Checks | `schedule step checked\|unchecked routine=<name> day= slot= step=<title>` · `schedule slot completed\|cleared day= slot= steps= filter=` |
