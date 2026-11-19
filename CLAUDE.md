@@ -4,6 +4,9 @@ Pocket is a macOS menu-bar app (Swift package, macOS 14+, AppKit + SwiftUI). Its
 programs through a local HTTP API. This file tells an agent how to integrate something with it, and what to keep true when
 changing it.
 
+Full context for every app, the shell, data, theming and the current branch state lives in the knowledge base:
+start at [docs/kb/README.md](docs/kb/README.md) and [docs/kb/handoff.md](docs/kb/handoff.md).
+
 ## Integrating with the Pomodoro API
 
 Base URL `http://127.0.0.1:8977`, loopback only, JSON in and out. Pocket must be running with the Pomodoro app enabled;
@@ -164,7 +167,8 @@ window: Schedule and Calendar views, routine filter, settings sidebar with backu
   `remoteState`). Sessions and projects are in `PomodoroBoardStore`, `Sources/Pocket/PomodoroBoard.swift`, saved to
   `~/Library/Application Support/Pocket/Pomodoro/board.json`.
 - Never run tests against real data. Set `POCKET_DATA_DIR` to a scratch folder first (in a harness, `setenv` before
-  anything touches `PocketData`); every path, backups and the data repo included, then lives there.
+  anything touches `PocketData`). That moves the vault files, snapshots and the repo clone, but not the mirror folder,
+  Scratchpad, the log or UserDefaults (so not `pocket.backup.repo`); see `docs/kb/operations.md` before a scratch run.
 - `DataVault` (`Sources/Pocket/DataVault.swift`) owns safety: a dated snapshot on every save (30 days plus one per month),
   quarantine and recovery on unreadable loads, keep-aside before restore, an optional mirror folder, and git sync to
   `pocket.backup.repo`. Any new persisted file must load through the same guard and snapshot on save, and gets one row in

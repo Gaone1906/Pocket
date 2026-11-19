@@ -16,7 +16,13 @@ Small apps that live in the macOS menu bar. Click an icon and the app drops down
 | Calculator | Type or tap a calculation and see the answer as you go |
 | Scratchpad | Notes in pages, with headings, bold, italic, underline, strikethrough and bulleted or numbered lists (type `- `, `1. ` or `# ` to start one) |
 | System Stats | CPU, memory, disk, network and battery at a glance |
+| Matinee | Hunts District movie tickets and holds seats for you |
 | Preparo | Opens Preparo, the local exam practice app at http://localhost:8960, in Ardia (or the default browser if Ardia is missing) |
+
+## For agents and contributors
+
+The knowledge base in [docs/kb](docs/kb/README.md) covers every app, the shell, data and backups, theming, operations and the current handoff state. Each app has its own file:
+[web apps](docs/kb/apps/web-apps.md) · [Calendar](docs/kb/apps/calendar.md) · [To-do](docs/kb/apps/todo.md) · [Pomodoro](docs/kb/apps/pomodoro.md) · [Schedule](docs/kb/apps/schedule.md) · [Calculator](docs/kb/apps/calculator.md) · [Scratchpad](docs/kb/apps/scratchpad.md) · [System Stats](docs/kb/apps/stats.md) · [Matinee](docs/kb/apps/matinee.md).
 
 ## Install
 
@@ -54,7 +60,7 @@ Pomodoro sessions, to-dos and schedules live in `~/Library/Application Support/P
 
 ## Performance
 
-Web apps load only when they are first opened. The exception is WhatsApp and Slack, which stay connected so messages arrive. Pages that aren't realtime are throttled while hidden, and Spotify unloads after 30 minutes idle if it isn't playing. If you don't pick any web apps, Pocket uses only a few megabytes.
+Spotify loads only when first opened. WhatsApp and Slack stay connected so messages arrive; Gmail and Outlook also load at launch but are throttled while hidden, like every page that isn't realtime, and Spotify unloads after 30 minutes idle if it isn't playing. If you don't pick any web apps, Pocket uses only a few megabytes.
 
 ## Optional: one-time codes
 
