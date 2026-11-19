@@ -1994,7 +1994,7 @@ private enum KairosShelf {
         Kind(tag: "note", name: "Notes", line: "everything else", cover: Color(red: 0.890, green: 0.835, blue: 0.784))
     ]
 
-    static let monthCovers: [Color] = [
+    static let covers: [Color] = [
         Color(red: 0.910, green: 0.706, blue: 0.561), Color(red: 0.851, green: 0.761, blue: 0.682),
         Color(red: 0.788, green: 0.824, blue: 0.722), Color(red: 0.776, green: 0.784, blue: 0.890)
     ]
@@ -2002,20 +2002,6 @@ private enum KairosShelf {
     static func kind(_ tag: String?) -> Kind {
         kinds.first { $0.tag == (tag ?? "note") } ?? kinds[kinds.count - 1]
     }
-
-    static let monthFormat: DateFormatter = {
-        let format = DateFormatter()
-        format.calendar = ScheduleDays.calendar
-        format.locale = .current
-        format.setLocalizedDateFormatFromTemplate("MMMM")
-        return format
-    }()
-
-    static func monthName(_ month: String) -> String {
-        ScheduleDays.date(month + "-01").map(monthFormat.string(from:)) ?? month
-    }
-
-    static func monthTitle(_ month: String) -> String { "\(monthName(month)) \(month.prefix(4))" }
 
     static func pages(_ count: Int) -> String { "\(count) page\(count == 1 ? "" : "s")" }
 }
@@ -2109,7 +2095,7 @@ private struct KairosJournalPage: View {
     let today: String
     @State private var manual = false
     @State private var dailyBook: String?
-    @State private var monthBook: String?
+    @State private var book: String?
     @State private var editing: KairosEntry?
     @State private var template: KairosEntry?
     @State private var composing = false
@@ -2124,16 +2110,16 @@ private struct KairosJournalPage: View {
         } else if composing {
             KairosNewEntry(journal: journal, today: today) { saved in
                 composing = false
-                if let saved { monthBook = String(saved.day.prefix(7)) }
+                if let saved { book = KairosJournal.book(saved) }
             }
         } else if !manual, let tag = dailyBook {
             let kind = KairosShelf.kind(tag)
             KairosBookView(title: kind.name, leaves: dailyLeaves(tag), empty: "No pages yet.", back: { dailyBook = nil }, write: nil, edit: nil)
                 .id("daily-\(tag)")
-        } else if manual, let month = monthBook {
-            KairosBookView(title: KairosShelf.monthTitle(month), leaves: monthLeaves(month), empty: "No entries this month yet.",
-                           back: { monthBook = nil }, write: { composing = true }, edit: { editing = $0 })
-                .id("month-\(month)-\(journal.manual.count)")
+        } else if manual, let name = book {
+            KairosBookView(title: name, leaves: manualLeaves(name), empty: "No entries in this book yet.",
+                           back: { book = nil }, write: { composing = true }, edit: { editing = $0 })
+                .id("book-\(name)-\(journal.manual.count)")
         } else {
             shelf.kairosFill()
         }
@@ -2156,8 +2142,8 @@ private struct KairosJournalPage: View {
         }
     }
 
-    private func monthLeaves(_ month: String) -> [KairosLeaf] {
-        journal.manual.filter { $0.day.hasPrefix(month) }.reversed().map { entry in
+    private func manualLeaves(_ name: String) -> [KairosLeaf] {
+        journal.manual.filter { KairosJournal.book($0) == name }.reversed().map { entry in
             var blocks: [(label: String?, text: String)] = []
             if let prompts = entry.prompts, !prompts.isEmpty {
                 let lines = entry.lines ?? []
@@ -2168,7 +2154,8 @@ private struct KairosJournalPage: View {
             } else if let text = entry.text, !text.isEmpty {
                 blocks.append((label: nil, text: text))
             }
-            return KairosLeaf(day: entry.day, kicker: KairosLook.title(entry.day), title: entry.title, blocks: blocks, entry: entry)
+            let title = entry.title == name ? nil : entry.title
+            return KairosLeaf(day: entry.day, kicker: KairosLook.title(entry.day), title: title, blocks: blocks, entry: entry)
         }
     }
 
@@ -2180,7 +2167,7 @@ private struct KairosJournalPage: View {
                     Text(manual ? "Manual" : "Dailies")
                         .font(.system(size: 30, weight: .semibold))
                         .foregroundStyle(KairosBoard.ink)
-                    Text(manual ? "Entries you write whenever you like, one book for each month" : "What your routines wrote, one book for each kind, one page for each day")
+                    Text(manual ? "Entries you write whenever you like, one book for each template" : "What your routines wrote, one book for each kind, one page for each day")
                         .font(.system(size: 13))
                         .foregroundStyle(KairosBoard.muted)
                 }
@@ -2231,21 +2218,22 @@ private struct KairosJournalPage: View {
     }
 
     private var months: some View {
-        let list = Array(Set(journal.manual.map { String($0.day.prefix(7)) })).sorted(by: >)
+        let newest = Dictionary(journal.manual.map { (KairosJournal.book($0), $0.day) }, uniquingKeysWith: { max($0, $1) })
+        let list = newest.keys.sorted { a, b in newest[a]! != newest[b]! ? newest[a]! > newest[b]! : a < b }
         return VStack(alignment: .leading, spacing: 0) {
             if list.isEmpty {
-                Text("No entries yet. New entry starts this month's book.")
+                Text("No entries yet. Each template gets its own book once you write in it.")
                     .font(.system(size: 12))
                     .foregroundStyle(KairosBoard.muted)
                     .padding(.vertical, 30)
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 170, maximum: 170), spacing: 24, alignment: .leading)], alignment: .leading, spacing: 30) {
-                    ForEach(Array(list.enumerated()), id: \.element) { index, month in
-                        let count = journal.manual.filter { $0.day.hasPrefix(month) }.count
-                        KairosBookCover(title: KairosShelf.monthName(month), line: String(month.prefix(4)), meta: "\(count) entr\(count == 1 ? "y" : "ies")",
-                                        cover: KairosShelf.monthCovers[index % KairosShelf.monthCovers.count], width: 170, height: 220) {
-                            monthBook = month
-                            note("kairos journal month opened month=\(month) entries=\(count)")
+                    ForEach(Array(list.enumerated()), id: \.element) { index, name in
+                        let count = journal.manual.filter { KairosJournal.book($0) == name }.count
+                        KairosBookCover(title: name, line: "\(count) entr\(count == 1 ? "y" : "ies")", meta: "last \(KairosLook.short(newest[name] ?? today))",
+                                        cover: KairosShelf.covers[index % KairosShelf.covers.count], width: 170, height: 220) {
+                            book = name
+                            note("kairos journal book opened template=\(name) entries=\(count)")
                         }
                     }
                 }
@@ -2492,7 +2480,7 @@ private struct KairosNewEntry: View {
             .frame(width: 220)
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
-                    Text("\(KairosLook.title(today)) · goes into the \(KairosShelf.monthName(String(today.prefix(7)))) book")
+                    Text("\(KairosLook.title(today)) · goes into the \(chosen?.title ?? KairosJournal.blankBook) book")
                         .font(.system(size: 12))
                         .foregroundStyle(KairosBoard.muted)
                     Spacer()
@@ -2585,6 +2573,7 @@ private struct KairosNewEntry: View {
         let name = title.trimmingCharacters(in: .whitespaces)
         var entry = KairosJournal.fresh("manual", title: name.isEmpty ? (chosen?.title ?? "Untitled") : name, prompts: prompts, day: today)
         if prompts.isEmpty { entry.text = text } else { entry.lines = answers }
+        entry.routineName = chosen?.title ?? KairosJournal.blankBook
         journal.put(entry)
         note("kairos manual entry saved id=\(entry.id) template=\(chosen?.title ?? "blank") prompts=\(prompts.count) chars=\(entry.body.count)")
         done(entry)
