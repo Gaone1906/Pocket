@@ -43,7 +43,9 @@ because the web player would stall and stop starting new tracks.
 - **Launch.** Opening the panel launches Spotify if it isn't running, with `activates = false` and `hides = true`.
   Without Spotify installed it logs `spotify app missing` and the web player works as before.
 - **Kept hidden.** Workspace observers hide Spotify whenever it launches, unhides or activates. Activating it from the
-  Dock more than 15 s after Pocket launched it opens Pocket's Spotify panel instead. The Dock icon stays while it runs.
+  Dock more than 15 s after Pocket launched it opens (or refocuses) Pocket's Spotify panel 0.6 s later, and the panel
+  ignores focus loss for 2 s after that, since Spotify can activate more than once. Spotify's first launch goes through a
+  short-lived launcher (pid -1), which is ignored. The Dock icon stays while it runs.
 - **Claim.** Once running, `osascript` mutes Spotify, plays, pauses and restores the volume, so it becomes the active
   Spotify Connect device and the web panel plays songs on it. Skipped when Spotify is already playing; retried up to 3
   times. Needs the Automation permission (Info.plist `NSAppleEventsUsageDescription`).

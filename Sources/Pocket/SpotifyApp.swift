@@ -21,6 +21,8 @@ final class SpotifyApp: WebApp {
     var launching = false
     var claimed = false
     var showingCompanion = false
+    var presentWork: DispatchWorkItem?
+    var presentedAt = Date.distantPast
 
     var companion: NSRunningApplication? {
         NSRunningApplication.runningApplications(withBundleIdentifier: SpotifyApp.bundleID).first { !$0.isTerminated }
@@ -37,6 +39,10 @@ final class SpotifyApp: WebApp {
         watchers.forEach(center.removeObserver)
         watchers = []
         super.stop()
+    }
+
+    override func shouldStayOpen() -> Bool {
+        super.shouldStayOpen() || Date().timeIntervalSince(presentedAt) < 2
     }
 
     override func didShow() {
@@ -70,7 +76,7 @@ final class SpotifyApp: WebApp {
             self.keepHidden(app, reason: "left")
         })
         watchers.append(center.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] event in
-            guard let self, spotify(event) != nil else { return }
+            guard let self, let app = spotify(event), app.processIdentifier > 0, self.companion == nil else { return }
             self.claimed = false
             self.showingCompanion = false
             note("pocket spotify app quit app=\(self.spec.id)")
@@ -81,14 +87,30 @@ final class SpotifyApp: WebApp {
         guard !showingCompanion else { return }
         let fresh = Date().timeIntervalSince(launchedAt) < 15
         keepHidden(app, reason: fresh ? "launch activated" : "activated")
-        guard !fresh, !isShown else { return }
-        show(anchor: AppDelegate.shared.anchor(for: spec.id), source: "spotify app")
+        guard !fresh else { return }
+        presentWork?.cancel()
+        presentedAt = Date()
+        let work = DispatchWorkItem { [weak self] in self?.present() }
+        presentWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6, execute: work)
+    }
+
+    func present() {
+        presentedAt = Date()
+        guard isShown else { return show(anchor: AppDelegate.shared.anchor(for: spec.id), source: "spotify app") }
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
+        note("pocket spotify panel refocused app=\(spec.id) source=spotify app")
     }
 
     func keepHidden(_ app: NSRunningApplication, reason: String) {
-        guard !showingCompanion, !app.isHidden || app.isActive else { return }
-        let hidden = app.hide()
-        note("pocket spotify app hidden app=\(spec.id) reason=\(reason) pid=\(app.processIdentifier) ok=\(hidden)")
+        guard !showingCompanion, app.processIdentifier > 0, !app.isHidden || app.isActive else { return }
+        app.hide()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self, !app.isTerminated else { return }
+            if !app.isHidden, !self.showingCompanion { app.hide() }
+            note("pocket spotify app hidden app=\(self.spec.id) reason=\(reason) pid=\(app.processIdentifier) hidden=\(app.isHidden)")
+        }
     }
 
     func ensureCompanion(reason: String) {
