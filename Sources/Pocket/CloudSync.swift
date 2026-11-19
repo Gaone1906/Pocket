@@ -22,7 +22,10 @@ struct CloudDocument {
          CloudDocument(name: "schedule", file: PocketData.schedule,
                        collections: [CloudCollection(kind: "schedule.routine", key: "routines", sortKey: "_pos"),
                                      CloudCollection(kind: "schedule.check", key: "checks", sortKey: nil)],
-                       metaKind: "schedule.settings")]
+                       metaKind: "schedule.settings"),
+         CloudDocument(name: "runner", file: PocketData.runner,
+                       collections: [CloudCollection(kind: "runner.entry", key: "entries", sortKey: nil)],
+                       metaKind: nil)]
     }
 }
 
@@ -166,6 +169,7 @@ final class CloudSync: ObservableObject {
     private struct SyncState: Codable {
         var cursor: String
         var seen: [String: String]
+        var docs: [String]?
     }
 
     private func loadState() -> SyncState {
@@ -309,6 +313,13 @@ final class CloudSync: ObservableObject {
         do {
             var state = loadState()
             let docs = CloudDocument.all
+            let known = Set(state.docs ?? ["board", "schedule"])
+            let added = docs.map(\.name).filter { !known.contains($0) }
+            if !added.isEmpty {
+                note("pocket cloud full pull reason=new documents names=\(added.joined(separator: ",")) cursor=\(state.cursor)")
+                state.cursor = "1970-01-01T00:00:00Z"
+            }
+            state.docs = docs.map(\.name)
             let before = Dictionary(uniqueKeysWithValues: docs.map { doc in (doc.name, Self.read(doc).map { Self.records(of: doc, in: $0) }) })
             var changedHere = Set<String>()
             for doc in docs {

@@ -25,9 +25,10 @@ Related: [web-pages.md](web-pages.md) (the three web apps side by side), [data-a
 | --- | --- | --- | --- |
 | `board.project` | project UUID | `{id, name, hue, _pos}` | `board.json` `projects` |
 | `board.session` | session UUID | `{id, ended, minutes, project?, started?, declared?}`; `ended` is seconds since 2001 | `board.json` `sessions` |
-| `schedule.routine` | UUID | the routine, with `plan`, plus `_pos` | `schedule.json` `routines` |
+| `schedule.routine` | UUID | the routine, with `plan`, plus `_pos`; a step may carry a `run` object for Kairos ([apps/kairos.md](apps/kairos.md)) | `schedule.json` `routines` |
 | `schedule.check` | `routine\|day\|slot\|step` | the check | `schedule.json` `checks` |
 | `schedule.settings` | `book` | `{nightFrom, dayFrom}` | `schedule.json` top-level scalars |
+| `runner.entry` | `routine\|day\|slot\|step` | a Kairos journal entry | `runner.json` `entries` |
 | `settings.prefs` | `prefs` | `{theme}` | web only (main app) |
 | `settings.prefs` | `orario` | `{theme}` | web only (`web/orario/`, default Butter) |
 
