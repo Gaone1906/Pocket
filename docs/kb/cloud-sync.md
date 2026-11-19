@@ -11,7 +11,8 @@ Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs)
 | Schema | `cloud/schema.sql` | One table, `public.records`, open to the app's anon key |
 | Mac sync | `Sources/Pocket/CloudSync.swift` | Two-way sync of `board` and `schedule` with the table |
 | Web app | `web/` (`index.html`, `app.js`, `store.js`, `orario.js`, `util.js`, `themes.js`, `style.css`, `sw.js`) | Orario's Hair routine only, Settings and themes |
-| Hosting | `.github/workflows/pages.yml` | Publishes `web/` (without `web/dev`) to GitHub Pages on pushes to `main` |
+| Orario (all routines) | `web/orario/` | A separate, self-contained web app with every routine: Day, Week and Month, the routine filter, Change the schedule, and Settings. Same table and setup link; its own local copy (`orario.cloud.v1`), service worker and Home Screen entry. In a browser that already holds the main app's link, it connects without asking |
+| Hosting | `.github/workflows/pages.yml` | Publishes `web/` (without `web/dev`) to GitHub Pages on pushes to `main`; `web/orario/` lands at `https://gaone1906.github.io/Pocket/orario/` |
 | Dev backend | `web/dev/server.mjs` | A local stand-in for the Supabase REST API, for testing without a cloud project |
 | Setup link | `web/dev/link.mjs` | Prints a link that fills in the database URL and key on a new device |
 
