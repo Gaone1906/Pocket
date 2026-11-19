@@ -10,7 +10,7 @@ Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs)
 | --- | --- | --- |
 | Schema | `cloud/schema.sql` | One table, `public.records`, private per user through row-level security |
 | Mac sync | `Sources/Pocket/CloudSync.swift` | Two-way sync of `board` and `schedule` with the table |
-| Web app | `web/` (`index.html`, `app.js`, `store.js`, `themes.js`, `style.css`, `sw.js`) | Focus timer and board, Orario check-offs, Settings and themes |
+| Web app | `web/` (`index.html`, `app.js`, `store.js`, `orario.js`, `pomodoro.js`, `util.js`, `themes.js`, `style.css`, `sw.js`) | Orario in full, Pomodoro sessions (view only), Settings and themes |
 | Hosting | `.github/workflows/pages.yml` | Publishes `web/` (without `web/dev`) to GitHub Pages on pushes to `main` |
 | Dev backend | `web/dev/server.mjs` | A local stand-in for Supabase auth and REST, code always `123456`, for testing without a cloud project |
 | Setup link | `web/dev/link.mjs` | Prints a link that fills in the database URL and key on a new device |
@@ -26,8 +26,7 @@ Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs)
 | `schedule.routine` | UUID | the routine, with `plan`, plus `_pos` | `schedule.json` `routines` |
 | `schedule.check` | `routine\|day\|slot\|step` | the check | `schedule.json` `checks` |
 | `schedule.settings` | `book` | `{nightFrom, dayFrom}` | `schedule.json` top-level scalars |
-| `pomodoro.timer` | `current` | the web timer: `{runId, phase, running, endsAt, remaining, focusMinutes, breakMinutes, longMinutes, cycle, project, device}` | web only |
-| `settings.prefs` | `prefs` | `{theme, focusMinutes, breakMinutes, longMinutes, longEvery}` | web only |
+| `settings.prefs` | `prefs` | `{theme}` | web only |
 
 `_pos` keeps list order (projects, routines). It exists only in the cloud; the Mac strips it when it writes a file and puts its own index back when it reads one. `CloudDocument.all` in `CloudSync.swift` is the mapping; a new vault file gets one row there.
 
@@ -48,13 +47,13 @@ It runs 5 s after launch, 4 s after any vault save, and every 60 s.
 
 Web (`store.js`): edits go to a local outbox in `localStorage` and are pushed within half a second; it pulls every 4 s while the page is visible, on focus, and when the network comes back.
 
-## Timer across devices
+## What the web app does
 
-The web timer is a single `pomodoro.timer` record with `endsAt` in epoch ms, so every device counts down from the same moment and shows "Running from <device>". Whichever device first sees a focus end logs the session under a UUID derived from `runId:cycle`, so several devices finishing it at once write the same session once. If nobody had the app open when a break ended, the timer goes idle instead of logging sessions nobody worked. The Mac menu-bar timer is not tied to this record yet; sessions from either side reach both boards.
+Built for an iPhone 14 screen first (390 pt wide, Home Screen app), with a sidebar layout on laptops.
 
-## Notifications
-
-The web app asks for permission in Settings and notifies when a focus or break ends while it is open or recently opened. On iPhone and iPad this needs the app added to the Home Screen (iOS 16.4+).
+- **Orario** does everything the Mac Schedule app does: Day, Week and Month views; the routine filter; today's morning and night checklists with tips, routine tags, Mark all done / Undo all and the other slot folded; the week strip and month marks; the "since" tally; notes; and **Change the schedule** (add, rename and delete routines, add, edit, reorder and delete steps per weekday and slot, tips, notes). The night start hour is in Settings. Routines it writes carry every key the Mac decodes (`id, name, hue, starts, plan, notes`), and deleting a routine also removes its check-offs.
+- **Pomodoro** is view only by choice (Pranav, 2026-11-19): project filter, today / this week / all time in 25-minute sessions, the last 7 days, per-project totals, and sessions by day with start and end times. Timers are started on the Mac.
+- **Settings**: theme (shared with every device), night start hour, sync status, Download a copy, sign out.
 
 ## Setting it up (owner, once)
 
@@ -91,7 +90,5 @@ It serves the web app at `http://127.0.0.1:8790` and fakes auth and REST; every 
 ## Not built yet
 
 - A sign-in pane in the Mac app (today it's the two `curl` calls above); it belongs in the new Pocket settings window.
-- Tying the Mac menu-bar timer to `pomodoro.timer`, and syncing the Mac theme (`pomodoro.board.theme` in UserDefaults) with `settings.prefs`.
-- Editing routines on the web (it shows and checks them off; edit them on the Mac).
-- Web push for focus/break alerts while every device is closed.
+- Syncing the Mac theme (`pomodoro.board.theme` in UserDefaults) with `settings.prefs`.
 - `CloudSync.swift` has not been compiled yet; it was written on Linux. Build it on the Mac before merging.

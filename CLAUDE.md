@@ -147,7 +147,8 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 
 Pomodoro and Orario (Schedule) reach every device through a Supabase table (`cloud/schema.sql`, one row per item,
 private per user), synced by `Sources/Pocket/CloudSync.swift` on the Mac and by the installable web app in `web/`
-everywhere else. To-do, Calendar and Matinee stay Mac-only. Setup, the record
+everywhere else. The web app has all of Orario and a view-only Pomodoro (no timer). To-do, Calendar and Matinee stay
+Mac-only. Setup, the record
 kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md). Rules to keep true:
 - To sync another vault file, give it a `CloudDocument.all` row and its store an `adopt(_:)` registered with `CloudSync.shared.register`.
 - Never push deletes for a file that is missing, unreadable or suddenly empty; the delete guard in `sync()` stays.

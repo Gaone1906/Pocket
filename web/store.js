@@ -250,9 +250,11 @@ export async function syncNow() {
   }
   flushing = true;
   pulling = true;
+  const before = { problem: state.problem, pending: pendingCount(), minute: (state.lastSync || "").slice(0, 16) };
+  let changed = false;
   try {
     await flush();
-    await pull();
+    changed = await pull();
     state.lastSync = new Date().toISOString();
     state.problem = null;
   } catch (e) {
@@ -261,7 +263,9 @@ export async function syncNow() {
   } finally {
     flushing = false;
     pulling = false;
-    emit();
+    const quiet = !changed && before.problem === state.problem && before.pending === pendingCount() && before.minute === (state.lastSync || "").slice(0, 16);
+    if (quiet) persist();
+    else emit();
   }
 }
 
