@@ -1,86 +1,54 @@
 # Calendar
 
 ## What it is
-A read-only month view of the events in the Mac's Calendar (EventKit). It covers every calendar the user has (iCloud, Google, Exchange and so on), as configured in Calendar.app.
+Pocket's own calendar. Events live in Pocket's vault, not in the Mac's Calendar app: there is no EventKit and no Calendars permission any more.
 
-- **Catalog:** `id: "calendar"`, symbol `calendar`, shortcut ⌥D (`kVK_ANSI_D`). It has no glyph and no badge.
-- **Panel:** fixed 560×620, not resizable (`CalendarApp.resizable = false`).
-- **Layout:**
-  - a header with the month title, ‹, "Today" and ›;
-  - a weekday row that respects `Calendar.current.firstWeekday`;
-  - a 6×7 grid in which each cell shows the day number (today is a filled accent circle), up to 2 event titles with colour dots, and "+N" for the rest;
-  - a divider, then the selected day's list ("All day" or "start – end", with a calendar-colour bar).
-- **Navigation:** clicking a day selects it, and clicking a spill-over day jumps to its month. A trackpad or mouse scroll over the panel changes month: scrolling down goes forward, scrolling up goes back.
-- **Not to be confused with** Schedule's Calendar view (`ScheduleBoard.swift`). That one is unrelated and doesn't use EventKit.
+- **Catalog:** `id: "calendar"`, symbol `calendar`, shortcut ⌥D (`kVK_ANSI_D`). No glyph, no badge.
+- **Dropdown:** fixed 400×600, not resizable. Month title with year, Today (when away from the current month), ‹ ›, + (new event on the selected day) and expand. A 6×7 grid of day cells with up to three colour dots each; today has an accent edge, the selected day an accent fill; double-click a day to add an event. Below a hairline, the selected day's agenda ("TODAY · …"), each row showing the colour bar, title, time, location, repeat and a bell when an alert is set. Clicking a row opens it in the window's editor.
+- **Expanded window** (`CalendarBoardWindow`, 1080×720, min 760×560, autosaved as `calendar.board`): sidebar (TODAY and THIS WEEK counts, UP NEXT list of the next six occurrences, ALERTS default for new events, and a link to Notification Settings when notifications are off); top bar with the sidebar toggle, a Month / Week glass toggle, the range title, Today, ‹ ›, and **New event**.
+  - **Month:** 6×7 cells that grow with the window, chips per event (all-day as tinted pills, timed with a dot and start time), "+N more" when they don't fit. Click selects, double-click adds, click a chip to edit.
+  - **Week:** day headers, an all-day strip, and a scrolling 24-hour grid (48pt per hour, opens at 7 AM) with events as tinted blocks laid out in lanes when they overlap, plus a now line in today's column. Double-click an hour to add an event there.
+  - **Editor** (`CalendarEditorCard`, 470pt overlay): title, All day, Starts/Ends (date and time, or days), 30 m / 1 h / 1½ h shortcuts, Repeat, Until, Alert, Colour (the theme's 8 tints), Location and Notes. Delete asks for a second click and removes every repeat of the event.
+- **Theme:** everything draws with the shared `Board` tokens and `BoardBackdrop`, observes `BoardThemeStore.shared`, and the AppKit hosts follow `$theme`. Calendar has no theme picker of its own.
 
 ## Files
-All in `Sources/Pocket/CalendarApp.swift`.
 
-| Symbol | Role |
+| File | Symbols |
 | --- | --- |
-| `CalendarEntry` | A view model: `title`, `start`, `end`, `allDay`, and `color` from `EKCalendar.cgColor`. Its `id` is a fresh `UUID()` on every fetch |
-| `CalendarAccess` | `.granted`, `.undetermined` or `.denied`. `CalendarModel.currentAccess()` maps `.fullAccess`/`.authorized` to granted, `.notDetermined` to undetermined, and everything else (including `.writeOnly`) to denied |
-| `CalendarModel` (`ObservableObject`) | Holds `visibleMonth`, `selectedDay`, `eventsByDay: [Date: [CalendarEntry]]` (keyed by start of day) and `access`. Grid maths: `gridStart`, `gridDays` (42 days), `weekdaySymbols`. Navigation: `shiftMonth(by:)`, `goToToday()`, `select(_:)`, `showMonth(of:preferredDay:)`. Loading: `fetch()`, `bucket(...)`, `activate()`, `startObserving()`/`stopObserving()`. Access: `requestAccess()`, `openPrivacySettings()` |
-| `ScrollMonthStepper` | Turns scroll events into ±1 month steps. It sums the deltas (non-precise wheels are multiplied by 10) up to a threshold of 30. Then it locks until the gesture or momentum ends, so one swipe moves exactly one month; a classic wheel can step repeatedly |
-| `CalendarRoot`, `DayCell`, `EntryRow` | SwiftUI views. `CalendarRoot` switches on `access`: the grid, an "Allow Calendar access" button, or "Open Privacy Settings" |
-| `CalendarApp` | The `PocketApp` subclass. It has a `static let store = EKEventStore()` and a static `requestAccess(done:)`, plus `start`, `didShow`, `didHide`, `stop` and the scroll monitor |
-
-Related: `Sources/Pocket/Setup.swift` (`SetupModel.requestCalendar()`) has its own `EKEventStore` and asks for access during setup step 2. `Resources/Info.plist` carries `NSCalendarsFullAccessUsageDescription` and `NSCalendarsUsageDescription`.
+| `CalendarModel.swift` | `CalendarEvent`, `CalendarBook`, `CalendarRepeat`, `CalendarOccurrence`, `CalendarDays` (date helpers, uses `Calendar.current`), `CalendarAlertChoice`, `CalendarPersistence` and `CalendarVaultPersistence`, `CalendarStore`, `CalendarAlerts` |
+| `CalendarApp.swift` | `CalendarDropdownState`, `ScrollMonthStepper`, `CalendarDropdown`, `CalendarAgendaRow`, `CalendarApp` |
+| `CalendarBoard.swift` | `CalendarBoardRequest` (`browse`, `create`, `edit`), `CalendarBoardMode`, `CalendarDraft`, `CalendarBoardState`, `CalendarBoardWindow`, shared bits (`CalendarSectionTitle`, `CalendarHairline`, `CalendarGlass`, `CalendarCircleChip`, `CalendarAccentButton`), sidebar, month and week views, `CalendarBoardView` |
+| `CalendarEditor.swift` | `CalendarEditorCard` |
 
 ## Data
-- **Nothing is persisted, and nothing goes through `DataVault`.** Events are read live from EventKit, and the model is in memory only.
-- The visible month and selected day reset to today at each launch, because `CalendarModel.init` runs then.
-- It doesn't use `POCKET_DATA_DIR`; it has no files.
+- `$ROOT/calendar.json`, vault name `calendar`, noun "event", `{"events": [...]}` with ISO 8601 dates. Fields are listed in `CLAUDE.md` → Calendar app. Decoding tolerates missing fields.
+- Loading: the file, else quarantine it and recover from the newest readable snapshot, else start empty. Every save writes atomically and snapshots through `DataVault`.
+- `CalendarStore` only talks to `CalendarPersistence` (`load`, `save`, `onIncoming`, `keepAside`). Swap the implementation to change where events live; the views never touch files.
+- Merge (from "Bring them in", or any other incoming copy): keep aside, then union by id where the newer `updated` wins. Deletions don't travel through a merge, so a deleted event can come back if the other copy still has it.
+- Repeats are expanded on read (`CalendarStore.expand`), stepping from the original start so monthly events on the 31st land on the last day of shorter months. Edits and deletes apply to the whole series.
+- UserDefaults: `calendar.board.mode` (`month` or `week`), `calendar.board.sidebar`, `calendar.alert.default` (minutes, -1 for none, default 10), and `size.calendar` is unused because the panel isn't resizable.
 
-## Flows
-- **Start** (`CalendarApp.start`): `model.startObserving()` subscribes to `.EKEventStoreChanged` on `CalendarApp.store`. When the store changes:
-  - if the panel is shown, it calls `fetch()`;
-  - otherwise it sets `isDirty = true`.
-- **Open** (`didShow`):
-  1. It installs a local `scrollWheel` monitor, which only acts when the event's window is this panel and access is granted.
-  2. `model.activate()` re-reads the authorisation status. If granted, it fetches when this is the first open (`!hasLoaded`) or when the store changed while hidden (`isDirty`). Otherwise it reuses the cached `eventsByDay`.
-- **Hide** (`didHide`) removes the scroll monitor.
-- **Stop** (when disabled, or on quit) removes the monitor, stops observing and tears down the panel.
-- **Fetch** (`fetch()`):
-  1. It skips with a log line if access isn't granted.
-  2. It increments `generation` (a ticket), so stale results are dropped when the user flips months quickly.
-  3. The range is `gridStart` to `gridStart + 42 days`, the whole visible grid including spill-over days.
-  4. On the serial `pocket.calendar.fetch` queue (`.userInitiated`) it runs `predicateForEvents(withStart:end:calendars: nil)` (every calendar) and `events(matching:)`, then buckets the results.
-  5. Back on main it publishes them if the ticket is still current.
-- **Bucketing:**
-  - a multi-day event is added to every day from `max(startOfDay(start), rangeStart)` to `startOfDay(end - 1s)`, so an event ending exactly at midnight doesn't spill into the next day;
-  - each day is sorted with all-day events first, then by start time.
-- **Month navigation.** Each of `shiftMonth`, `goToToday` and `select` (for an out-of-month day) calls `showMonth`, which always fetches. If the selected day isn't in the new month, selection moves to today when today is in that month, else to the 1st.
-- **Permissions:**
-  - **Setup** calls `SetupModel.requestCalendar()` (`requestFullAccessToEvents` on the setup store) and logs `pocket setup calendar access …`.
-  - **The panel**, in the `.undetermined` state, calls `CalendarApp.requestAccess`, which calls `requestFullAccessToEvents` on the shared store. When granted it calls `store.reset()`, so the shared store sees calendars that it created before access was granted, and the panel then fetches.
-  - **Denied** opens `x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars`.
-  - A grant made in System Settings while the panel is closed is picked up on the next `activate()`.
-- **Wake and timers.** There are none. Freshness depends on `EKEventStoreChanged` and on opening the panel.
-
-## Integrations
-EventKit, read-only (`requestFullAccessToEvents`, macOS 14 API). The user must grant **Full Access**: write-only access maps to `.denied`, which shows "Calendar access is turned off". Pocket never writes events.
+## Alerts
+- `CalendarAlerts.schedule` removes every pending request whose id starts with `pocket.calendar.` and adds one `UNCalendarNotificationTrigger` per occurrence whose fire time falls in the next 14 days, earliest first, at most 48.
+- Timed events fire `alert` minutes before the start; all-day events at 9 AM on the day (`0`) or 9 AM the day before (`1440`).
+- Rebuilt at app start, after every add/update/delete/merge, when the day changes, and when the 60-second clock finds the last rebuild over 6 hours old. Clicking a notification opens the dropdown (`userInfo["app"] = "calendar"`).
+- `stop()` clears them only when Calendar has been disabled (it is no longer in `Layout.enabled`), so quitting Pocket leaves them to fire.
+- Without a bundle id (a bare `.build` binary) scheduling is skipped and logged.
 
 ## Logging
-- `pocket calendar fetch skipped month=YYYY-MM reason=no access`
-- `pocket calendar fetched month=YYYY-MM events=<n>`. `n` is the raw EventKit count for the 42-day range, before bucketing.
-- `pocket calendar access requested granted= error=`
-- `pocket setup calendar access granted= status= error=` (from `Setup.swift`)
-
-## Gotchas
-- **Stale "today" across midnight.** If the panel stays open past midnight (or across days without a store change), the cached data is fine, because it's keyed by date. However, `selectedDay` and `visibleMonth` keep their old values until the user presses Today; they're only set in `init` and by navigation.
-- **Cache staleness.** `activate()` refetches only when `isDirty`. Events that move into range purely through time passing are unaffected, because the range is fixed per month, so this is fine in practice.
-- **Two `EKEventStore`s.** `SetupModel.store` and `CalendarApp.store` are separate. Only `CalendarApp.requestAccess` resets the shared store after a grant. A grant made from Setup relies on `EKEventStore` noticing on its own; if events are missing after a fresh grant in Setup, that is the suspect (unverified).
-- **Entry ids.** `CalendarEntry.id` is regenerated on every fetch, so SwiftUI re-creates the rows. That's harmless at this scale.
-- **The scroll monitor is app-local.** It only receives scroll events while Pocket is active, and it passes every event through (`return event`), so the day list's `ScrollView` also scrolls when the pointer is over it. Scrolling a long day list can therefore flip months too.
+- `calendar loaded|recovered|started empty|load failed|save failed ... path=`
+- `calendar event added|updated|deleted id= start= allDay= repeats= alert= events=`
+- `calendar merged added= newer= events=` and `calendar incoming unreadable`
+- `calendar alerts scheduled trigger= count= removed= failed= next=`, `calendar alert failed id=`, `calendar alerts cleared`, `calendar alerts skipped reason=no bundle`
+- `calendar board requested|opened|refocused|closed`, `calendar board view mode=`, `calendar editor opened new=`, `calendar editor rejected`, `calendar default alert minutes=`, `calendar day changed`
 
 ## How to change it safely
-- **Add a field** (location, notes): extend `CalendarEntry`, fill it in `bucket`, and render it in `EntryRow`. Keep the work in `bucket` off main.
-- **Filter calendars:** pass a `[EKCalendar]` instead of `nil` to `predicateForEvents`, and persist the choice in a new UserDefaults key, e.g. `calendar.hidden`. Add a log field for the count of calendars used.
-- **Change the grid size:** `gridDays` (42), the `ForEach(0..<6)` in `monthGrid`, and `rangeEnd` in `fetch` must agree.
-- **Testing:** there's no data dir to redirect. Test against a throwaway calendar in Calendar.app; the code is read-only, so it can't damage data.
+- **Add an event field:** add it to `CalendarEvent` with a default and a `decodeIfPresent` line, then show it in `CalendarEditorCard`. Old files keep loading.
+- **New repeat rule:** add a `CalendarRepeat` case with `label`, `short` and `step`; filter in `expand` if it skips days (as `weekdays` does).
+- **Another backend:** implement `CalendarPersistence` and build the store with it (`CalendarStore(persistence:)`). Keep `DataVault` snapshots if the data stays on disk.
+- **Screenshots:** construct `CalendarStore` with an in-memory persistence and render `CalendarDropdown` / `CalendarBoardView` offscreen as described in [operations.md](../operations.md); nothing touches real data.
 
-## Open questions / known gaps
-- There's no event creation, no detail view, and no click-through to Calendar.app.
-- No refresh at midnight or on wake.
-- Write-only access isn't distinguished from denied in the UI.
+## Open questions
+- No "this occurrence only" edit or delete for repeating events.
+- No drag to move or resize events in the week view.
+- No import from the Mac's Calendar or from `.ics` files.
