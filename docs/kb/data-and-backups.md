@@ -219,7 +219,9 @@ The defaults domain is `com.pranav.pocket` for the installed app bundle. An unbu
 | `setup.done` | Bool | `Layout.swift` | Setup finished |
 | `hotkeys.enabled` | Bool, default true | `Layout` | Global shortcuts on |
 | `otp.enabled` | Bool | `Layout` | OTP watcher on |
-| `layout.bar`, `layout.tray` | [String] | `Layout` | App ids in the menu bar and in the dropdown |
+| `layout.bar`, `layout.tray` | [String] | `Layout` | App ids in the menu bar, and all dropdown shelf ids flattened |
+| `layout.shelves` | Data (JSON `[Shelf]`) | `Layout` | Dropdown shelves (custom, then Unorganized) and their apps |
+| `layout.collapsed` | [String] | `Layout` | Shelves folded in the dropdown |
 | `layout.offered` | [String] | `Layout` | Catalog ids already offered (new apps get placed once) |
 | `shortcuts` | Data (JSON `[id: Shortcut]`) | `Layout` | Per-app shortcuts |
 | `shortcuts.offered` | [String] | `Layout` | Ids whose default shortcut was already applied |
