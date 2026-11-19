@@ -33,7 +33,7 @@ Related: [../cloud-sync.md](../cloud-sync.md) (record kinds), [../web-pages.md](
 - **Budget** (what he may eat): pace `fastest` uses `floor`; pace `ontime` uses `max(floor, base − daily goal)`. With `eatBack` on, counted workout calories are added to the budget.
 - **Workouts** count at `watchShare` (default 75%) of what the Watch says, since Watch active calories run high.
 - **Deficit** for a day is `base + workout − eaten`, and only once the day has at least one meal ("logged"). A logged day is **over** when eaten > budget.
-- **Week** (Monday first): the goal is daily goal × the days of the week inside the plan; "due" is daily goal × the days already elapsed. "Under the limit" when the week's deficit ≥ due. "Per day left" spreads what is still owed over the days left.
+- **Week** (Monday first): the goal is daily goal × the days of the week inside the plan; "due" is daily goal × the logged days so far (days with no meals, and today before anything is logged, never count against him). "Under the limit" when the week's deficit ≥ due; with nothing logged there is no badge and no table. "Per day left" spreads what is still owed over today and the days after it.
 - **Month**: lost weight compares 7-day average weights, from the day before the month (or `startKg`) to the last day so far.
 - **Goal ETA**: the average deficit of the logged days in the last 14 (needs 3) projects the remaining kilos; otherwise it is `goalDay`.
 - The day rolls over at 4am, like Aqua.

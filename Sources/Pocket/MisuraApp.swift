@@ -440,7 +440,7 @@ private struct MisuraSidebar: View {
                 if let day = store.summary(store.today) {
                     MisuraCard {
                         MisuraLook.kicker("Today")
-                        figure(MisuraText.kcal(day.left), "/ \(MisuraText.kcal(day.budget))", over: day.left < 0)
+                        figure(day.left < 0 ? "+\(MisuraText.kcal(-day.left))" : MisuraText.kcal(day.left), day.left < 0 ? "/ \(MisuraText.kcal(day.budget))" : "left of \(MisuraText.kcal(day.budget))", over: day.left < 0)
                         MisuraBar(value: day.eaten / max(1, day.budget), tint: day.over ? MisuraBoard.over : nil)
                     }
                 }
@@ -881,7 +881,9 @@ private struct MisuraWeekView: View {
                     .monospacedDigit()
                     .frame(width: 300)
                 }
-                table(week)
+                if week.days.contains(where: { $0.logged || store.weight(on: $0.day) != nil }) {
+                    table(week)
+                }
             }
         }
     }
