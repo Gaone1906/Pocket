@@ -91,6 +91,7 @@ class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHand
         config.userContentController.addUserScript(WKUserScript(source: notificationShim, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         config.userContentController.add(self, name: "pocketNotify")
         let web = WKWebView(frame: container.bounds, configuration: config)
+        prepare(web)
         web.autoresizingMask = [.width, .height]
         web.customUserAgent = site.agent
         web.allowsBackForwardNavigationGestures = false
@@ -112,6 +113,8 @@ class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHand
         healthTimer?.tolerance = 60
         note("pocket loading app=\(spec.id) reason=\(reason) realtime=\(site.realtime) url=\(site.url.absoluteString)")
     }
+
+    func prepare(_ web: WKWebView) {}
 
     func unload(reason: String) {
         guard let web else { return }
