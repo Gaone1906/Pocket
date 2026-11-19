@@ -425,7 +425,7 @@ final class MisuraStore: ObservableObject {
         guard let plan else { return nil }
         let goal = MisuraMath.dailyGoal(plan)
         let summaries = days.compactMap(summary)
-        let elapsed = days.filter { $0 <= today && $0 >= plan.startDay }.count
+        let elapsed = summaries.filter { $0.logged && $0.day <= today && $0.day >= plan.startDay && $0.day <= plan.goalDay }.count
         let active = days.filter { $0 >= plan.startDay && $0 <= plan.goalDay }.count
         return MisuraSpan(days: summaries, goal: goal * Double(active), due: goal * Double(elapsed))
     }
@@ -434,7 +434,8 @@ final class MisuraStore: ObservableObject {
     func month(_ day: String) -> MisuraSpan? { span(MisuraDays.monthDays(day)) }
 
     func perDayLeft(_ week: MisuraSpan) -> Double {
-        let rest = week.days.filter { $0.day > today }.count
+        guard let plan else { return 0 }
+        let rest = week.days.filter { $0.day >= today && $0.day >= plan.startDay && $0.day <= plan.goalDay }.count
         guard rest > 0 else { return 0 }
         return max(0, (week.goal - week.deficit) / Double(rest)).rounded()
     }
