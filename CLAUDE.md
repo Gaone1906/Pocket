@@ -75,9 +75,9 @@ Reference integration: Preparo, the exam practice app at `~/Desktop/workspace/pe
 
 ## Backups: setting up and restoring data
 
-Pocket's data is five JSON files under `~/Library/Application Support/Pocket` (`$ROOT` below): `Pomodoro/board.json`
+Pocket's data is six JSON files under `~/Library/Application Support/Pocket` (`$ROOT` below): `Pomodoro/board.json`
 (projects and sessions), `todos.json`, `schedule.json` (Orario routines and check-offs), `calendar.json` (Calendar
-events) and `runner.json` (the Kairos journal). Everything else there can be rebuilt. Where copies live:
+events), `runner.json` (the Kairos journal) and `calorie.json` (the Misura log). Everything else there can be rebuilt. Where copies live:
 
 | Copy | Location |
 | --- | --- |
@@ -151,9 +151,9 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 
 Aurelius and Orario (Schedule) reach every device through a Supabase table (`cloud/schema.sql`, one row per item,
 open to the app's anon key, no sign-in), synced by `Sources/Pocket/CloudSync.swift` on the Mac and by the installable web app in `web/`
-everywhere else. The main web app shows only the Hair routine; `web/orario/` has all of Orario, `web/aurelius/` a view-only Aurelius (no timer) and `web/kairos/` the Kairos runner. To-do, Calendar and Matinee stay
+everywhere else. The main web app shows only the Hair routine; `web/orario/` has all of Orario, `web/aurelius/` a view-only Aurelius (no timer), `web/kairos/` the Kairos runner and `web/misura/` Misura. To-do, Calendar and Matinee stay
 Mac-only. Setup, the record
-kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md); the four web apps side by side are in
+kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md); the five web apps side by side are in
 [docs/kb/web-pages.md](docs/kb/web-pages.md). Rules to keep true:
 - To sync another vault file, give it a `CloudDocument.all` row and its store an `adopt(_:)` registered with `CloudSync.shared.register`.
 - Never push deletes for a file that is missing, unreadable or suddenly empty; the delete guard in `sync()` stays.
@@ -210,6 +210,17 @@ Runs today's timed routines step by step (`⌥K`); its code, app id, data file a
   web, never anything Kairos-specific.
 - The journal is `$ROOT/runner.json` (`{"entries": [...]}`) through `DataVault` as `runner`, synced as `runner.entry`.
 - The web app is `web/kairos/`; keep `web/kairos/plan.js` and `KairosPlan` (`KairosModel.swift`) producing the same beats.
+
+## Misura app
+
+Calorie tracker (`⌥E`); its app id, data file and record kinds say `calorie`. Details in
+[docs/kb/apps/misura.md](docs/kb/apps/misura.md). Rules to keep true:
+- Every personal number (birth date, height, weights, goal, dates, lowest budget, Watch share) lives in the plan in
+  `$ROOT/calorie.json` (`{"plan", "entries", "weights"}`, `DataVault` name `calorie`), never in code.
+- Synced as `calorie.settings` (id `book`), `calorie.entry` and `calorie.weight` (id is the day). Merge is a union by id,
+  newer `updated` wins.
+- Keep `MisuraMath` (`MisuraModel.swift`) and `web/misura/plan.js` giving the same numbers.
+- Over the daily limit is red, under is green; eaten is orange, workout and BMR are green.
 
 ## Changing Pocket itself
 

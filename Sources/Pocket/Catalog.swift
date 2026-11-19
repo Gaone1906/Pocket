@@ -80,6 +80,8 @@ let catalog: [AppSpec] = [
             glyph: nil, hotKey: UInt32(kVK_ANSI_O), web: nil, claimsHotKey: true, pinnedByDefault: true),
     AppSpec(id: "runner", name: "Kairos", summary: "Runs today's Fitness and Mindfulness step by step, and ticks Orario as you go", symbol: "figure.mind.and.body",
             glyph: Glyphs.kairos, hotKey: UInt32(kVK_ANSI_K), web: nil),
+    AppSpec(id: "calorie", name: "Misura", summary: "Calories eaten and burned against your daily, weekly and monthly goals", symbol: "scalemass.fill",
+            glyph: nil, hotKey: UInt32(kVK_ANSI_E), web: nil),
     AppSpec(id: "calculator", name: "Calculator", summary: "Type or tap a calculation, see the answer live", symbol: "plusminus.circle",
             glyph: nil, hotKey: UInt32(kVK_ANSI_C), web: nil),
     AppSpec(id: "scratchpad", name: "Scratchpad", summary: "Quick notes in pages, with lists, headings, bold and italic", symbol: "note.text",

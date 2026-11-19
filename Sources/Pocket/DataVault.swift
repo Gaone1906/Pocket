@@ -14,6 +14,7 @@ enum PocketData {
     static var schedule: URL { root.appendingPathComponent("schedule.json") }
     static var calendar: URL { root.appendingPathComponent("calendar.json") }
     static var runner: URL { root.appendingPathComponent("runner.json") }
+    static var calorie: URL { root.appendingPathComponent("calorie.json") }
     static var backups: URL { root.appendingPathComponent("Backups", isDirectory: true) }
     static var repo: URL { root.appendingPathComponent("DataRepo", isDirectory: true) }
     static var syncState: URL { root.appendingPathComponent("sync-state.json") }
@@ -29,7 +30,8 @@ private struct VaultFile {
          VaultFile(name: "todos", source: PocketData.todos, noun: "to-do"),
          VaultFile(name: "schedule", source: PocketData.schedule, noun: "check-off"),
          VaultFile(name: "calendar", source: PocketData.calendar, noun: "event"),
-         VaultFile(name: "runner", source: PocketData.runner, noun: "journal note")]
+         VaultFile(name: "runner", source: PocketData.runner, noun: "journal note"),
+         VaultFile(name: "calorie", source: PocketData.calorie, noun: "log")]
     }
 
     static func noun(_ name: String) -> String { all.first { $0.name == name }?.noun ?? "item" }
@@ -345,6 +347,7 @@ final class DataVault: ObservableObject {
         case "schedule": list = (object?["checks"] as? [Any] ?? []) + (object?["routines"] as? [Any] ?? [])
         case "calendar": list = object?["events"] as? [Any] ?? []
         case "runner": list = object?["entries"] as? [Any] ?? []
+        case "calorie": list = (object?["entries"] as? [Any] ?? []) + (object?["weights"] as? [Any] ?? [])
         default: list = json as? [Any] ?? []
         }
         return Set(list.compactMap { ($0 as? [String: Any])?["id"] as? String })

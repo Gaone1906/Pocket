@@ -29,6 +29,9 @@ Related: [web-pages.md](web-pages.md) (the three web apps side by side), [data-a
 | `schedule.check` | `routine\|day\|slot\|step` | the check | `schedule.json` `checks` |
 | `schedule.settings` | `book` | `{nightFrom, dayFrom}` | `schedule.json` top-level scalars |
 | `runner.entry` | `routine\|day\|slot\|step` | a Kairos journal entry | `runner.json` `entries` |
+| `calorie.settings` | `book` | `{plan}`, Misura's plan ([apps/misura.md](apps/misura.md)) | `calorie.json` `plan` |
+| `calorie.entry` | UUID | a meal or workout | `calorie.json` `entries` |
+| `calorie.weight` | `yyyy-MM-dd` | a weigh-in | `calorie.json` `weights` |
 | `settings.prefs` | `prefs` | `{theme}` | web only (main app) |
 | `settings.prefs` | `orario` | `{theme}` | web only (`web/orario/`, default Butter) |
 

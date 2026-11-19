@@ -34,6 +34,12 @@ Everything is now on `main`. The embroidery work still needs committing on its o
   - Merging only adds routines and check-offs it hasn't seen. Plan edits made on another Mac are lost.
   - A fresh Mac seeds its own "Hair care" routine, so bringing in data from GitHub duplicates it.
 
+## Misura
+
+- Calorie tracker built on 2026-11-19 on `claude/project-thread-ledxxq`, Mac and web (`/Pocket/misura/`). Detail in [apps/misura.md](apps/misura.md).
+- The web app was tested against `web/dev/server.mjs`. The Mac code is checked by a `swift build` on Pranav's Mac before merge.
+- It starts with no plan; Pranav fills in his own numbers on first open.
+
 ## Matinee
 
 - **Where the code lives:** Pocket only supervises a Node engine, through `MatineeApp.swift` (a `WebApp` subclass, panel at `127.0.0.1:47811`). The real code is in the separate local repo `~/Files/Personal Projects/Matinee`, which has **no git remote**. Its `hunts.json` is not backed up anywhere.
