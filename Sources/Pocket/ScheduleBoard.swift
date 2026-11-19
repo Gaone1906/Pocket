@@ -832,25 +832,35 @@ private struct ScheduleCalendarView: View {
                     chevron("chevron.left", enabled: month > low) { go(ScheduleBoardDates.monthShift(month, by: -1)) }
                     chevron("chevron.right", enabled: month < high) { go(ScheduleBoardDates.monthShift(month, by: 1)) }
                 }
-                Text("\(tally.done) done · \(tally.partial) partial · \(tally.missed) missed")
+                Text("\(tally.done) done · \(tally.missed + tally.partial) missed")
                     .font(.system(size: 12, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(Board.muted)
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 7), spacing: 8) {
-                    ForEach(ScheduleDays.weekOrder, id: \.self) { weekday in
-                        Text(ScheduleDays.short(weekday).uppercased())
-                            .font(.system(size: 10, weight: .semibold))
-                            .tracking(1.2)
-                            .foregroundStyle(Board.muted)
-                            .frame(maxWidth: .infinity)
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        ForEach(ScheduleDays.weekOrder, id: \.self) { weekday in
+                            Text(ScheduleDays.short(weekday).uppercased())
+                                .font(.system(size: 10, weight: .semibold))
+                                .tracking(1.2)
+                                .foregroundStyle(Board.muted)
+                                .frame(maxWidth: .infinity)
+                        }
                     }
-                    ForEach(Array(cells.enumerated()), id: \.offset) { _, day in
-                        if let day { cell(day) } else { Color.clear.frame(height: 68) }
+                    ForEach(0..<(cells.count + 6) / 7, id: \.self) { row in
+                        HStack(spacing: 8) {
+                            ForEach(0..<7, id: \.self) { column in
+                                let index = row * 7 + column
+                                if index < cells.count, let day = cells[index] {
+                                    cell(day)
+                                } else {
+                                    Color.clear.frame(maxWidth: .infinity).frame(height: 68)
+                                }
+                            }
+                        }
                     }
                 }
                 .id(month)
                 .transition(.opacity)
-                legend.padding(.top, 6)
             }
             .padding(.horizontal, 20)
             .padding(.top, 4)
@@ -904,32 +914,6 @@ private struct ScheduleCalendarView: View {
         .buttonStyle(.plain)
         .disabled(before)
         .help(before ? "Before the schedule starts" : ScheduleBoardDates.dayTitle(day))
-    }
-
-    private var legend: some View {
-        HStack(spacing: 16) {
-            HStack(spacing: 5) {
-                Image(systemName: "sun.max").font(.system(size: 10))
-                Text("left")
-                Image(systemName: "moon").font(.system(size: 10)).padding(.leading, 4)
-                Text("right")
-            }
-            entry(.done, "Done")
-            entry(.partial(done: 1, total: 2), "Partial")
-            entry(.missed, "Missed")
-            entry(.upcoming, "To do")
-            entry(.rest, "Rest")
-            Spacer(minLength: 0)
-        }
-        .font(.system(size: 11))
-        .foregroundStyle(Board.muted)
-    }
-
-    private func entry(_ status: ScheduleDayStatus, _ title: String) -> some View {
-        HStack(spacing: 5) {
-            ScheduleSplitMark(morning: status, night: status, size: 11)
-            Text(title)
-        }
     }
 }
 
