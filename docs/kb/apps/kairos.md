@@ -13,12 +13,15 @@ Code holds only templates; every number lives in the database (Pranav, 2026-11-1
 | `type` | Fields | What Kairos does |
 | --- | --- | --- |
 | `tap` | none | Shows the step; Done moves on |
-| `timed` | `seconds`, `cues[{at, text}]`, `quiet` | One countdown; the cue whose `at` (seconds in) has passed is shown as "Now"; `quiet` skips the chime at the end (body scan) |
+| `timed` | `seconds`, `cues[{at, text}]`, `quiet`, `reads`, `pick`, `every` | One countdown; the cue whose `at` (seconds in) has passed is shown as "Now"; `quiet` skips the chime at the end (body scan). `reads` is a pool of lines to read if picturing is hard: today's `pick` of them show one at a time, each for `every` seconds (default 20) |
+| `box` | `seconds`, `pattern` (`[in, hold, out, hold]`, default 4-4-4-4), `cues` | Box breathing: a ball travels round a square (up on in, across on hold, down on out, back on hold) with the phase and its count in the middle |
 | `moves` | `moves[{name, reps \| seconds, detail}]`, `seconds` (estimate) | One beat per move: `seconds` counts down, `reps` waits for Done |
 | `intervals` | `rounds`, `on`, `off`, `names` (rotate), `unit`, `onLabel`, `offName` | Work and rest countdowns; the background turns warm on work and blue on rest |
 | `rounds` | `rounds`, `unit` (`round` or `set`), `rest`, `moves` | Every move in order, then a rest that names the next round's first move |
 | `log` | `plan`, `seconds` (estimate) | A data-entry screen: the plan, then time, distance and notes. Nothing is tracked (Pranav's call) |
-| `say` | `lines`, `times`, `seconds` | One line at a time, "Said it" `times` times each |
+| `say` | `lines`, `pool`, `pick`, `times`, `seconds` | One line at a time, "Said it" `times` times each. `lines` always show; `pool` adds today's `pick` of its lines |
+
+Daily picks: a pool rotates by day, starting at `(dayNumber × pick) mod pool size` and taking `pick` lines in order (`dayNumber` is days since 1970-01-01 for the session's `yyyy-MM-dd`), so every line comes round before any repeats. `KairosPlan.pick` and `pick` in `plan.js` must stay identical.
 | `write` | `fields` (lines; 0 or 1 means a paragraph), `tag`, `prompt`, `seconds` (a guide only) | Text saved to the journal as you type |
 
 A step with no `run` uses "N min" in its title as a timer, otherwise it is a tap step. Only routines with at least one guided step (any type but `tap`) appear, so Hair care never does.

@@ -860,7 +860,7 @@ private struct KairosPreview: View {
         let steps = session.steps
         let index = max(0, min(step, steps.count - 1))
         let item = steps[index]
-        let beats = KairosPlan.beats(item, index: index)
+        let beats = KairosPlan.beats(item, index: index, day: session.day)
         let parts = KairosPlan.split(item.title)
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 10) {
@@ -986,7 +986,10 @@ private struct KairosPreview: View {
         var lines: [String] = []
         if !beat.label.isEmpty, beat.kind != .say { lines.append(beat.label) }
         switch beat.kind {
-        case .count: lines += beat.cues.map { "\(KairosPlan.clock(Double($0.at))) · \($0.text)" }
+        case .count:
+            if !beat.box.isEmpty { lines.append("Box \(beat.box.map(String.init).joined(separator: "-")): breathe in, hold, breathe out, hold") }
+            lines += beat.cues.map { "\(KairosPlan.clock(Double($0.at))) · \($0.text)" }
+            lines += beat.reads.map { "Read · \($0)" }
         case .rest: if let next = beat.nextName { lines.append("Then \(next)") }
         case .reps: if !beat.detail.isEmpty { lines.append(KairosPlan.plainDetail(beat.detail)) }
         case .say: lines += beat.lines
@@ -1270,6 +1273,12 @@ private struct KairosCount: View {
         return beat.cues.last { Double($0.at) <= elapsed }
     }
 
+    private var read: String? {
+        guard !beat.reads.isEmpty else { return nil }
+        let elapsed = max(0, Double(beat.seconds) - runner.remaining)
+        return beat.reads[(Int(elapsed) / max(1, beat.every)) % beat.reads.count]
+    }
+
     var body: some View {
         let left = runner.remaining
         VStack(alignment: .leading, spacing: 12) {
@@ -1282,22 +1291,46 @@ private struct KairosCount: View {
                     .font(.system(size: 13))
                     .foregroundStyle(KairosBoard.muted)
             }
-            ZStack {
-                KairosRing(fraction: beat.seconds > 0 ? left / Double(beat.seconds) : 0, tint: KairosBoard.accent, width: 9)
-                VStack(spacing: 2) {
-                    Text(KairosPlan.clock(left))
-                        .font(.system(size: 52, weight: .light))
-                        .monospacedDigit()
+            if let read {
+                VStack(alignment: .leading, spacing: 6) {
+                    KairosLook.kicker("Hard to picture? Read this, then close your eyes")
+                    Text(read)
+                        .font(.system(size: 17, weight: .medium))
                         .foregroundStyle(KairosBoard.ink)
-                    if state.paused {
-                        Text("Paused")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(KairosBoard.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+                .background(RoundedRectangle(cornerRadius: 12).fill(KairosBoard.column))
+                .boardEdge(12)
+            }
+            if beat.box.isEmpty {
+                ZStack {
+                    KairosRing(fraction: beat.seconds > 0 ? left / Double(beat.seconds) : 0, tint: KairosBoard.accent, width: 9)
+                    VStack(spacing: 2) {
+                        Text(KairosPlan.clock(left))
+                            .font(.system(size: 52, weight: .light))
+                            .monospacedDigit()
+                            .foregroundStyle(KairosBoard.ink)
+                        if state.paused {
+                            Text("Paused")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(KairosBoard.muted)
+                        }
                     }
                 }
+                .frame(width: 190, height: 190)
+                .frame(maxWidth: .infinity)
+            } else {
+                KairosBox(beat: beat, state: state)
+                    .frame(width: 240, height: 240)
+                    .frame(maxWidth: .infinity)
+                Text(state.paused ? "\(KairosPlan.clock(left)) left · paused" : "\(KairosPlan.clock(left)) left")
+                    .font(.system(size: 13))
+                    .monospacedDigit()
+                    .foregroundStyle(KairosBoard.muted)
+                    .frame(maxWidth: .infinity)
             }
-            .frame(width: 190, height: 190)
-            .frame(maxWidth: .infinity)
             if let then = beat.then {
                 Text(then)
                     .font(.system(size: 12))
@@ -1337,6 +1370,48 @@ private struct KairosCount: View {
             KairosMoves(beat: beat)
             Spacer(minLength: 0)
             KairosControls(runner: runner, paused: state.paused)
+        }
+    }
+}
+
+private struct KairosBox: View {
+    let beat: KairosBeat
+    let state: KairosRunState
+
+    private static let corners: [CGPoint] = [CGPoint(x: 0, y: 1), CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 0), CGPoint(x: 1, y: 1)]
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: state.paused || state.endsAt == nil)) { context in
+            let left = state.endsAt.map { max(0, $0.timeIntervalSince(context.date)) } ?? (state.left ?? 0)
+            let breath = KairosPlan.breath(beat.box, max(0, Double(beat.seconds) - left))
+            GeometryReader { geo in
+                let side = min(geo.size.width, geo.size.height) - 28
+                let inset = CGPoint(x: (geo.size.width - side) / 2, y: (geo.size.height - side) / 2)
+                let from = Self.corners[breath.index]
+                let to = Self.corners[(breath.index + 1) % 4]
+                let ball = CGPoint(x: inset.x + (from.x + (to.x - from.x) * breath.fraction) * side,
+                                   y: inset.y + (from.y + (to.y - from.y) * breath.fraction) * side)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(KairosBoard.line, lineWidth: 4)
+                        .frame(width: side, height: side)
+                        .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                    VStack(spacing: 2) {
+                        Text(breath.label)
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(KairosBoard.ink)
+                        Text("\(breath.left)")
+                            .font(.system(size: 44, weight: .light))
+                            .monospacedDigit()
+                            .foregroundStyle(KairosBoard.muted)
+                    }
+                    .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                    Circle()
+                        .fill(KairosBoard.accent)
+                        .frame(width: 24, height: 24)
+                        .position(ball)
+                }
+            }
         }
     }
 }

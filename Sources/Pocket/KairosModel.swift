@@ -21,6 +21,13 @@ struct KairosCue: Equatable {
     let text: String
 }
 
+struct KairosBreath: Equatable {
+    let index: Int
+    let label: String
+    let fraction: Double
+    let left: Int
+}
+
 struct KairosBeat: Equatable {
     var step: Int
     var kind: KairosBeatKind
@@ -47,12 +54,16 @@ struct KairosBeat: Equatable {
     var prompt = ""
     var tag = "note"
     var plan = ""
+    var box: [Int] = []
+    var reads: [String] = []
+    var every = 20
 
     var counted: Bool { kind == .count || kind == .rest }
 }
 
 enum KairosPlan {
-    static let guidedTypes: Set<String> = ["timed", "moves", "intervals", "rounds", "log", "say", "write"]
+    static let guidedTypes: Set<String> = ["timed", "box", "moves", "intervals", "rounds", "log", "say", "write"]
+    static let breathLabels = ["Breathe in", "Hold", "Breathe out", "Hold"]
     static let repSeconds = 3
     private static let minutePattern = try? NSRegularExpression(pattern: #"(\d+)\s*min\b"#)
     private static let trailingMinutes = try? NSRegularExpression(pattern: #",?\s*\d+\s*min\b.*$"#)
@@ -86,11 +97,50 @@ enum KairosPlan {
 
     static func capital(_ word: String) -> String { word.prefix(1).uppercased() + word.dropFirst() }
 
-    static func beats(for steps: [ScheduleStep]) -> [KairosBeat] {
-        steps.enumerated().flatMap { index, step in beats(step, index: index) }
+    static func beats(for steps: [ScheduleStep], day: String = "") -> [KairosBeat] {
+        steps.enumerated().flatMap { index, step in beats(step, index: index, day: day) }
     }
 
-    static func beats(_ step: ScheduleStep, index: Int) -> [KairosBeat] {
+    static func dayNumber(_ day: String) -> Int {
+        let parts = day.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return 0 }
+        let year = parts[1] <= 2 ? parts[0] - 1 : parts[0]
+        let era = (year >= 0 ? year : year - 399) / 400
+        let yearOfEra = year - era * 400
+        let dayOfYear = (153 * ((parts[1] + 9) % 12) + 2) / 5 + parts[2] - 1
+        let dayOfEra = yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear
+        return era * 146097 + dayOfEra - 719468
+    }
+
+    static func pick(_ pool: Loose?, _ count: Loose?, day: String) -> [String] {
+        let lines = (pool?.list ?? []).compactMap(\.string).filter { !$0.isEmpty }
+        let take = min(num(count), lines.count)
+        guard take > 0 else { return lines }
+        let start = ((dayNumber(day) * take) % lines.count + lines.count) % lines.count
+        return (0..<take).map { lines[(start + $0) % lines.count] }
+    }
+
+    static func pattern(_ run: Loose) -> [Int] {
+        let values = (run["pattern"]?.list ?? []).map { max(0, Int(($0.number ?? 0).rounded())) }
+        return values.count == 4 && values.contains(where: { $0 > 0 }) ? values : [4, 4, 4, 4]
+    }
+
+    static func breath(_ box: [Int], _ elapsed: Double) -> KairosBreath {
+        let pattern = box.count == 4 ? box : [4, 4, 4, 4]
+        let cycle = Double(max(1, pattern.reduce(0, +)))
+        var time = elapsed.truncatingRemainder(dividingBy: cycle)
+        if time < 0 { time += cycle }
+        for index in 0..<4 where pattern[index] > 0 {
+            let length = Double(pattern[index])
+            if time < length {
+                return KairosBreath(index: index, label: breathLabels[index], fraction: time / length, left: Int((length - time).rounded(.up)))
+            }
+            time -= length
+        }
+        return KairosBreath(index: 0, label: breathLabels[0], fraction: 0, left: pattern[0])
+    }
+
+    static func beats(_ step: ScheduleStep, index: Int, day: String = "") -> [KairosBeat] {
         let run = self.run(step)
         let kind = text(run["type"])
         let (name, detail) = split(step.title)
@@ -112,10 +162,13 @@ enum KairosPlan {
         }
 
         switch kind {
-        case "timed":
+        case "timed", "box":
             var beat = base
             beat.kind = .count
-            beat.seconds = num(run["seconds"], 60)
+            beat.seconds = num(run["seconds"], kind == "box" ? 240 : 60)
+            if kind == "box" { beat.box = pattern(run) }
+            beat.reads = pick(run["reads"], run["pick"], day: day)
+            beat.every = num(run["every"], 20)
             beat.cues = (run["cues"]?.list ?? []).compactMap { cue in
                 let words = text(cue["text"])
                 return words.isEmpty ? nil : KairosCue(at: num(cue["at"]), text: words)
@@ -204,7 +257,7 @@ enum KairosPlan {
         case "say":
             var beat = base
             beat.kind = .say
-            beat.lines = (run["lines"]?.list ?? []).compactMap(\.string)
+            beat.lines = (run["lines"]?.list ?? []).compactMap(\.string) + ((run["pool"]?.list ?? []).isEmpty ? [] : pick(run["pool"], run["pick"], day: day))
             beat.times = num(run["times"], 1)
             return [beat]
         case "write":
@@ -234,7 +287,8 @@ enum KairosPlan {
         let run = self.run(step)
         let moves = run["moves"]?.list ?? []
         switch text(run["type"]) {
-        case "timed": return "Timer"
+        case "timed": return (run["reads"]?.list ?? []).isEmpty ? "Timer" : "Timer · lines to read if it's hard to picture"
+        case "box": return "Box breathing \(pattern(run).map(String.init).joined(separator: "-")) · follow the ball"
         case "moves": return moves.isEmpty ? "Tap Done when finished" : "\(moves.count) moves, each named"
         case "intervals":
             let off = num(run["off"])
@@ -245,7 +299,10 @@ enum KairosPlan {
             let rest = num(run["rest"])
             return "\(num(run["rounds"], 1)) \(text(run["unit"], "round"))s of \(moves.count) move\(moves.count == 1 ? "" : "s")\(rest > 0 ? " · \(rest)s rest" : "")"
         case "log": return "Do it, then enter time and distance"
-        case "say": return "Out loud · \(run["lines"]?.list.count ?? 0) lines, \(num(run["times"], 1)) times each"
+        case "say":
+            let pool = run["pool"]?.list.count ?? 0
+            let count = (run["lines"]?.list.count ?? 0) + (pool > 0 ? min(num(run["pick"], pool), pool) : 0)
+            return "Out loud · \(count) lines\(pool > 0 ? " (fresh daily)" : ""), \(num(run["times"], 1)) times each"
         case "write": return num(run["fields"]) > 1 ? "Write \(num(run["fields"])) lines" : "Write it down"
         default: return "Tap Done when finished"
         }
@@ -617,7 +674,7 @@ final class KairosRunner: ObservableObject {
     var live: KairosLive? {
         guard let state, let routine = ScheduleStore.shared.routine(state.routine) else { return nil }
         let steps = routine.steps(on: state.day, state.slot)
-        let beats = KairosPlan.beats(for: steps)
+        let beats = KairosPlan.beats(for: steps, day: state.day)
         guard !beats.isEmpty else { return nil }
         return KairosLive(routine: routine, steps: steps, beats: beats, index: min(state.index, beats.count - 1))
     }
@@ -633,7 +690,7 @@ final class KairosRunner: ObservableObject {
         let store = ScheduleStore.shared
         let items = store.items(on: session.day, slot: session.slot, in: [session.routine])
         let first = items.firstIndex { !$0.done } ?? 0
-        let beats = KairosPlan.beats(for: session.steps)
+        let beats = KairosPlan.beats(for: session.steps, day: session.day)
         let index = max(0, beats.firstIndex { $0.step == first } ?? 0)
         state = KairosRunState(routine: session.routine.id, day: session.day, slot: session.slot, index: index, started: Date(), stepStarted: Date())
         if beats.indices.contains(index) { enter(beats[index], newStep: true) }
