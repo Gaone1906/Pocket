@@ -11,6 +11,7 @@ const TABS = [
 ];
 
 const ui = {
+  setupError: "",
   tab: readLocal("pocket.tab", "orario"),
   toast: "",
 };
@@ -57,12 +58,16 @@ function viewSetup() {
   <div class="setup">
     <div class="card setup-card">
       <div class="brand"><span class="logo"></span><h1>Pocket</h1></div>
-      <p>Open the setup link on this device, or paste the two values from Supabase → Project Settings → API.</p>
+      <p>Paste your Pocket setup link.</p>
       <form data-form="server">
-        <input name="url" placeholder="Project URL (https://xxxx.supabase.co)" required autocomplete="off" aria-label="Project URL">
-        <input name="key" placeholder="Anon public key" required autocomplete="off" aria-label="Anon public key">
+        <input name="link" placeholder="https://gaone1906.github.io/Pocket/#connect=…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Setup link">
+        <details class="manual"><summary>Or enter the Supabase values</summary>
+          <input name="url" placeholder="Project URL (https://xxxx.supabase.co)" autocomplete="off" autocapitalize="off" aria-label="Project URL">
+          <input name="key" placeholder="Anon public key" autocomplete="off" autocapitalize="off" aria-label="Anon public key">
+        </details>
         <button class="primary wide">Continue</button>
       </form>
+      ${ui.setupError ? `<div class="warn">${esc(ui.setupError)}</div>` : ""}
     </div>
   </div>`;
 }
@@ -188,16 +193,35 @@ document.addEventListener("submit", async (e) => {
     if (r) return;
   }
   const f = new FormData(form);
-  if (kind === "server") store.configure(f.get("url"), f.get("key"));
+  if (kind === "server") {
+    const fromLink = parseLink(f.get("link") || "");
+    const url = fromLink?.url || f.get("url");
+    const key = fromLink?.key || f.get("key");
+    if (!url || !key) {
+      ui.setupError = "Paste the whole setup link, or both Supabase values.";
+      render();
+      return;
+    }
+    ui.setupError = "";
+    store.configure(url, key);
+  }
 });
 
-function readSetupLink() {
-  const m = location.hash.match(/connect=([^&]+)/);
-  if (!m) return;
+function parseLink(text) {
+  const m = String(text).match(/connect=([^&\s]+)/);
+  if (!m) return null;
   try {
     const { url, key } = JSON.parse(atob(decodeURIComponent(m[1])));
-    if (url && key) store.configure(url, key);
-  } catch (e) {}
+    return url && key ? { url, key } : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function readSetupLink() {
+  const found = parseLink(location.hash);
+  if (!found) return;
+  store.configure(found.url, found.key);
   history.replaceState(null, "", location.pathname + location.search);
 }
 
