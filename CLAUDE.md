@@ -143,6 +143,16 @@ session here still syncs normally. So on a new Mac the shortest path is: install
   described above; the log line `pocket vault sync held name=<board|todos|schedule> unseen=<n>` gives the counts.
 - To turn sync off: `defaults delete com.pranav.pocket pocket.backup.repo`.
 
+## Cloud sync and the web app
+
+Every device gets the data through a Supabase table (`cloud/schema.sql`, one row per item, private per user), synced by
+`Sources/Pocket/CloudSync.swift` on the Mac and by the installable web app in `web/` everywhere else. Setup, the record
+kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md). Rules to keep true:
+- A new vault file gets a `CloudDocument.all` row and its store an `adopt(_:)` registered with `CloudSync.shared.register`.
+- Never push deletes for a file that is missing, unreadable or suddenly empty; the delete guard in `sync()` stays.
+- Test against `web/dev/server.mjs` (code `123456`), never the real project.
+- Mac routes: `GET /cloud`, `POST /cloud/signin {email}`, `POST /cloud/verify {code}`, `POST /cloud/sync`, `POST /cloud/signout`.
+
 ## Schedule app
 
 A weekly routine tracker (`⌥O`). Data model in `Sources/Pocket/ScheduleModel.swift` (`ScheduleStore.shared`, saved to

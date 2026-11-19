@@ -10,6 +10,7 @@ This knowledge base is the full context for agents working on Pocket, a macOS me
 | [architecture.md](architecture.md) | App shell: lifecycle, `PocketApp`, catalog and factory, menu bar and dropdown layout, hotkeys, setup window, local HTTP server, logging, checklist for adding a new app |
 | [operations.md](operations.md) | Build, install, signing, safe testing with `POCKET_DATA_DIR`, rendering views to PNG, logs, git and code conventions |
 | [data-and-backups.md](data-and-backups.md) | `DataVault`: every persisted file and UserDefaults key, snapshots, recovery, Drive mirror, git sync to `pocket-data`, restore |
+| [cloud-sync.md](cloud-sync.md) | Supabase records table, Mac `CloudSync`, the `web/` app on phone/iPad/laptops, setup and safety |
 | [theme.md](theme.md) | `Board` design tokens, themes, embroidery backdrops, design language |
 
 ## Apps
