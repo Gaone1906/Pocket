@@ -7,12 +7,12 @@ This is a snapshot as of 2026-11-19. Read it first, then [README.md](README.md) 
 | Where | Branch | State |
 | --- | --- | --- |
 | `~/Desktop/workspace/personal/pocket` | `add-matinee` | Main checkout. It has 3 commits that are not on `main`. The branch has no upstream, but its commits are pushed as part of `add-schedule`. It also has **uncommitted** work: `Embroidery.swift`, `CLAUDE.md` and `README.md` edits, plus three new `Resources/Embroidery/fabric-*.jpg` files. See [theme.md](theme.md). |
-| `~/Desktop/workspace/personal/pocket-schedule` | `add-schedule` | Worktree cut from `add-matinee`, so it contains the matinee commits plus the Schedule app. Pushed to `origin/add-schedule`. **Not merged into `main`.** |
-| `origin/main` | `main` | Has neither Matinee nor Schedule. |
+| `~/Desktop/workspace/personal/pocket-schedule` | `add-schedule` | Worktree cut from `add-matinee`, so it contains the matinee commits plus the Schedule app. Pushed to `origin/add-schedule`. Fast-forwarded into `main` on 2026-11-19. |
+| `origin/main` | `main` | Same as `add-schedule` (515ce71 and later): includes Matinee, Schedule and this KB. |
 
 The installed app (`~/Applications/Pocket.app`) was built from `add-schedule`, with the uncommitted embroidery files copied in temporarily. If you reinstall from a clean `add-schedule`, the three new embroidered themes disappear until that work is committed.
 
-To merge, merge `add-schedule` into `main`. It already carries `add-matinee`. Then commit the embroidery work separately.
+Everything is now on `main`. The embroidery work still needs committing on its own, on top of `main`.
 
 ## Data and backups now
 
