@@ -61,6 +61,8 @@ export const THEMES = [
   pastel("lavender", "Lavender", 262, 0.95),
   pastel("blush", "Blush", 328, 0.9),
   pastel("stone", "Stone", 32, 0.28),
+  pastel("ember", "Ember", 354, 1.55),
+  pastel("flint", "Flint", 30, 0.62),
   dusk("moonlit-sage", "Moonlit Sage", 160, 140),
   dusk("harbour", "Harbour", 218, 24),
   dusk("aurora", "Aurora", 268, 158),

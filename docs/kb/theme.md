@@ -52,7 +52,7 @@ Derived members:
 
 ## Theme list (`BoardTheme.all`, in picker order)
 
-Light, from `pastel(id, name, hue:, saturation:)`: `sage` (default), `rose`, `butter`, `apricot`, `sky`, `lavender`, `blush`, `stone`.
+Light, from `pastel(id, name, hue:, saturation:)`: `sage` (default), `rose`, `butter`, `apricot`, `sky`, `lavender`, `blush`, `stone`, `ember` (hue 354 × 1.55, Ignis's default), `flint` (hue 30 × 0.62, Ventus's default).
 
 Dark, from `dusk(id, name, ground:, glow:, depth:)`: a deep background tinted with the `ground` hue and pastel text, accents and project tints from the `glow` hue.
 
@@ -79,8 +79,8 @@ given any theme from `BoardTheme.all`. The Pocket theme still colours the dropdo
 | App | Default | Web counterpart |
 | --- | --- | --- |
 | Aqua | `sky` | `/Pocket/aqua/` |
-| Ignis | `rose` | `/Pocket/ignis/` |
-| Ventus | `stone` | `/Pocket/ventus/` |
+| Ignis | `ember` | `/Pocket/ignis/` |
+| Ventus | `flint` | `/Pocket/ventus/` |
 | Terra | `sage` | `/Pocket/terra/` |
 
 The Hair web app (`/Pocket/`) defaults to Sage, but it has no Mac app of its own: Hair lives inside Aqua.
@@ -95,7 +95,7 @@ The Hair web app (`/Pocket/`) defaults to Sage, but it has no Mac app of its own
   `AureliusBoard` conform; Aqua's files use `OrarioBoard.*`, Ignis's files (including `DeclareSession` and `Flap`)
   use `AureliusBoard.*`. Ventus adds `KairosBoard` reading `theme(for: "runner")`. `Board` keeps the Ignis formatting
   helpers.
-- **Shared views.** `.appTheme(theme)` sets `\.boardTheme` and `\.colorScheme` at an app's root; `.boardEdge` without a
+- **Shared views.** `.appTheme(theme)` sets `\.boardTheme`, `\.colorScheme` and `.fontDesign(.rounded)` at an app's root, so Aqua, Ignis, Ventus and Terra all use SF Rounded like Terra (explicit `design: .serif` in Ventus's journal books stays); `.boardEdge` without a
   colour reads `\.boardTheme`, falling back to the Pocket theme. Panels use `ThemedHostingView(rootView:app:)`, and the
   board windows subscribe to `AppThemeStore.shared.publisher(for:)`.
 - **Icons.** `AppIcon.render` tints a themed app's menu-bar glyph with `iconTint(for:)`, a dynamic colour: the theme's

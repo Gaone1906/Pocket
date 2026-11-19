@@ -99,6 +99,8 @@ struct BoardTheme: Identifiable, Equatable {
         pastel("lavender", "Lavender", hue: 262, saturation: 0.95),
         pastel("blush", "Blush", hue: 328, saturation: 0.9),
         pastel("stone", "Stone", hue: 32, saturation: 0.28),
+        pastel("ember", "Ember", hue: 354, saturation: 1.55),
+        pastel("flint", "Flint", hue: 30, saturation: 0.62),
         dusk("moonlit-sage", "Moonlit Sage", ground: 160, glow: 140),
         dusk("harbour", "Harbour", ground: 218, glow: 24),
         dusk("aurora", "Aurora", ground: 268, glow: 158),
@@ -156,8 +158,8 @@ final class AppThemeStore: ObservableObject {
 
     static let apps = [
         ThemedApp(id: "schedule", name: "Aqua", fallback: "sky"),
-        ThemedApp(id: "pomodoro", name: "Ignis", fallback: "rose"),
-        ThemedApp(id: "runner", name: "Ventus", fallback: "stone"),
+        ThemedApp(id: "pomodoro", name: "Ignis", fallback: "ember"),
+        ThemedApp(id: "runner", name: "Ventus", fallback: "flint"),
         ThemedApp(id: "calorie", name: "Terra", fallback: "sage"),
     ]
 
@@ -268,7 +270,7 @@ extension EnvironmentValues {
 
 extension View {
     func appTheme(_ theme: BoardTheme) -> some View {
-        environment(\.boardTheme, theme).environment(\.colorScheme, theme.colorScheme)
+        environment(\.boardTheme, theme).environment(\.colorScheme, theme.colorScheme).fontDesign(.rounded)
     }
 }
 

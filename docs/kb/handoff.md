@@ -24,7 +24,8 @@ Everything is now on `main`. The embroidery work still needs committing on its o
 
 - Built on 2026-11-19 from the "Weekly Hair Routine" artifact. It starts on 19 Nov 2026 with the hair-care routine seeded. Full detail is in [apps/schedule.md](apps/schedule.md).
 - ⌥O was moved from Outlook to Schedule by a one-time `claimsHotKey` migration.
-- On 2026-11-19 Ignis, Ventus, Aqua and Terra moved to ⌥1, ⌥2, ⌥3 and ⌥4. `Layout.elementKeys` gives them those keys once (UserDefaults flag `shortcuts.elements`), taking each key from any other app that held it and freeing ⌥P, ⌥K, ⌥O and ⌥E.
+- On 2026-11-19 Ignis, Ventus, Aqua and Terra moved to ⌥1, ⌥2, ⌥3 and ⌥4. `Layout.elementKeys` gives them those keys once (UserDefaults flag `shortcuts.elements`), taking each key from any other app that held it and freeing ⌥P, ⌥K, ⌥O and ⌥E. The second run (flag `shortcuts.elements.2`) also gives Preparo ⌥9.
+- All four element apps use one look (2026-11-19): SF Rounded on the Mac and Nunito on the web, the app name at 17 pt bold top left of each menu-bar dropdown with the date at 12 pt (not in the expanded windows), and web headers at 30 px / 800 with a 44 px logo. Ignis is Ember and Ventus Flint, to match Sky and Sage in strength.
 - The board window and the editor were verified only from offscreen renders, never clicked live. Computer use could not reach the Pocket window.
 - Open polish items the user may raise:
   - The "This week" toggle label stays the same when paging to another week.

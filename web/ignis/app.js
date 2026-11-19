@@ -56,8 +56,8 @@ const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 const minutesOf = (list) => list.reduce((a, s) => a + s.minutes, 0);
 
 function theme() {
-  const id = readLocal("aurelius.web.theme", "rose");
-  return THEMES.some((t) => t.id === id) ? id : "rose";
+  const id = readLocal("ignis.web.theme", "ember");
+  return THEMES.some((t) => t.id === id) ? id : "ember";
 }
 
 function projects() {
@@ -494,7 +494,7 @@ document.addEventListener("click", async (e) => {
     ui.settings = true;
     render();
   } else if (d.theme) {
-    writeLocal("aurelius.web.theme", d.theme);
+    writeLocal("ignis.web.theme", d.theme);
     render();
   } else if (d.sync !== undefined) {
     await store.syncNow();

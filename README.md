@@ -45,7 +45,7 @@ The first launch opens a setup window. In it you:
 
 - The thin line in the menu bar opens the dropdown. Drag icons between the **Menu bar** and **Dropdown** rows to rearrange them.
 - Right-click any icon to move it, rerun setup, or quit.
-- Each app has a keyboard shortcut that opens it from anywhere. The defaults are ⌥W WhatsApp, ⌥S Slack, ⌥M Spotify, ⌥G Gmail, ⌥1 Ignis, ⌥2 Ventus, ⌥3 Aqua, ⌥4 Terra, ⌥D Calendar, ⌥T To-do, ⌥C Calculator and ⌥N Scratchpad; Outlook has no default shortcut. To change one, click it next to the app in setup and press the new keys; Delete clears it.
+- Each app has a keyboard shortcut that opens it from anywhere. The defaults are ⌥W WhatsApp, ⌥S Slack, ⌥M Spotify, ⌥G Gmail, ⌥1 Ignis, ⌥2 Ventus, ⌥3 Aqua, ⌥4 Terra, ⌥9 Preparo, ⌥D Calendar, ⌥T To-do, ⌥C Calculator and ⌥N Scratchpad; Outlook has no default shortcut. To change one, click it next to the app in setup and press the new keys; Delete clears it.
 - Esc or clicking elsewhere hides the panel.
 - Local tools and pages on `localhost` can drive the Ignis timer through `http://127.0.0.1:8977`: start, pause, resume and stop it with custom focus and break lengths, log sessions under a project, and read projects, sessions and totals. `GET /` lists the routes and [CLAUDE.md](CLAUDE.md) is the integration guide. Requests from other websites are refused.
 

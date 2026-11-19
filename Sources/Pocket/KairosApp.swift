@@ -239,16 +239,10 @@ private struct KairosGlance: View {
         let day = store.today
         let sessions = KairosSession.all(on: day)
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .center, spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Ventus")
-                        .font(.system(size: 19, weight: .bold))
-                        .foregroundStyle(KairosBoard.ink)
-                    Text(KairosLook.title(day))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(KairosBoard.muted)
-                }
+            HStack {
+                Text("Ventus").font(.system(size: 17, weight: .bold)).foregroundStyle(KairosBoard.ink)
                 Spacer()
+                Text(KairosLook.title(day)).font(.system(size: 12)).foregroundStyle(KairosBoard.muted)
                 Button(action: open) {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                         .font(.system(size: 11, weight: .semibold))
@@ -260,9 +254,7 @@ private struct KairosGlance: View {
                 .buttonStyle(.plain)
                 .help("Open Ventus in its own window")
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 20)
-            .padding(.bottom, 14)
+            .padding(16)
             Rectangle().fill(KairosBoard.line).frame(height: 1)
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {

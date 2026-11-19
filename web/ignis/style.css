@@ -25,7 +25,7 @@ body {
   margin: 0;
   background: var(--backdrop);
   color: var(--ink);
-  font: 15px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", system-ui, sans-serif;
+  font: 400 15px/1.4 Nunito, ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -112,10 +112,10 @@ header {
 }
 
 .logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: url("icon.svg?v=2") center/cover;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: url("icon.svg?v=3") center/cover;
   box-shadow: 0 2px 6px var(--shadow);
   flex: none;
 }
@@ -124,9 +124,9 @@ header h1 {
   margin: 0;
   flex: 1;
   min-width: 0;
-  font-size: 28px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
 }
 
 .picker {

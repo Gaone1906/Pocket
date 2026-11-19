@@ -1,12 +1,12 @@
 :root {
-  --backdrop: #efebe9;
-  --card: #f7f5f3;
-  --line: #d4cfcb;
-  --ink: #2d2824;
-  --muted: #5e5854;
-  --faint: #a29d9a;
-  --accent: #5f5a52;
-  --accent-soft: #e9e6e0;
+  --backdrop: #f1ece7;
+  --card: #f9f5f1;
+  --line: #d8d0c7;
+  --ink: #312820;
+  --muted: #63594f;
+  --faint: #a89e94;
+  --accent: #846547;
+  --accent-soft: #e2d6cb;
   --on-accent: #ffffff;
   --rest: #6f97b3;
   --radius: 20px;
@@ -25,10 +25,10 @@ body[data-mood="rest"] {
 }
 
 body[data-mood="hot"] {
-  --backdrop: #ded5cd;
-  --card: #e9e3df;
-  --line: #c9bfb6;
-  --muted: #463d36;
+  --backdrop: #e7d5c4;
+  --card: #efe4d9;
+  --line: #d3c0ac;
+  --muted: #503e2c;
 }
 
 * {
@@ -40,7 +40,7 @@ body {
   margin: 0;
   background: var(--backdrop);
   color: var(--ink);
-  font: 400 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+  font: 400 15px/1.4 Nunito, ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   transition: background-color 0.4s;
@@ -106,14 +106,15 @@ header {
 header h2 {
   margin: 0;
   flex: 1;
-  font-size: 22px;
-  font-weight: 600;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
 }
 
 .logo {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   background: url("icon.svg") center / cover;
   flex: none;
 }
@@ -241,7 +242,7 @@ small {
 .kicker.hot {
   font-size: 15px;
   letter-spacing: 2px;
-  color: #5e4f45;
+  color: #6c5237;
 }
 
 body[data-mood="rest"] .kicker {
@@ -735,7 +736,7 @@ body[data-mood="hot"] .round.big {
   height: 34px;
   border-radius: 10px;
   background: var(--card);
-  color: #5e4f45;
+  color: #6c5237;
   font-size: 13px;
   font-weight: 650;
   display: flex;

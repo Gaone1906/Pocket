@@ -106,9 +106,7 @@ private struct ScheduleDropdown: View {
     var body: some View {
         VStack(spacing: 0) {
             ScheduleHeader(store: store, openBoard: openBoard)
-                .padding(.horizontal, 18)
-                .padding(.top, 20)
-                .padding(.bottom, 14)
+                .padding(16)
             Rectangle().fill(OrarioBoard.line).frame(height: 1)
             if store.routines.isEmpty {
                 ScheduleNoRoutines(openBoard: openBoard)
@@ -157,11 +155,7 @@ private struct ScheduleHeader: View {
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(ScheduleLook.title(store.today))
-                    .font(.system(size: 19, weight: .bold))
-                    .foregroundStyle(OrarioBoard.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                Text("Aqua").font(.system(size: 17, weight: .bold)).foregroundStyle(OrarioBoard.ink)
                 HStack(spacing: 5) {
                     Image(systemName: store.slotNow.symbol)
                     Text(store.slotNow.label)
@@ -173,6 +167,11 @@ private struct ScheduleHeader: View {
                 .background(Capsule().fill(OrarioBoard.accent.opacity(0.14)))
             }
             Spacer(minLength: 8)
+            Text(ScheduleLook.title(store.today))
+                .font(.system(size: 12))
+                .foregroundStyle(OrarioBoard.muted)
+                .lineLimit(1)
+                .frame(height: 26)
             if !store.routines.isEmpty {
                 ScheduleFilterMenu(store: store)
             }

@@ -89,7 +89,7 @@ let catalog: [AppSpec] = [
     AppSpec(id: "stats", name: "System Stats", summary: "CPU, memory, disk, network and battery at a glance", symbol: "gauge.with.dots.needle.33percent",
             glyph: nil, hotKey: nil, web: nil),
     AppSpec(id: "preparo", name: "Preparo", summary: "Opens Preparo, your exam practice app, in Ardia", symbol: "graduationcap.fill",
-            glyph: Glyphs.preparo, hotKey: nil, web: nil, link: URL(string: "http://localhost:8960/")!, browser: "com.ardia.browser"),
+            glyph: Glyphs.preparo, hotKey: UInt32(kVK_ANSI_9), web: nil, link: URL(string: "http://localhost:8960/")!, browser: "com.ardia.browser"),
     AppSpec(id: "matinee", name: "Matinee", summary: "Hunts District movie tickets and holds seats for you", symbol: "ticket.fill",
             glyph: Glyphs.matinee, hotKey: nil,
             web: WebSpec(url: URL(string: "http://127.0.0.1:47811/")!, store: UUID(uuidString: "6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A06")!,
