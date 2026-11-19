@@ -96,4 +96,5 @@ It serves the web app at `http://127.0.0.1:8790` and fakes auth and REST; every 
 - Tying the Mac menu-bar timer to `pomodoro.timer`, and syncing the Mac theme (`pomodoro.board.theme` in UserDefaults) with `settings.prefs`.
 - Editing routines on the web (it shows and checks them off; edit them on the Mac).
 - Web push for alerts while every device is closed.
+- Calendar's `CalendarStore.adopt(_:)` lives on `claude/project-thread-tvh5lw`. Whichever of the two branches merges second adds `CloudSync.shared.register("calendar") { [weak self] data in self?.adopt(data) }` to `CalendarStore.init`, next to `persistence.onIncoming`. Adopt's own save doesn't bounce back: applied rows are recorded in `seen` first, so only fields the store normalises differently are pushed, once.
 - `CloudSync.swift` has not been compiled yet; it was written on Linux. Build it on the Mac before merging.
