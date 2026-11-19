@@ -64,7 +64,7 @@ There is no sign-in (Pranav's choice, 2026-11-19: he doesn't need the data kept 
 1. Create a free project at supabase.com. In **SQL Editor**, run `cloud/schema.sql`.
 2. **Project Settings → API**: copy the Project URL and the anon public key.
 3. Turn on GitHub Pages for this repo with **Source: GitHub Actions**. The app is at `https://gaone1906.github.io/Pocket/`.
-4. Make a setup link: `node web/dev/link.mjs <url> <anon key>`. Open it on each device; it starts syncing straight away. On iPhone/iPad use Share → Add to Home Screen.
+4. Make a setup link: `node web/dev/link.mjs <url> <anon key>`. Open it on each device; it starts syncing straight away. On iPhone/iPad, add the app to the Home Screen and open it from there: a Home Screen app has its own storage, so it shows the setup screen once, where you paste the same link.
 5. On the Mac: `curl -X POST 127.0.0.1:8977/cloud/connect -H 'X-Pocket-Source: setup' -d '{"link":"<setup link>"}'`. It saves the URL and key in UserDefaults (`pocket.cloud.url`, `pocket.cloud.key`), and the first sync uploads everything on the Mac. `grep "pocket cloud" ~/Library/Logs/pocket.log | tail` shows progress.
 6. In **Authentication → Sign In / Providers**, turn off **Allow new users to sign up**; nothing uses accounts.
 
