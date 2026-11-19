@@ -142,20 +142,6 @@ function filterControl() {
   </select>${ICONS.down}</label>`;
 }
 
-function summary(ctx) {
-  const { now, pool, done } = ctx;
-  const todayItems = items(now.today, now.slot, pool, done);
-  const n = todayItems.filter((i) => i.done).length;
-  const label = now.slot === "morning" ? "This morning" : "Tonight";
-  const line = !pool.length ? "No routines yet" : !todayItems.length ? "Rest, nothing planned" : n === todayItems.length ? "All done for now!" : `${n} of ${todayItems.length} steps done`;
-  const t = tally(firstDay(), now.today, pool, done, now);
-  const since = parseDay(firstDay()).toLocaleDateString([], { day: "numeric", month: "short" });
-  return `<div class="summary">
-    <div class="card mini"><span class="eyebrow">${label}</span><b>${line}</b></div>
-    <div class="card mini"><span class="eyebrow">Since ${since}</span><b>${t.done} done · ${t.missed} missed</b></div>
-  </div>`;
-}
-
 function weekLimits() {
   const lo = weekStart(firstDay());
   const lastNext = shiftDay(monthShift(today(), 2), -1);
@@ -206,7 +192,7 @@ function slotCard(ctx, day, slot, folded) {
               return `<div class="row step ${it.done ? "done" : ""}">
           <button class="tick ${it.done ? "on" : ""}" data-orario-check="${esc(it.id)}" ${future ? "disabled" : ""} aria-label="${it.done ? "Uncheck" : "Check"}">${it.done ? ICONS.check : ""}</button>
           <div class="grow">
-            <button class="step-title" data-orario-check="${esc(it.id)}" ${future ? "disabled" : ""}>${esc(it.step.title)}</button>
+            <button class="step-title" data-orario-check="${esc(it.id)}" ${future ? "disabled" : ""}>${stepLabel(it.step.title)}</button>
             ${tags ? `<span class="tag" style="--t:var(--tint-${(it.routine.hue ?? 0) % 8})">${esc(it.routine.name)}</span>` : ""}
             ${it.step.tip && open ? `<div class="tip">${esc(it.step.tip)}</div>` : ""}
           </div>
@@ -220,12 +206,41 @@ function slotCard(ctx, day, slot, folded) {
   </div>`;
 }
 
-function notesCard(ctx) {
-  const notes = ctx.pool.filter((r) => (r.notes || "").trim());
-  if (!notes.length) return "";
-  return `<div class="card list notes">
-    <h3>Notes</h3>
-    ${notes.map((r) => `<div class="note">${ctx.pool.length > 1 ? `<b>${esc(r.name)}</b>` : ""}<p>${esc(r.notes).replace(/\n/g, "<br>")}</p></div>`).join("")}
+function stepLabel(title) {
+  const [name, ...rest] = String(title || "").split("|");
+  const amount = rest.join("|").trim();
+  return amount ? `${esc(name.trim())} <span class="amount">${esc(amount)}</span>` : esc(name.trim());
+}
+
+function productsCard(ctx) {
+  const found = new Map();
+  for (const r of ctx.pool) {
+    for (const w of WEEK) {
+      for (const slot of SLOTS) {
+        for (const step of (r.plan && r.plan[`${w}-${slot}`]) || []) {
+          const title = (step.title || "").trim();
+          if (!title) continue;
+          const key = title.toLowerCase();
+          if (!found.has(key)) found.set(key, { title, days: new Set(), slots: new Set(), times: 0 });
+          const p = found.get(key);
+          p.days.add(w);
+          p.slots.add(slot);
+          p.times++;
+        }
+      }
+    }
+  }
+  if (!found.size) return "";
+  const list = [...found.values()].sort((a, b) => a.times - b.times || a.title.localeCompare(b.title));
+  return `<div class="card list products">
+    <h3>Each week</h3>
+    ${list
+      .map((p) => {
+        const days = p.days.size === 7 ? "Every day" : WEEK.filter((w) => p.days.has(w)).map((w) => SHORT[w]).join(", ");
+        const when = p.slots.size === 2 ? " · morning and night" : p.slots.has("morning") ? " · morning" : " · night";
+        return `<div class="row product"><div class="grow"><b>${stepLabel(p.title)}</b><span class="sub">${days}${when}</span></div><span class="times">${p.times}×</span></div>`;
+      })
+      .join("")}
   </div>`;
 }
 
@@ -245,8 +260,7 @@ function dayView(ctx) {
   return `
     ${weekStrip(ctx, day)}
     <div class="title-row"><h3>${isToday ? "Today" : dayTitle(day)}</h3>${isToday ? "" : `<button class="link" data-orario-day="${ctx.now.today}">Back to today</button>`}</div>
-    ${cards}
-    ${notesCard(ctx)}`;
+    ${cards}`;
 }
 
 function weekView(ctx) {
@@ -261,7 +275,7 @@ function weekView(ctx) {
       const st = status(k, slot, ctx.pool, ctx.done, ctx.now);
       const late = st === "missed" || st === "partial";
       return `<div class="wslot">${slot === "morning" ? ICONS.sun : ICONS.moon}<div class="chips-left">${list
-        .map((it) => `<span class="wstep ${it.done ? "ok" : late ? "late" : ""}">${esc(it.step.title)}</span>`)
+        .map((it) => `<span class="wstep ${it.done ? "ok" : late ? "late" : ""}">${stepLabel(it.step.title)}</span>`)
         .join("")}</div></div>`;
     }).join("");
     return `<div class="card wday ${k === ctx.now.today ? "today" : ""}">
@@ -276,7 +290,7 @@ function weekView(ctx) {
       <button class="icon quiet" data-orario-week="7" ${start >= hi ? "disabled" : ""} aria-label="Next week">${ICONS.right}</button>
     </div>
     ${rows}
-    ${notesCard(ctx)}`;
+    ${productsCard(ctx)}`;
 }
 
 function monthView(ctx) {
@@ -319,8 +333,6 @@ export function view() {
     : ui.mode === "month"
     ? monthView(ctx)
     : dayView(ctx);
-  const since = parseDay(firstDay()).toLocaleDateString([], { day: "numeric", month: "short" });
-  const t = all.length ? tally(firstDay(), ctx.now.today, ctx.pool, ctx.done, ctx.now) : null;
   return `<section class="orario">
     <div class="toolbar">
       <div class="seg three">
@@ -329,9 +341,7 @@ export function view() {
       <button class="icon pill-btn" data-orario-edit aria-label="Change the schedule">${ICONS.pencil}</button>
     </div>
     ${filterControl()}
-    ${all.length ? summary(ctx) : ""}
     ${body}
-    ${t ? `<div class="foot">${t.done} day${t.done === 1 ? "" : "s"} done · ${t.missed} missed since ${since}</div>` : ""}
   </section>
   ${ui.editor ? editorView() : ""}`;
 }
