@@ -1,4 +1,7 @@
 import AppKit
+import Combine
+import SwiftUI
+import WebKit
 
 final class MatineeApp: WebApp {
     static let pathKey = "pocket.matinee.path"
@@ -18,6 +21,7 @@ final class MatineeApp: WebApp {
     var warmupTicks = 0
     var problem: String?
     var stopping = false
+    var themeWatch: AnyCancellable?
 
     var repoURL: URL {
         let raw = UserDefaults.standard.string(forKey: MatineeApp.pathKey) ?? MatineeApp.defaultPath
@@ -32,6 +36,66 @@ final class MatineeApp: WebApp {
         superviseTimer?.invalidate()
         superviseTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in self?.supervise(reason: "interval") }
         superviseTimer?.tolerance = 5
+    }
+
+    override func prepare(_ web: WKWebView) {
+        let theme = BoardThemeStore.shared.theme
+        web.configuration.userContentController.addUserScript(WKUserScript(source: MatineeApp.themeScript(theme), injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        web.appearance = theme.appearance
+        note("pocket matinee theme injected theme=\(theme.id) dark=\(theme.isDark)")
+        themeWatch = BoardThemeStore.shared.$theme.dropFirst().removeDuplicates().receive(on: RunLoop.main).sink { [weak self] theme in
+            self?.apply(theme, reason: "changed")
+        }
+    }
+
+    @objc(webView:didCommitNavigation:)
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        guard webView === web, BoardThemeStore.shared.theme.id != injectedThemeId else { return }
+        apply(BoardThemeStore.shared.theme, reason: "navigated")
+    }
+
+    var injectedThemeId: String? { web?.configuration.userContentController.userScripts.lazy.compactMap { MatineeApp.themeId(in: $0.source) }.first }
+
+    static func themeId(in source: String) -> String? {
+        guard let range = source.range(of: "pocketTheme = '") else { return nil }
+        return String(source[range.upperBound...].prefix { $0 != "'" })
+    }
+
+    func apply(_ theme: BoardTheme, reason: String) {
+        guard let web else { return }
+        web.appearance = theme.appearance
+        web.evaluateJavaScript(MatineeApp.themeScript(theme)) { _, error in
+            if let error {
+                note("pocket matinee theme apply failed theme=\(theme.id) reason=\(reason) cause=\(error.localizedDescription)")
+            } else {
+                note("pocket matinee theme applied theme=\(theme.id) dark=\(theme.isDark) reason=\(reason)")
+            }
+        }
+    }
+
+    static func css(_ color: Color) -> String {
+        guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return "transparent" }
+        let channel = { (value: CGFloat) in Int((min(1, max(0, value)) * 255).rounded()) }
+        return "rgba(\(channel(rgb.redComponent)), \(channel(rgb.greenComponent)), \(channel(rgb.blueComponent)), \(String(format: "%.3f", rgb.alphaComponent)))"
+    }
+
+    static func luminance(_ color: Color) -> CGFloat {
+        guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return 0 }
+        let linear = { (value: CGFloat) in value <= 0.03928 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4) }
+        return 0.2126 * linear(rgb.redComponent) + 0.7152 * linear(rgb.greenComponent) + 0.0722 * linear(rgb.blueComponent)
+    }
+
+    static func themeScript(_ theme: BoardTheme) -> String {
+        let onAccent = luminance(theme.accent) > 0.32 ? "rgba(27, 27, 29, 1.000)" : "rgba(255, 255, 255, 1.000)"
+        let vars: [(String, String)] = [
+            ("backdrop", css(theme.backdrop)), ("sidebar", css(theme.sidebar)), ("card", css(theme.card)),
+            ("line", css(theme.line)), ("ink", css(theme.ink)), ("muted", css(theme.muted)), ("faint", css(theme.faint)),
+            ("accent", css(theme.accent)), ("accent-ink", css(theme.accentInk)), ("on-accent", onAccent),
+            ("pill", css(theme.pill)), ("shadow", css(theme.shadow)),
+        ]
+        let sets = vars.map { "s.setProperty('--pocket-\($0.0)', '\($0.1)');" }.joined(separator: " ")
+        let paint = "const r = document.documentElement; if (!r) return false; const s = r.style; \(sets) r.dataset.pocketTheme = '\(theme.id)'; r.dataset.pocketScheme = '\(theme.isDark ? "dark" : "light")'; return true;"
+        return "(() => { const paint = () => { \(paint) }; if (!paint()) { const watch = new MutationObserver(() => { if (paint()) watch.disconnect(); }); watch.observe(document, { childList: true }); } document.addEventListener('DOMContentLoaded', paint, { once: true }); })();"
     }
 
     override func load(reason: String) {
@@ -242,6 +306,7 @@ final class MatineeApp: WebApp {
         } else {
             note("pocket matinee leaving engine running ours=false")
         }
+        themeWatch = nil
         engine = nil
         spawnedByUs = false
         engineUp = nil
