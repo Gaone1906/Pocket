@@ -190,7 +190,7 @@ final class KairosWindow: NSObject, NSWindowDelegate {
         let host = NSHostingView(rootView: KairosBoardView(runner: KairosRunner.shared, store: ScheduleStore.shared, journal: KairosJournal.shared))
         host.sizingOptions = []
         window.contentView = host
-        window.contentMinSize = NSSize(width: 820, height: 620)
+        window.contentMinSize = NSSize(width: 880, height: 620)
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.center()
@@ -323,6 +323,7 @@ private struct KairosBoardView: View {
     @ObservedObject var journal: KairosJournal
     @ObservedObject var themes = AppThemeStore.shared
     @State private var page = KairosPage.today
+    @State private var settings = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -332,6 +333,32 @@ private struct KairosBoardView: View {
             Rectangle().fill(KairosBoard.line).frame(width: 1)
             stage
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if settings {
+                Rectangle().fill(KairosBoard.line).frame(width: 1)
+                KairosSettings()
+                    .frame(width: 260)
+                    .background(KairosBoard.sidebar)
+                    .transition(.move(edge: .trailing))
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            Button {
+                withAnimation(.easeOut(duration: 0.2)) { settings.toggle() }
+                note("kairos settings \(settings ? "opened" : "closed")")
+            } label: {
+                Image(systemName: settings ? "xmark" : "gearshape")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(settings ? KairosBoard.ink : KairosBoard.muted)
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(settings ? KairosBoard.column : Color.clear))
+                    .overlay(Circle().stroke(KairosBoard.line, lineWidth: 1))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(",", modifiers: .command)
+            .help(settings ? "Close settings" : "Settings")
+            .padding(.top, 8)
+            .padding(.trailing, 12)
         }
         .id(KairosBoard.theme.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -373,8 +400,6 @@ private struct KairosSidebar: View {
     @ObservedObject var runner: KairosRunner
     @ObservedObject var store: ScheduleStore
     @Binding var page: KairosPage
-    @State private var sound = KairosRunner.sound
-    @State private var hold = KairosRunner.hold
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -401,30 +426,14 @@ private struct KairosSidebar: View {
                 .padding(.bottom, 14)
             }
             .scrollIndicators(.never)
-            Rectangle().fill(KairosBoard.line).frame(height: 1)
-            VStack(alignment: .leading, spacing: 10) {
-                if runner.state == nil {
-                    HStack(spacing: 6) {
-                        Button("Today") { page = .today }.buttonStyle(KairosChip(on: page == .today))
-                        Button("Journal") { page = .journal }.buttonStyle(KairosChip(on: page == .journal))
-                    }
+            if runner.state == nil {
+                Rectangle().fill(KairosBoard.line).frame(height: 1)
+                HStack(spacing: 8) {
+                    Button("Today") { page = .today }.buttonStyle(KairosChip(on: page == .today))
+                    Button("Journal") { page = .journal }.buttonStyle(KairosChip(on: page == .journal))
                 }
-                Toggle("Chime at each change", isOn: $sound)
-                Toggle("Wait for a click before each step", isOn: $hold)
+                .padding(14)
             }
-            .toggleStyle(.switch)
-            .controlSize(.mini)
-            .font(.system(size: 11))
-            .foregroundStyle(KairosBoard.muted)
-            .padding(14)
-        }
-        .onChange(of: sound) { _, on in
-            KairosRunner.sound = on
-            note("kairos setting changed sound=\(on)")
-        }
-        .onChange(of: hold) { _, on in
-            KairosRunner.hold = on
-            note("kairos setting changed hold=\(on)")
         }
     }
 
@@ -506,6 +515,53 @@ private struct KairosSidebar: View {
                 .foregroundStyle(KairosBoard.faint)
                 .padding(.horizontal, 6)
                 .padding(.top, 8)
+        }
+    }
+}
+
+private struct KairosSettings: View {
+    @State private var sound = KairosRunner.sound
+    @State private var hold = KairosRunner.hold
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Settings")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(KairosBoard.ink)
+            setting("Chime at each change", "A soft chime when a step, move or rest changes, and another at the end.", $sound)
+            setting("Wait for a click before each step", "Each step waits on an Up next screen until you press Start.", $hold)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 40)
+        .padding(.bottom, 18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .onChange(of: sound) { _, on in
+            KairosRunner.sound = on
+            note("kairos setting changed sound=\(on)")
+        }
+        .onChange(of: hold) { _, on in
+            KairosRunner.hold = on
+            note("kairos setting changed hold=\(on)")
+        }
+    }
+
+    private func setting(_ title: String, _ detail: String, _ value: Binding<Bool>) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(KairosBoard.ink)
+                Text(detail)
+                    .font(.system(size: 11))
+                    .foregroundStyle(KairosBoard.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            Toggle("", isOn: value)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
         }
     }
 }
@@ -1462,16 +1518,20 @@ private struct KairosDone: View {
 
 private struct KairosChip: ButtonStyle {
     let on: Bool
+    var fill = true
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(on ? KairosLook.onAccent : KairosBoard.ink)
-            .frame(maxWidth: .infinity)
-            .frame(height: 32)
-            .background(Capsule().fill(on ? KairosBoard.accentStyle : AnyShapeStyle(KairosBoard.column)))
+            .font(.system(size: 12, weight: on ? .semibold : .medium))
+            .lineLimit(1)
+            .foregroundStyle(on ? KairosLook.onAccent : KairosBoard.muted)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: fill ? .infinity : nil)
+            .frame(height: 30)
+            .background(Capsule().fill(on ? KairosBoard.accentStyle : AnyShapeStyle(Color.clear)))
             .overlay(Capsule().stroke(on ? Color.clear : KairosBoard.line, lineWidth: 1))
             .contentShape(Capsule())
+            .opacity(configuration.isPressed ? 0.75 : 1)
     }
 }
 
@@ -1526,10 +1586,10 @@ private struct KairosJournalView: View {
             .overlay(Capsule().stroke(KairosBoard.line, lineWidth: 1))
             .padding(.horizontal, 16)
             ScrollView(.horizontal) {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     ForEach(Self.tags, id: \.0) { value, label in
                         Button(label) { tag = value }
-                            .buttonStyle(KairosChip(on: tag == value))
+                            .buttonStyle(KairosChip(on: tag == value, fill: false))
                             .fixedSize()
                     }
                 }
