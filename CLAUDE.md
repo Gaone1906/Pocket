@@ -144,6 +144,18 @@ session here still syncs normally. So on a new Mac the shortest path is: install
   described above; the log line `pocket vault sync held name=<board|todos|schedule|calendar> unseen=<n>` gives the counts.
 - To turn sync off: `defaults delete com.pranav.pocket pocket.backup.repo`.
 
+## Cloud sync and the web app
+
+Pomodoro and Orario (Schedule) reach every device through a Supabase table (`cloud/schema.sql`, one row per item,
+private per user), synced by `Sources/Pocket/CloudSync.swift` on the Mac and by the installable web app in `web/`
+everywhere else. The web app has all of Orario and a view-only Pomodoro (no timer). To-do, Calendar and Matinee stay
+Mac-only. Setup, the record
+kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md). Rules to keep true:
+- To sync another vault file, give it a `CloudDocument.all` row and its store an `adopt(_:)` registered with `CloudSync.shared.register`.
+- Never push deletes for a file that is missing, unreadable or suddenly empty; the delete guard in `sync()` stays.
+- Test against `web/dev/server.mjs` (code `123456`), never the real project.
+- Mac routes: `GET /cloud`, `POST /cloud/signin {email}`, `POST /cloud/verify {code}`, `POST /cloud/sync`, `POST /cloud/signout`.
+
 ## Orario app (formerly Schedule)
 
 A weekly routine tracker (`⌥O`); its code, app id and data file still use `schedule`. Data model in `Sources/Pocket/ScheduleModel.swift` (`ScheduleStore.shared`, saved to

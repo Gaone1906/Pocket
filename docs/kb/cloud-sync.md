@@ -1,0 +1,94 @@
+# Cloud sync and the web app
+
+Pomodoro and Orario (the Schedule app) live on every device, not only one Mac. A hosted Postgres database (Supabase, free tier) holds one row per item, the Mac app syncs those two vault files to it, and an installable web app (`web/`) works on the phone, iPad and any other laptop. To-do, Calendar and Matinee stay Mac-only by choice (Pranav, 2026-11-19). Each device keeps a full local copy, so it keeps working offline and a lost device loses nothing.
+
+Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs), [architecture.md](architecture.md) (local HTTP server).
+
+## Pieces
+
+| Piece | Where | Does |
+| --- | --- | --- |
+| Schema | `cloud/schema.sql` | One table, `public.records`, private per user through row-level security |
+| Mac sync | `Sources/Pocket/CloudSync.swift` | Two-way sync of `board` and `schedule` with the table |
+| Web app | `web/` (`index.html`, `app.js`, `store.js`, `orario.js`, `pomodoro.js`, `util.js`, `themes.js`, `style.css`, `sw.js`) | Orario in full, Pomodoro sessions (view only), Settings and themes |
+| Hosting | `.github/workflows/pages.yml` | Publishes `web/` (without `web/dev`) to GitHub Pages on pushes to `main` |
+| Dev backend | `web/dev/server.mjs` | A local stand-in for Supabase auth and REST, code always `123456`, for testing without a cloud project |
+| Setup link | `web/dev/link.mjs` | Prints a link that fills in the database URL and key on a new device |
+
+## Data model
+
+`records(user_id, kind, id, data jsonb, deleted, device, updated_at)`, primary key `(user_id, kind, id)`. `updated_at` is set by a trigger on every write. Deletes are tombstones (`deleted = true`) so other devices learn about them.
+
+| kind | id | data | From |
+| --- | --- | --- | --- |
+| `board.project` | project UUID | `{id, name, hue, _pos}` | `board.json` `projects` |
+| `board.session` | session UUID | `{id, ended, minutes, project?, started?, declared?}`; `ended` is seconds since 2001 | `board.json` `sessions` |
+| `schedule.routine` | UUID | the routine, with `plan`, plus `_pos` | `schedule.json` `routines` |
+| `schedule.check` | `routine\|day\|slot\|step` | the check | `schedule.json` `checks` |
+| `schedule.settings` | `book` | `{nightFrom, dayFrom}` | `schedule.json` top-level scalars |
+| `settings.prefs` | `prefs` | `{theme}` | web only |
+
+`_pos` keeps list order (projects, routines). It exists only in the cloud; the Mac strips it when it writes a file and puts its own index back when it reads one. `CloudDocument.all` in `CloudSync.swift` is the mapping; a new vault file gets one row there.
+
+## Sync rules
+
+Same on both sides:
+- **Pull** `GET /rest/v1/records?updated_at=gt.<cursor − 2 min>&order=updated_at.asc`, paged by 1000. The 2-minute overlap covers writes that commit late; re-applying a row is harmless.
+- **Push** `POST /rest/v1/records?on_conflict=user_id,kind,id` with `Prefer: resolution=merge-duplicates`, in chunks of 500.
+- **Conflicts** are per item. A change made here and not yet pushed wins over the incoming copy, and the other device then pulls it. Two devices editing different items never conflict.
+
+Mac (`CloudSync.sync()`, on the `pocket.cloud` queue):
+1. Read each vault file and turn it into records. A record whose JSON differs from what was last synced (`$ROOT/cloud-state.json`, `seen`) is a local change.
+2. Pull. Rows that aren't local changes and differ from `seen` are applied on main: the file is re-read, patched and handed to the store's `adopt(_:)` (board, schedule), which replaces its state and saves. A store that isn't loaded yet gets the file written directly plus a snapshot.
+3. Push every local record that still differs from `seen`, and a tombstone for every `seen` item missing locally.
+4. **Delete guard.** If a file is missing or unreadable it is skipped. If it is empty, or more than half of a large set (over 20) vanished at once, deletes are held and logged as `pocket cloud delete held`, never pushed.
+
+It runs 5 s after launch, 4 s after any vault save, and every 60 s.
+
+Web (`store.js`): edits go to a local outbox in `localStorage` and are pushed within half a second; it pulls every 4 s while the page is visible, on focus, and when the network comes back.
+
+## What the web app does
+
+Built for an iPhone 14 screen first (390 pt wide, Home Screen app), with a sidebar layout on laptops.
+
+- **Orario** does everything the Mac Schedule app does: Day, Week and Month views; the routine filter; today's morning and night checklists with tips, routine tags, Mark all done / Undo all and the other slot folded; the week strip and month marks; the "since" tally; notes; and **Change the schedule** (add, rename and delete routines, add, edit, reorder and delete steps per weekday and slot, tips, notes). The night start hour is in Settings. Routines it writes carry every key the Mac decodes (`id, name, hue, starts, plan, notes`), and deleting a routine also removes its check-offs.
+- **Pomodoro** is view only by choice (Pranav, 2026-11-19): project filter, today / this week / all time in 25-minute sessions, the last 7 days, per-project totals, and sessions by day with start and end times. Timers are started on the Mac.
+- **Settings**: theme (shared with every device), night start hour, sync status, Download a copy, sign out.
+
+## Setting it up (owner, once)
+
+1. Create a free project at supabase.com. In **SQL Editor**, run `cloud/schema.sql`.
+2. **Authentication → Sign In / Providers → Email**: keep Email on. **Authentication → Emails → Magic Link**: make the body include `{{ .Token }}` so the email carries a 6-digit code (the web app and Mac sign in with the code, which works inside a Home Screen app where links don't).
+3. **Project Settings → API**: copy the Project URL and the anon public key. The anon key is safe to publish; row-level security keeps rows private.
+4. Turn on GitHub Pages for this repo with **Source: GitHub Actions**. After the branch is merged, the app is at `https://gaone1906.github.io/Pocket/`.
+5. Make a setup link: `node web/dev/link.mjs <url> <anon key>`. Open it on each device, sign in with the emailed code, and on iPhone/iPad use Share → Add to Home Screen.
+6. On the Mac:
+   ```bash
+   defaults write com.pranav.pocket pocket.cloud.url https://<project>.supabase.co
+   defaults write com.pranav.pocket pocket.cloud.key <anon key>
+   curl -X POST 127.0.0.1:8977/cloud/signin -H 'X-Pocket-Source: setup' -d '{"email":"<you>"}'
+   curl -X POST 127.0.0.1:8977/cloud/verify -H 'X-Pocket-Source: setup' -d '{"code":"<code>"}'
+   ```
+   The first sync uploads everything on the Mac. `grep "pocket cloud" ~/Library/Logs/pocket.log | tail` shows progress.
+7. Once every device is signed in, turn off **Allow new users to sign up** in Authentication settings.
+
+Supabase's built-in email sender allows only a few emails per hour, which is plenty for signing in a handful of devices. A free project pauses after a week without any requests; daily use keeps it awake, and a paused project resumes from the dashboard with nothing lost.
+
+## Safety
+
+- Every device holds a full copy. Settings → **Download a copy** in the web app saves all data as JSON in the Mac's file shapes.
+- The Mac still writes daily snapshots and pushes to the private `pocket-data` repo, independent of Supabase.
+- Signing in needs only the email inbox, so losing any device (or all of them) doesn't lock you out.
+
+## Testing without a cloud project
+
+```bash
+POCKET_DEV_DB=/tmp/pocket-dev.json node web/dev/server.mjs
+```
+It serves the web app at `http://127.0.0.1:8790` and fakes auth and REST; every sign-in code is `123456`. Point a scratch Mac run at it with `pocket.cloud.url = http://127.0.0.1:8790` and any key, and follow the scratch-run rules in [operations.md](operations.md) (those defaults are shared with the real app).
+
+## Not built yet
+
+- A sign-in pane in the Mac app (today it's the two `curl` calls above); it belongs in the new Pocket settings window.
+- Syncing the Mac theme (`pomodoro.board.theme` in UserDefaults) with `settings.prefs`.
+- `CloudSync.swift` has not been compiled yet; it was written on Linux. Build it on the Mac before merging.

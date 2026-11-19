@@ -127,11 +127,19 @@ final class PocketServer {
         "GET /pomodoro/projects": "board projects",
         "GET /pomodoro/sessions?since=<ISO 8601>&project=<name>": "finished focus sessions",
         "GET /pomodoro/stats": "today and all-time totals",
+        "GET /cloud": "cloud sync status",
+        "POST /cloud/signin": "email a sign-in code; body {email}",
+        "POST /cloud/verify": "finish sign-in; body {code}",
+        "POST /cloud/sync": "sync with the cloud now",
+        "POST /cloud/signout": "stop syncing on this Mac",
     ]
 
     private func route(_ request: Request) -> Response {
         if request.method == "GET", request.path == "/" {
             return Response(status: 200, body: ["app": "pocket", "routes": Self.routes])
+        }
+        if request.path == "/cloud" || request.path.hasPrefix("/cloud/") {
+            return cloud(request)
         }
         guard let pomodoro = AppDelegate.shared.app("pomodoro") as? PomodoroApp else {
             if request.method == "POST" { note("pocket server pomodoro unavailable path=\(request.path) cause=not enabled") }
@@ -201,6 +209,43 @@ final class PocketServer {
         }
     }
 
+    private func cloud(_ request: Request) -> Response {
+        let source = request.headers["x-pocket-source"] ?? request.headers["origin"] ?? request.headers["user-agent"] ?? "local"
+        let cloud = CloudSync.shared
+        do {
+            switch (request.method, request.path) {
+            case ("GET", "/cloud"):
+                return Response(status: 200, body: cloud.status())
+            case ("POST", "/cloud/signin"):
+                guard let email = try Self.text(Self.object(request.body), "email"), email.contains("@") else { throw Invalid(message: "body needs {\"email\": \"you@example.com\"}") }
+                try cloud.sendCode(email: email)
+                note("pocket server cloud code requested source=\(source) email=\(email)")
+                return Response(status: 200, body: ["sent": true, "email": email] as [String: Any])
+            case ("POST", "/cloud/verify"):
+                guard let code = try Self.text(Self.object(request.body), "code"), !code.isEmpty else { throw Invalid(message: "body needs {\"code\": \"123456\"}") }
+                try cloud.verify(code: code)
+                note("pocket server cloud verified source=\(source)")
+                return Response(status: 200, body: cloud.status())
+            case ("POST", "/cloud/sync"):
+                cloud.syncNow()
+                note("pocket server cloud sync requested source=\(source)")
+                return Response(status: 202, body: cloud.status())
+            case ("POST", "/cloud/signout"):
+                cloud.signOut()
+                note("pocket server cloud signout source=\(source)")
+                return Response(status: 200, body: ["signedIn": false])
+            default:
+                return Response(status: 404, body: ["error": "no route \(request.method) \(request.path)", "routes": Self.routes])
+            }
+        } catch let invalid as Invalid {
+            note("pocket server rejected source=\(source) method=\(request.method) path=\(request.path) cause=\(invalid.message)")
+            return Response(status: 400, body: ["error": invalid.message])
+        } catch {
+            note("pocket server cloud failed source=\(source) path=\(request.path) error=\(error)")
+            return Response(status: 502, body: ["error": "\(error)"])
+        }
+    }
+
     private static func units(_ minutes: Int) -> Double {
         (Double(minutes) / Double(TallyStick.fullMinutes) * 10).rounded() / 10
     }
@@ -235,11 +280,13 @@ final class PocketServer {
     private static func reason(_ status: Int) -> String {
         switch status {
         case 200: return "OK"
+        case 202: return "Accepted"
         case 204: return "No Content"
         case 400: return "Bad Request"
         case 403: return "Forbidden"
         case 404: return "Not Found"
         case 409: return "Conflict"
+        case 502: return "Bad Gateway"
         default: return "Error"
         }
     }

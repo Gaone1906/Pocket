@@ -120,6 +120,7 @@ final class ScheduleStore: ObservableObject {
         filter = UserDefaults.standard.string(forKey: "schedule.filter").flatMap(UUID.init(uuidString:))
         let vault = DataVault.shared
         vault.register("schedule") { [weak self] data in self?.merge(data) }
+        CloudSync.shared.register("schedule") { [weak self] data in self?.adopt(data) }
         defer {
             if let id = filter, !book.routines.contains(where: { $0.id == id }) { filter = nil }
             let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in self?.tick() }
@@ -145,6 +146,20 @@ final class ScheduleStore: ObservableObject {
         book = ScheduleBook(routines: [ScheduleSeed.hairCare()], checks: [])
         note("schedule seeded routines=\(book.routines.count) path=\(file.path)")
         save()
+    }
+
+    func adopt(_ data: Data) {
+        do {
+            let incoming = try Self.decode(data)
+            guard incoming != book else { return }
+            let before = book.checks.count
+            book = incoming
+            if let id = filter, !book.routines.contains(where: { $0.id == id }) { filter = nil }
+            save()
+            note("schedule adopted cloud routines=\(book.routines.count) checksBefore=\(before) checksAfter=\(book.checks.count)")
+        } catch {
+            note("schedule adopt failed bytes=\(data.count) error=\(error.localizedDescription)")
+        }
     }
 
     static func decode(_ data: Data) throws -> ScheduleBook {
