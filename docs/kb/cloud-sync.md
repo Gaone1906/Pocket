@@ -1,6 +1,6 @@
 # Cloud sync and the web app
 
-Pomodoro and Orario (the Schedule app) live on every device, not only one Mac. A hosted Postgres database (Supabase, free tier) holds one row per item, the Mac app syncs those two vault files to it, and an installable web app (`web/`) works on the phone, iPad and any other laptop. To-do and Calendar stay Mac-only by choice (Pranav, 2026-11-19), since native apps cover them on other devices. Matinee is planned next. Each device keeps a full local copy, so it keeps working offline and a lost device loses nothing.
+Pomodoro and Orario (the Schedule app) live on every device, not only one Mac. A hosted Postgres database (Supabase, free tier) holds one row per item, the Mac app syncs those two vault files to it, and an installable web app (`web/`) works on the phone, iPad and any other laptop. To-do, Calendar and Matinee stay Mac-only by choice (Pranav, 2026-11-19). Each device keeps a full local copy, so it keeps working offline and a lost device loses nothing.
 
 Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs), [architecture.md](architecture.md) (local HTTP server).
 
@@ -94,5 +94,4 @@ It serves the web app at `http://127.0.0.1:8790` and fakes auth and REST; every 
 - Tying the Mac menu-bar timer to `pomodoro.timer`, and syncing the Mac theme (`pomodoro.board.theme` in UserDefaults) with `settings.prefs`.
 - Editing routines on the web (it shows and checks them off; edit them on the Mac).
 - Web push for focus/break alerts while every device is closed.
-- Matinee on other devices, once its rework settles.
 - `CloudSync.swift` has not been compiled yet; it was written on Linux. Build it on the Mac before merging.
