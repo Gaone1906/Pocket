@@ -22,19 +22,15 @@ enum PomodoroState {
 }
 
 enum PomodoroPalette {
-    static let gold = NSColor(name: nil) { appearance in
-        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            ? NSColor(srgbRed: 0xE6 / 255, green: 0xC2 / 255, blue: 0x5A / 255, alpha: 1)
-            : NSColor(srgbRed: 0xB8 / 255, green: 0x86 / 255, blue: 0x0B / 255, alpha: 1)
-    }
-
     static let silver = NSColor(name: nil) { appearance in
         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
             ? NSColor(srgbRed: 0xC9 / 255, green: 0xCC / 255, blue: 0xD1 / 255, alpha: 1)
             : NSColor(srgbRed: 0x7D / 255, green: 0x80 / 255, blue: 0x85 / 255, alpha: 1)
     }
 
-    static func color(for phase: PomodoroPhase) -> NSColor { phase == .focus ? gold : silver }
+    static func color(for phase: PomodoroPhase) -> NSColor {
+        phase == .focus ? AppThemeStore.shared.iconTint(for: "pomodoro") ?? .labelColor : silver
+    }
 }
 
 struct PomodoroPlan: Equatable {
@@ -145,7 +141,6 @@ final class PomodoroModel: ObservableObject {
 
 final class PomodoroApp: PocketApp {
     private let model = PomodoroModel()
-    private var themeWatch: AnyCancellable?
     private lazy var board = PomodoroBoardWindow(model: model)
     private var timer: Timer?
     private var authorizationRequested = false
@@ -166,10 +161,7 @@ final class PomodoroApp: PocketApp {
             skip: { [weak self] in self?.skip() },
             openBoard: { [weak self] in self?.openBoard() }
         )
-        let hosting = NSHostingView(rootView: view)
-        hosting.appearance = BoardThemeStore.shared.theme.appearance
-        themeWatch = BoardThemeStore.shared.$theme.sink { [weak hosting] theme in hosting?.appearance = theme.appearance }
-        return hosting
+        return ThemedHostingView(rootView: view, app: "pomodoro")
     }
 
     override func barImage() -> NSImage? {
@@ -384,7 +376,7 @@ final class PomodoroApp: PocketApp {
 }
 
 private enum Flap {
-    static var theme: BoardTheme { BoardThemeStore.shared.theme }
+    static var theme: BoardTheme { AureliusBoard.theme }
     static var backdrop: [Color] { [theme.card, theme.sidebar] }
     static var cardTop: Color { theme.card }
     static var cardBottom: Color { theme.backdrop }
@@ -446,7 +438,7 @@ private struct FlapButton: ButtonStyle {
 
 struct PomodoroView: View {
     @ObservedObject var model: PomodoroModel
-    @ObservedObject var themes = BoardThemeStore.shared
+    @ObservedObject var themes = AppThemeStore.shared
     let toggle: () -> Void
     let reset: () -> Void
     let skip: () -> Void
@@ -529,7 +521,7 @@ struct PomodoroView: View {
         }
         .background(RadialGradient(colors: Flap.backdrop, center: UnitPoint(x: 0.5, y: 0.4), startRadius: 0, endRadius: 280))
         .ignoresSafeArea()
-        .id(themes.theme.id)
-        .environment(\.colorScheme, themes.theme.colorScheme)
+        .id(AureliusBoard.theme.id)
+        .appTheme(AureliusBoard.theme)
     }
 }

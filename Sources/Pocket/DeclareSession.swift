@@ -18,7 +18,7 @@ struct DeclareSessionCard: View {
     private var calendar: Calendar { Calendar.current }
     private var today: Date { calendar.startOfDay(for: Date()) }
     private var yesterday: Date { calendar.date(byAdding: .day, value: -1, to: today) ?? today }
-    private var tint: Color { project.map { Board.hue($0.hue) } ?? Board.accent }
+    private var tint: Color { project.map { AureliusBoard.hue($0.hue) } ?? AureliusBoard.accent }
     private var minutes: Int? { Int(minutesText.trimmingCharacters(in: .whitespaces)) }
 
     private var start: Date { combine(day, from) }
@@ -40,12 +40,12 @@ struct DeclareSessionCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Declare a session")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Board.ink)
+                    .foregroundStyle(AureliusBoard.ink)
                 HStack(spacing: 6) {
                     Circle().fill(tint).frame(width: 7, height: 7)
                     Text(project.map { $0.name.isEmpty ? "Untitled" : $0.name } ?? "Unassigned")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(AureliusBoard.muted)
                 }
             }
 
@@ -66,11 +66,11 @@ struct DeclareSessionCard: View {
                     TextField("40", text: $minutesText)
                         .textFieldStyle(.plain)
                         .font(.system(size: 15, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(Board.ink)
+                        .foregroundStyle(AureliusBoard.ink)
                         .multilineTextAlignment(.center)
                         .frame(width: 52, height: 28)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Board.theme.pill))
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(minutesFocused ? tint.opacity(0.7) : Board.line, lineWidth: 1))
+                        .background(RoundedRectangle(cornerRadius: 8).fill(AureliusBoard.theme.pill))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(minutesFocused ? tint.opacity(0.7) : AureliusBoard.line, lineWidth: 1))
                         .focused($minutesFocused)
                         .disabled(withTime)
                         .opacity(withTime ? 0.6 : 1)
@@ -88,7 +88,7 @@ struct DeclareSessionCard: View {
                     Toggle(isOn: $withTime.animation(.smooth(duration: 0.15))) {
                         Text("I know when I worked")
                             .font(.system(size: 12))
-                            .foregroundStyle(Board.ink)
+                            .foregroundStyle(AureliusBoard.ink)
                     }
                     .toggleStyle(.switch)
                     .controlSize(.small)
@@ -99,7 +99,7 @@ struct DeclareSessionCard: View {
                                 .labelsHidden()
                                 .datePickerStyle(.field)
                                 .fixedSize()
-                            Text("to").font(.system(size: 12)).foregroundStyle(Board.muted)
+                            Text("to").font(.system(size: 12)).foregroundStyle(AureliusBoard.muted)
                             DatePicker("", selection: $to, displayedComponents: .hourAndMinute)
                                 .labelsHidden()
                                 .datePickerStyle(.field)
@@ -113,22 +113,22 @@ struct DeclareSessionCard: View {
             HStack(spacing: 10) {
                 Text(problem ?? summary)
                     .font(.system(size: 11))
-                    .foregroundStyle(problem == nil ? Board.muted : Color.red.opacity(0.8))
+                    .foregroundStyle(problem == nil ? AureliusBoard.muted : Color.red.opacity(0.8))
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
                 Button("Cancel", action: close)
                     .buttonStyle(.plain)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(AureliusBoard.muted)
                     .keyboardShortcut(.cancelAction)
                 Button(action: commit) {
                     Text("Declare")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Board.theme.isDark ? Color.black.opacity(0.85) : Color.white)
+                        .foregroundStyle(AureliusBoard.theme.isDark ? Color.black.opacity(0.85) : Color.white)
                         .padding(.horizontal, 14)
                         .frame(height: 28)
-                        .background(Capsule().fill(Board.accentStyle))
+                        .background(Capsule().fill(AureliusBoard.accentStyle))
                         .opacity(problem == nil ? 1 : 0.45)
                 }
                 .buttonStyle(.plain)
@@ -138,9 +138,9 @@ struct DeclareSessionCard: View {
         }
         .padding(22)
         .frame(width: 400)
-        .background(RoundedRectangle(cornerRadius: 18).fill(Board.column))
+        .background(RoundedRectangle(cornerRadius: 18).fill(AureliusBoard.column))
         .boardEdge(18)
-        .shadow(color: Board.shadow, radius: 24, y: 10)
+        .shadow(color: AureliusBoard.shadow, radius: 24, y: 10)
         .onChange(of: from) { _, _ in syncMinutes() }
         .onChange(of: to) { _, _ in syncMinutes() }
         .onChange(of: withTime) { _, now in if now { alignTimes() } }
@@ -161,9 +161,9 @@ struct DeclareSessionCard: View {
                 Text(title)
                     .font(.system(size: 10, weight: .semibold))
                     .tracking(1.2)
-                    .foregroundStyle(Board.faint)
+                    .foregroundStyle(AureliusBoard.faint)
                 if optional {
-                    Text("optional").font(.system(size: 10)).foregroundStyle(Board.faint)
+                    Text("optional").font(.system(size: 10)).foregroundStyle(AureliusBoard.faint)
                 }
             }
             content()
@@ -174,11 +174,11 @@ struct DeclareSessionCard: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 12, weight: on ? .semibold : .medium).monospacedDigit())
-                .foregroundStyle(on ? Board.ink : Board.muted)
+                .foregroundStyle(on ? AureliusBoard.ink : AureliusBoard.muted)
                 .padding(.horizontal, 10)
                 .frame(height: 26)
-                .background(Capsule().fill(on ? tint.opacity(0.22) : Board.theme.pill))
-                .overlay(Capsule().strokeBorder(on ? tint.opacity(0.7) : Board.line, lineWidth: 1))
+                .background(Capsule().fill(on ? tint.opacity(0.22) : AureliusBoard.theme.pill))
+                .overlay(Capsule().strokeBorder(on ? tint.opacity(0.7) : AureliusBoard.line, lineWidth: 1))
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

@@ -4,7 +4,6 @@ import SwiftUI
 
 final class ScheduleApp: PocketApp {
     private var watch: AnyCancellable?
-    private var themeWatch: AnyCancellable?
     private var badge: Int?
 
     override init(spec: AppSpec) {
@@ -38,10 +37,7 @@ final class ScheduleApp: PocketApp {
 
     override func makeContent() -> NSView {
         let view = ScheduleDropdown(store: ScheduleStore.shared) { [weak self] in self?.openBoard(source: "dropdown") }
-        let hosting = NSHostingView(rootView: view)
-        hosting.appearance = BoardThemeStore.shared.theme.appearance
-        themeWatch = BoardThemeStore.shared.$theme.sink { [weak hosting] theme in hosting?.appearance = theme.appearance }
-        return hosting
+        return ThemedHostingView(rootView: view, app: "schedule")
     }
 
     override func didShow() {
@@ -80,7 +76,7 @@ private enum ScheduleLook {
         return format
     }()
 
-    static var chip: Color { Board.line.opacity(0.55) }
+    static var chip: Color { OrarioBoard.line.opacity(0.55) }
 
     static func title(_ day: String) -> String {
         ScheduleDays.date(day).map(dateFormat.string(from:)) ?? day
@@ -102,7 +98,7 @@ private enum ScheduleLook {
 
 private struct ScheduleDropdown: View {
     @ObservedObject var store: ScheduleStore
-    @ObservedObject var themes = BoardThemeStore.shared
+    @ObservedObject var themes = AppThemeStore.shared
     let openBoard: () -> Void
     @State private var tips: Set<String> = []
     @State private var otherOpen = false
@@ -113,20 +109,20 @@ private struct ScheduleDropdown: View {
                 .padding(.horizontal, 18)
                 .padding(.top, 20)
                 .padding(.bottom, 14)
-            Rectangle().fill(Board.line).frame(height: 1)
+            Rectangle().fill(OrarioBoard.line).frame(height: 1)
             if store.routines.isEmpty {
                 ScheduleNoRoutines(openBoard: openBoard)
             } else {
                 content
             }
         }
-        .animation(Board.glide, value: otherOpen)
-        .animation(Board.glide, value: tips)
-        .id(themes.theme.id)
+        .animation(OrarioBoard.glide, value: otherOpen)
+        .animation(OrarioBoard.glide, value: tips)
+        .id(OrarioBoard.theme.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(BoardBackdrop(theme: themes.theme))
+        .background(BoardBackdrop(theme: OrarioBoard.theme))
         .ignoresSafeArea()
-        .environment(\.colorScheme, themes.theme.colorScheme)
+        .appTheme(OrarioBoard.theme)
     }
 
     private var content: some View {
@@ -163,7 +159,7 @@ private struct ScheduleHeader: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(ScheduleLook.title(store.today))
                     .font(.system(size: 19, weight: .bold))
-                    .foregroundStyle(Board.ink)
+                    .foregroundStyle(OrarioBoard.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 HStack(spacing: 5) {
@@ -171,10 +167,10 @@ private struct ScheduleHeader: View {
                     Text(store.slotNow.label)
                 }
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Board.accentInkStyle)
+                .foregroundStyle(OrarioBoard.accentInkStyle)
                 .padding(.horizontal, 9)
                 .padding(.vertical, 4)
-                .background(Capsule().fill(Board.accent.opacity(0.14)))
+                .background(Capsule().fill(OrarioBoard.accent.opacity(0.14)))
             }
             Spacer(minLength: 8)
             if !store.routines.isEmpty {
@@ -183,7 +179,7 @@ private struct ScheduleHeader: View {
             Button(action: openBoard) {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(OrarioBoard.muted)
                     .frame(width: 26, height: 26)
                     .background(Circle().fill(ScheduleLook.chip))
                     .contentShape(Circle())
@@ -198,7 +194,7 @@ private struct ScheduleFilterMenu: View {
     @ObservedObject var store: ScheduleStore
 
     private var tint: Color {
-        store.filter.flatMap(store.routine).map { Board.hue($0.hue) } ?? Board.muted
+        store.filter.flatMap(store.routine).map { OrarioBoard.hue($0.hue) } ?? OrarioBoard.muted
     }
 
     var body: some View {
@@ -209,7 +205,7 @@ private struct ScheduleFilterMenu: View {
                     Label {
                         Text(routine.name)
                     } icon: {
-                        Image(nsImage: ScheduleLook.dot(Board.hue(routine.hue)))
+                        Image(nsImage: ScheduleLook.dot(OrarioBoard.hue(routine.hue)))
                     }
                     .tag(UUID?.some(routine.id))
                 }
@@ -228,7 +224,7 @@ private struct ScheduleFilterMenu: View {
                     .font(.system(size: 8, weight: .bold))
             }
             .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(Board.muted)
+            .foregroundStyle(OrarioBoard.muted)
             .padding(.horizontal, 10)
             .frame(height: 26)
             .frame(maxWidth: 140)
@@ -257,13 +253,13 @@ private struct ScheduleSlotCard: View {
                 Text(ScheduleLook.heading(slot).uppercased())
                     .font(.system(size: 10, weight: .semibold))
                     .tracking(1.6)
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(OrarioBoard.muted)
                 Spacer()
                 if !items.isEmpty {
                     Text("\(done) of \(items.count) done")
                         .font(.system(size: 11, weight: .medium))
                         .monospacedDigit()
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(OrarioBoard.muted)
                         .contentTransition(.numericText())
                 }
             }
@@ -279,9 +275,9 @@ private struct ScheduleSlotCard: View {
             }
         }
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
+        .background(RoundedRectangle(cornerRadius: 16).fill(OrarioBoard.column))
         .boardEdge(16)
-        .shadow(color: Board.shadow, radius: 10, y: 3)
+        .shadow(color: OrarioBoard.shadow, radius: 10, y: 3)
     }
 }
 
@@ -303,25 +299,25 @@ private struct ScheduleFold: View {
                 HStack(spacing: 8) {
                     Image(systemName: slot.symbol)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(OrarioBoard.muted)
                         .frame(width: 16)
                     Text(slot.label)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Board.ink)
+                        .foregroundStyle(OrarioBoard.ink)
                     Text("· " + summary(done: done, total: items.count))
                         .font(.system(size: 12))
                         .monospacedDigit()
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(OrarioBoard.muted)
                     Spacer(minLength: 6)
                     if !items.isEmpty && done == items.count {
                         Image(systemName: "checkmark")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(Board.accentInkStyle)
+                            .foregroundStyle(OrarioBoard.accentInkStyle)
                     }
                     if !items.isEmpty {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(Board.faint)
+                            .foregroundStyle(OrarioBoard.faint)
                             .rotationEffect(.degrees(open ? 90 : 0))
                     }
                 }
@@ -341,7 +337,7 @@ private struct ScheduleFold: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Board.column.opacity(0.6)))
+        .background(RoundedRectangle(cornerRadius: 14).fill(OrarioBoard.column.opacity(0.6)))
         .boardEdge(14)
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
@@ -366,7 +362,7 @@ private struct ScheduleChecklist: View {
                     item: item,
                     tagged: tagged,
                     tipOpen: tips.contains(item.id),
-                    toggle: { withAnimation(Board.glide) { store.toggle(item) } },
+                    toggle: { withAnimation(OrarioBoard.glide) { store.toggle(item) } },
                     flip: {
                         if tips.contains(item.id) { tips.remove(item.id) } else { tips.insert(item.id) }
                     }
@@ -383,7 +379,7 @@ private struct ScheduleRow: View {
     let toggle: () -> Void
     let flip: () -> Void
 
-    private var tint: Color { tagged ? Board.hue(item.routine.hue) : Board.accent }
+    private var tint: Color { tagged ? OrarioBoard.hue(item.routine.hue) : OrarioBoard.accent }
     private var tip: String { item.step.tip.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
@@ -392,12 +388,12 @@ private struct ScheduleRow: View {
                 Button(action: toggle) {
                     ZStack {
                         Circle()
-                            .strokeBorder(item.done ? Color.clear : Board.faint, lineWidth: 1.5)
+                            .strokeBorder(item.done ? Color.clear : OrarioBoard.faint, lineWidth: 1.5)
                         if item.done {
-                            Circle().fill(tagged ? AnyShapeStyle(tint) : Board.accentStyle)
+                            Circle().fill(tagged ? AnyShapeStyle(tint) : OrarioBoard.accentStyle)
                             Image(systemName: "checkmark")
                                 .font(.system(size: 9, weight: .heavy))
-                                .foregroundStyle(Board.theme.isDark ? Board.backdrop : .white)
+                                .foregroundStyle(OrarioBoard.theme.isDark ? OrarioBoard.backdrop : .white)
                                 .transition(.scale.combined(with: .opacity))
                         }
                     }
@@ -408,8 +404,8 @@ private struct ScheduleRow: View {
                 .help(item.done ? "Mark as not done" : "Mark as done")
                 ScheduleStepText.make(item.step.title)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(item.done ? Board.muted : Board.ink)
-                    .strikethrough(item.done, color: Board.faint)
+                    .foregroundStyle(item.done ? OrarioBoard.muted : OrarioBoard.ink)
+                    .strikethrough(item.done, color: OrarioBoard.faint)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
@@ -428,7 +424,7 @@ private struct ScheduleRow: View {
                     Button(action: flip) {
                         Image(systemName: "chevron.down")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(tipOpen ? Board.ink : Board.faint)
+                            .foregroundStyle(tipOpen ? OrarioBoard.ink : OrarioBoard.faint)
                             .rotationEffect(.degrees(tipOpen ? 180 : 0))
                             .frame(width: 20, height: 20)
                             .contentShape(Rectangle())
@@ -440,7 +436,7 @@ private struct ScheduleRow: View {
             if tipOpen && !tip.isEmpty {
                 Text(tip)
                     .font(.system(size: 12))
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(OrarioBoard.muted)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
@@ -461,14 +457,14 @@ private struct ScheduleProgress: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(Board.line.opacity(0.7))
+                Capsule().fill(OrarioBoard.line.opacity(0.7))
                 Capsule()
-                    .fill(Board.accentStyle)
+                    .fill(OrarioBoard.accentStyle)
                     .frame(width: total == 0 ? 0 : geo.size.width * CGFloat(done) / CGFloat(total))
             }
         }
         .frame(height: 3)
-        .animation(Board.glide, value: done)
+        .animation(OrarioBoard.glide, value: done)
     }
 }
 
@@ -484,14 +480,14 @@ private struct ScheduleMarkAll: View {
             if finished {
                 Label("All done", systemImage: "checkmark")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Board.accentInkStyle)
+                    .foregroundStyle(OrarioBoard.accentInkStyle)
             } else {
                 Button("Mark all done") {
-                    withAnimation(Board.glide) { store.setAll(on: day, slot: slot, done: true) }
+                    withAnimation(OrarioBoard.glide) { store.setAll(on: day, slot: slot, done: true) }
                 }
                 .buttonStyle(.plain)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Board.accentInkStyle)
+                .foregroundStyle(OrarioBoard.accentInkStyle)
             }
         }
     }
@@ -504,14 +500,14 @@ private struct ScheduleQuietSlot: View {
         VStack(spacing: 6) {
             Image(systemName: slot.symbol)
                 .font(.system(size: 20, weight: .light))
-                .foregroundStyle(Board.faint)
+                .foregroundStyle(OrarioBoard.faint)
                 .padding(.bottom, 4)
             Text(slot == .morning ? "Nothing this morning" : "Nothing tonight")
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Board.ink)
+                .foregroundStyle(OrarioBoard.ink)
             Text(slot == .morning ? "A free start to the day. Take it slow." : "Nothing to do but rest.")
                 .font(.system(size: 12))
-                .foregroundStyle(Board.muted)
+                .foregroundStyle(OrarioBoard.muted)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 26)
@@ -526,22 +522,22 @@ private struct ScheduleNoRoutines: View {
             Spacer()
             Image(systemName: "sun.horizon")
                 .font(.system(size: 28, weight: .light))
-                .foregroundStyle(Board.faint)
+                .foregroundStyle(OrarioBoard.faint)
                 .padding(.bottom, 4)
             Text("No routines yet")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Board.ink)
+                .foregroundStyle(OrarioBoard.ink)
             Text("Plan a week of mornings and nights on the board.")
                 .font(.system(size: 12))
-                .foregroundStyle(Board.muted)
+                .foregroundStyle(OrarioBoard.muted)
                 .multilineTextAlignment(.center)
             Button(action: openBoard) {
                 Text("Open the board")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Board.theme.isDark ? Board.backdrop : .white)
+                    .foregroundStyle(OrarioBoard.theme.isDark ? OrarioBoard.backdrop : .white)
                     .padding(.horizontal, 16)
                     .frame(height: 30)
-                    .background(Capsule().fill(Board.accentStyle))
+                    .background(Capsule().fill(OrarioBoard.accentStyle))
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
@@ -562,7 +558,7 @@ private struct ScheduleTallyLine: View {
         Text("\(tally.done) \(tally.done == 1 ? "day" : "days") done · \(missed) missed since \(Self.start(store.firstDay))")
             .font(.system(size: 11, weight: .medium))
             .monospacedDigit()
-            .foregroundStyle(Board.muted)
+            .foregroundStyle(OrarioBoard.muted)
             .frame(maxWidth: .infinity)
     }
 

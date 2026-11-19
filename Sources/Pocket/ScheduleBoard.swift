@@ -34,9 +34,9 @@ final class ScheduleBoardWindow: NSObject, NSWindowDelegate {
         window.title = "Orario"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.appearance = Board.theme.appearance
-        window.backgroundColor = NSColor(Board.backdrop)
-        themeWatch = BoardThemeStore.shared.$theme.sink { [weak window] theme in
+        window.appearance = OrarioBoard.theme.appearance
+        window.backgroundColor = NSColor(OrarioBoard.backdrop)
+        themeWatch = AppThemeStore.shared.publisher(for: "schedule").sink { [weak window] theme in
             window?.appearance = theme.appearance
             window?.backgroundColor = NSColor(theme.backdrop)
         }
@@ -148,13 +148,13 @@ private struct ScheduleSectionTitle: View {
         Text(text)
             .font(.system(size: 10, weight: .semibold))
             .tracking(1.6)
-            .foregroundStyle(Board.muted)
+            .foregroundStyle(OrarioBoard.muted)
     }
 }
 
 private struct ScheduleHairline: View {
     var body: some View {
-        Rectangle().fill(Board.line).frame(height: 1)
+        Rectangle().fill(OrarioBoard.line).frame(height: 1)
     }
 }
 
@@ -180,15 +180,15 @@ private struct ScheduleStatusDot: View {
         ZStack {
             switch status {
             case .done:
-                Circle().fill(Board.accentStyle)
+                Circle().fill(OrarioBoard.accentStyle)
             case .partial:
                 half
             case .open(let done, _):
-                if done > 0 { half } else { Circle().stroke(Board.faint, lineWidth: 1) }
+                if done > 0 { half } else { Circle().stroke(OrarioBoard.faint, lineWidth: 1) }
             case .missed:
                 Circle().stroke(Color.red.opacity(0.55), lineWidth: 1.5)
             case .upcoming, .rest:
-                Circle().fill(Board.faint.opacity(0.45))
+                Circle().fill(OrarioBoard.faint.opacity(0.45))
             case .before:
                 Circle().fill(Color.clear)
             }
@@ -198,8 +198,8 @@ private struct ScheduleStatusDot: View {
 
     private var half: some View {
         ZStack {
-            Circle().stroke(Board.accent, lineWidth: 1)
-            ScheduleHalf(left: true).fill(Board.accentStyle)
+            Circle().stroke(OrarioBoard.accent, lineWidth: 1)
+            ScheduleHalf(left: true).fill(OrarioBoard.accentStyle)
         }
     }
 }
@@ -222,15 +222,15 @@ private struct ScheduleSplitMark: View {
         let shape = ScheduleHalf(left: left)
         switch status {
         case .done:
-            shape.fill(Board.accentStyle).frame(width: size, height: size)
+            shape.fill(OrarioBoard.accentStyle).frame(width: size, height: size)
         case .partial:
-            shape.fill(Board.accent.opacity(0.45)).frame(width: size, height: size)
+            shape.fill(OrarioBoard.accent.opacity(0.45)).frame(width: size, height: size)
         case .missed:
             shape.fill(Color.red.opacity(0.55)).frame(width: size, height: size)
         case .open, .upcoming:
-            shape.stroke(Board.faint, lineWidth: 1).frame(width: size - 1, height: size - 1)
+            shape.stroke(OrarioBoard.faint, lineWidth: 1).frame(width: size - 1, height: size - 1)
         case .rest:
-            Capsule().fill(Board.faint).frame(width: size * 0.3, height: 1.5).offset(x: left ? -size * 0.22 : size * 0.22)
+            Capsule().fill(OrarioBoard.faint).frame(width: size * 0.3, height: 1.5).offset(x: left ? -size * 0.22 : size * 0.22)
                 .frame(width: size, height: size)
         case .before:
             Color.clear.frame(width: size, height: size)
@@ -247,7 +247,7 @@ private struct ScheduleGlass<Content: View>: View {
         } else {
             content
                 .background(Capsule().fill(.ultraThinMaterial))
-                .overlay(Capsule().strokeBorder(Board.line, lineWidth: 1))
+                .overlay(Capsule().strokeBorder(OrarioBoard.line, lineWidth: 1))
         }
     }
 }
@@ -265,18 +265,18 @@ private struct ScheduleModeToggle: View {
                     Button {
                         guard mode != value else { return }
                         note("schedule board view mode=\(value)")
-                        withAnimation(Board.glide) { mode = value }
+                        withAnimation(OrarioBoard.glide) { mode = value }
                     } label: {
                         Text(title)
                             .font(.system(size: 17, weight: .bold))
-                            .foregroundStyle(mode == value ? Board.ink : Board.muted.opacity(0.7))
+                            .foregroundStyle(mode == value ? OrarioBoard.ink : OrarioBoard.muted.opacity(0.7))
                             .padding(.horizontal, 16)
                             .frame(height: 34)
                             .background {
                                 if mode == value {
                                     Capsule()
-                                        .fill(Board.theme.pill)
-                                        .shadow(color: Board.shadow, radius: 4, y: 1)
+                                        .fill(OrarioBoard.theme.pill)
+                                        .shadow(color: OrarioBoard.shadow, radius: 4, y: 1)
                                         .matchedGeometryEffect(id: "pill", in: pill)
                                 }
                             }
@@ -328,12 +328,12 @@ private struct ScheduleRoutinePicker: View {
                 if named {
                     Text(store.filterName)
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(Board.ink)
+                        .foregroundStyle(OrarioBoard.ink)
                         .lineLimit(1)
                 }
                 Image(systemName: "chevron.down")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(OrarioBoard.muted)
             }
             .padding(.horizontal, 14)
             .frame(height: 34)
@@ -343,13 +343,13 @@ private struct ScheduleRoutinePicker: View {
     }
 
     private var dots: some View {
-        let tints = store.shown.prefix(3).map { Board.hue($0.hue) }
+        let tints = store.shown.prefix(3).map { OrarioBoard.hue($0.hue) }
         return HStack(spacing: -3) {
             if tints.isEmpty {
-                Circle().fill(Board.faint).frame(width: 8, height: 8)
+                Circle().fill(OrarioBoard.faint).frame(width: 8, height: 8)
             }
             ForEach(Array(tints.enumerated()), id: \.offset) { _, tint in
-                Circle().fill(tint).frame(width: 8, height: 8).overlay(Circle().stroke(Board.column, lineWidth: 1))
+                Circle().fill(tint).frame(width: 8, height: 8).overlay(Circle().stroke(OrarioBoard.column, lineWidth: 1))
             }
         }
     }
@@ -364,7 +364,7 @@ private struct ScheduleCircleButton: View {
     var body: some View {
         let icon = Image(systemName: symbol)
             .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(on ? Board.accentInkStyle : AnyShapeStyle(Board.muted))
+            .foregroundStyle(on ? OrarioBoard.accentInkStyle : AnyShapeStyle(OrarioBoard.muted))
             .frame(width: 40, height: 40)
             .contentShape(Circle())
         Button(action: action) {
@@ -373,7 +373,7 @@ private struct ScheduleCircleButton: View {
             } else {
                 icon
                     .background(Circle().fill(.ultraThinMaterial))
-                    .overlay(Circle().strokeBorder(Board.line, lineWidth: 1))
+                    .overlay(Circle().strokeBorder(OrarioBoard.line, lineWidth: 1))
             }
         }
         .buttonStyle(.plain)
@@ -393,18 +393,18 @@ private struct ScheduleSidebarRow: View {
             HStack(spacing: 8) {
                 Image(systemName: symbol)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(on ? Board.accentInkStyle : AnyShapeStyle(Board.muted))
+                    .foregroundStyle(on ? OrarioBoard.accentInkStyle : AnyShapeStyle(OrarioBoard.muted))
                     .frame(width: 18)
                 Text(title)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Board.ink)
+                    .foregroundStyle(OrarioBoard.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 8)
             .frame(height: 34)
-            .background(RoundedRectangle(cornerRadius: 10).fill(on || hover ? Board.column : Color.clear))
+            .background(RoundedRectangle(cornerRadius: 10).fill(on || hover ? OrarioBoard.column : Color.clear))
             .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
@@ -429,7 +429,7 @@ private struct ScheduleSidebar: View {
         .scrollIndicators(.never)
         .frame(width: 220, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Board.sidebar)
+        .background(OrarioBoard.sidebar)
     }
 
     private var todayCard: some View {
@@ -440,10 +440,10 @@ private struct ScheduleSidebar: View {
             HStack(spacing: 8) {
                 Image(systemName: slot.symbol)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Board.accentInkStyle)
+                    .foregroundStyle(OrarioBoard.accentInkStyle)
                 Text(slot.label)
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(Board.ink)
+                    .foregroundStyle(OrarioBoard.ink)
             }
             ScheduleHairline()
             if items.isEmpty {
@@ -451,7 +451,7 @@ private struct ScheduleSidebar: View {
             } else if done == items.count {
                 Text("All done for now!")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(Board.accentInkStyle)
+                    .foregroundStyle(OrarioBoard.accentInkStyle)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             } else {
@@ -479,7 +479,7 @@ private struct ScheduleSidebar: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
+                .background(RoundedRectangle(cornerRadius: 16).fill(OrarioBoard.column))
                 .boardEdge(16)
         }
         .padding(.top, 4)
@@ -490,12 +490,12 @@ private struct ScheduleSidebar: View {
             Text(value)
                 .font(.system(size: size, weight: .bold))
                 .monospacedDigit()
-                .foregroundStyle(accent ? Board.accentInkStyle : AnyShapeStyle(Board.ink))
+                .foregroundStyle(accent ? OrarioBoard.accentInkStyle : AnyShapeStyle(OrarioBoard.ink))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(caption)
                 .font(.system(size: 11))
-                .foregroundStyle(Board.muted)
+                .foregroundStyle(OrarioBoard.muted)
         }
     }
 }
@@ -510,7 +510,7 @@ private struct ScheduleWeekStrip: View {
             HStack(spacing: 10) {
                 Text(ScheduleBoardDates.weekRange(start))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(OrarioBoard.muted)
                     .monospacedDigit()
                 Spacer()
                 ScheduleWeekNav(store: store, focus: focus)
@@ -529,7 +529,7 @@ private struct ScheduleWeekStrip: View {
         let today = day == store.today
         return Button {
             if focus.span == .week { note("schedule board span=day day=\(day) from=week") }
-            withAnimation(Board.glide) {
+            withAnimation(OrarioBoard.glide) {
                 focus.selected = day
                 focus.span = .day
             }
@@ -538,21 +538,21 @@ private struct ScheduleWeekStrip: View {
                 Text(ScheduleDays.short(ScheduleDays.weekday(day)).uppercased())
                     .font(.system(size: 10, weight: .semibold))
                     .tracking(1)
-                    .foregroundStyle(selected ? Board.ink : Board.muted)
+                    .foregroundStyle(selected ? OrarioBoard.ink : OrarioBoard.muted)
                 Text(ScheduleBoardDates.number(day))
                     .font(.system(size: 17, weight: .bold))
                     .monospacedDigit()
-                    .foregroundStyle(today ? Board.accentInkStyle : AnyShapeStyle(Board.ink))
+                    .foregroundStyle(today ? OrarioBoard.accentInkStyle : AnyShapeStyle(OrarioBoard.ink))
                 ScheduleStatusDot(status: store.status(on: day))
             }
             .frame(maxWidth: .infinity)
             .frame(height: 66)
             .background {
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(selected ? Board.theme.pill : Board.column)
-                    .shadow(color: selected ? Board.shadow : .clear, radius: 5, y: 2)
+                    .fill(selected ? OrarioBoard.theme.pill : OrarioBoard.column)
+                    .shadow(color: selected ? OrarioBoard.shadow : .clear, radius: 5, y: 2)
             }
-            .boardEdge(14, color: today ? Board.accent : Board.line, width: today ? 1.5 : 1)
+            .boardEdge(14, color: today ? OrarioBoard.accent : OrarioBoard.line, width: today ? 1.5 : 1)
             .opacity(before ? 0.4 : 1)
             .contentShape(RoundedRectangle(cornerRadius: 14))
         }
@@ -577,17 +577,17 @@ private struct ScheduleWeekNav: View {
     }
 
     private func move(to day: String) {
-        withAnimation(Board.glide) { focus.selected = day }
+        withAnimation(OrarioBoard.glide) { focus.selected = day }
     }
 
     private func chevron(_ symbol: String, enabled: Bool, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(enabled ? Board.ink : Board.faint)
+                .foregroundStyle(enabled ? OrarioBoard.ink : OrarioBoard.faint)
                 .frame(width: 26, height: 26)
-                .background(Circle().fill(Board.column))
-                .overlay(Circle().stroke(Board.line, lineWidth: 1))
+                .background(Circle().fill(OrarioBoard.column))
+                .overlay(Circle().stroke(OrarioBoard.line, lineWidth: 1))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -610,7 +610,7 @@ private struct ScheduleSlotCard: View {
             if items.isEmpty {
                 Text(day < store.firstDay ? "The schedule hasn't started yet" : "Nothing planned. A rest.")
                     .font(.system(size: 12))
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(OrarioBoard.muted)
                     .padding(.vertical, 6)
             } else {
                 VStack(alignment: .leading, spacing: 18) {
@@ -618,10 +618,10 @@ private struct ScheduleSlotCard: View {
                         VStack(alignment: .leading, spacing: 12) {
                             if store.filter == nil {
                                 HStack(spacing: 7) {
-                                    Circle().fill(Board.hue(group.routine.hue)).frame(width: 7, height: 7)
+                                    Circle().fill(OrarioBoard.hue(group.routine.hue)).frame(width: 7, height: 7)
                                     Text(group.routine.name)
                                         .font(.system(size: 11, weight: .semibold))
-                                        .foregroundStyle(Board.muted)
+                                        .foregroundStyle(OrarioBoard.muted)
                                 }
                             }
                             ForEach(group.items) { item in
@@ -637,10 +637,10 @@ private struct ScheduleSlotCard: View {
                     } label: {
                         Label(all ? "Undo all" : "Mark all done", systemImage: all ? "arrow.uturn.backward" : "checkmark.circle")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(all ? AnyShapeStyle(Board.muted) : Board.accentInkStyle)
+                            .foregroundStyle(all ? AnyShapeStyle(OrarioBoard.muted) : OrarioBoard.accentInkStyle)
                             .padding(.horizontal, 12)
                             .frame(height: 28)
-                            .background(Capsule().fill(Board.accent.opacity(all ? 0.06 : 0.14)))
+                            .background(Capsule().fill(OrarioBoard.accent.opacity(all ? 0.06 : 0.14)))
                             .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -649,32 +649,32 @@ private struct ScheduleSlotCard: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
-        .boardEdge(16, color: now ? Board.accent.opacity(0.7) : Board.line)
+        .background(RoundedRectangle(cornerRadius: 16).fill(OrarioBoard.column))
+        .boardEdge(16, color: now ? OrarioBoard.accent.opacity(0.7) : OrarioBoard.line)
     }
 
     private func header(done: Int, total: Int, now: Bool) -> some View {
         HStack(spacing: 8) {
             Image(systemName: slot.symbol)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Board.accentInkStyle)
+                .foregroundStyle(OrarioBoard.accentInkStyle)
             Text(slot.label)
                 .font(.system(size: 16, weight: .bold))
-                .foregroundStyle(Board.ink)
+                .foregroundStyle(OrarioBoard.ink)
             if now {
                 Text("Now")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Board.accentInkStyle)
+                    .foregroundStyle(OrarioBoard.accentInkStyle)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(Board.accent.opacity(0.15)))
+                    .background(Capsule().fill(OrarioBoard.accent.opacity(0.15)))
             }
             Spacer(minLength: 4)
             if total > 0 {
                 Text("\(done)/\(total)")
                     .font(.system(size: 12, weight: .semibold))
                     .monospacedDigit()
-                    .foregroundStyle(done == total ? Board.accentInkStyle : AnyShapeStyle(Board.muted))
+                    .foregroundStyle(done == total ? OrarioBoard.accentInkStyle : AnyShapeStyle(OrarioBoard.muted))
             }
         }
     }
@@ -693,19 +693,19 @@ private struct ScheduleSlotCard: View {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: item.done ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 16))
-                    .foregroundStyle(item.done ? Board.accentInkStyle : AnyShapeStyle(Board.faint))
+                    .foregroundStyle(item.done ? OrarioBoard.accentInkStyle : AnyShapeStyle(OrarioBoard.faint))
                     .padding(.top, 1)
                 VStack(alignment: .leading, spacing: 4) {
                     ScheduleStepText.make(item.step.title)
                         .font(.system(size: 13.5, weight: .medium))
-                        .foregroundStyle(item.done ? Board.muted : Board.ink)
-                        .strikethrough(item.done, color: Board.faint)
+                        .foregroundStyle(item.done ? OrarioBoard.muted : OrarioBoard.ink)
+                        .strikethrough(item.done, color: OrarioBoard.faint)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                     if !item.step.tip.isEmpty {
                         Text(item.step.tip)
                             .font(.system(size: 12))
-                            .foregroundStyle(Board.muted)
+                            .foregroundStyle(OrarioBoard.muted)
                             .multilineTextAlignment(.leading)
                             .lineSpacing(2)
                             .fixedSize(horizontal: false, vertical: true)
@@ -745,16 +745,16 @@ private struct ScheduleProductsCard: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 ScheduleStepText.make(product.title)
                                     .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(Board.ink)
+                                    .foregroundStyle(OrarioBoard.ink)
                                 Text(when(product))
                                     .font(.system(size: 11.5))
-                                    .foregroundStyle(Board.muted)
+                                    .foregroundStyle(OrarioBoard.muted)
                             }
                             Spacer(minLength: 8)
                             Text("\(product.times)×")
                                 .font(.system(size: 13, weight: .semibold))
                                 .monospacedDigit()
-                                .foregroundStyle(Board.accentInkStyle)
+                                .foregroundStyle(OrarioBoard.accentInkStyle)
                         }
                         .padding(.vertical, 9)
                     }
@@ -762,7 +762,7 @@ private struct ScheduleProductsCard: View {
             }
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 16).fill(Board.column.opacity(0.55)))
+            .background(RoundedRectangle(cornerRadius: 16).fill(OrarioBoard.column.opacity(0.55)))
             .boardEdge(16)
         }
     }
@@ -872,8 +872,8 @@ private struct ScheduleSpanToggle: View {
             option("This week", .week)
         }
         .padding(3)
-        .background(Capsule().fill(Board.column))
-        .overlay(Capsule().strokeBorder(Board.line, lineWidth: 1))
+        .background(Capsule().fill(OrarioBoard.column))
+        .overlay(Capsule().strokeBorder(OrarioBoard.line, lineWidth: 1))
         .fixedSize()
     }
 
@@ -881,21 +881,21 @@ private struct ScheduleSpanToggle: View {
         let on = focus.span == span
         return Button {
             note("schedule board span=\(span.rawValue) day=\(store.today) from=\(focus.span.rawValue)")
-            withAnimation(Board.glide) {
+            withAnimation(OrarioBoard.glide) {
                 focus.span = span
                 focus.selected = store.today
             }
         } label: {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(on ? Board.ink : Board.muted)
+                .foregroundStyle(on ? OrarioBoard.ink : OrarioBoard.muted)
                 .padding(.horizontal, 12)
                 .frame(height: 26)
                 .background {
                     if on {
                         Capsule()
-                            .fill(Board.theme.pill)
-                            .shadow(color: Board.shadow, radius: 3, y: 1)
+                            .fill(OrarioBoard.theme.pill)
+                            .shadow(color: OrarioBoard.shadow, radius: 3, y: 1)
                             .matchedGeometryEffect(id: "span", in: pill)
                     }
                 }
@@ -929,8 +929,8 @@ private struct ScheduleWeekGrid: View {
                     }
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(Board.column.opacity(0.55)))
-                    .boardEdge(14, color: day == store.today ? Board.accent.opacity(0.7) : Board.line)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(OrarioBoard.column.opacity(0.55)))
+                    .boardEdge(14, color: day == store.today ? OrarioBoard.accent.opacity(0.7) : OrarioBoard.line)
                     .opacity(day < store.firstDay ? 0.4 : 1)
                 }
             }
@@ -944,8 +944,8 @@ private struct ScheduleWeekGrid: View {
                         }
                     }
                     .padding(12)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(Board.column.opacity(0.55)))
-                    .boardEdge(14, color: day == store.today ? Board.accent.opacity(0.7) : Board.line)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(OrarioBoard.column.opacity(0.55)))
+                    .boardEdge(14, color: day == store.today ? OrarioBoard.accent.opacity(0.7) : OrarioBoard.line)
                     .opacity(day < store.firstDay ? 0.4 : 1)
                 }
             }
@@ -957,7 +957,7 @@ private struct ScheduleWeekGrid: View {
         let before = day < store.firstDay
         return Button {
             note("schedule board span=day day=\(day) from=week")
-            withAnimation(Board.glide) {
+            withAnimation(OrarioBoard.glide) {
                 focus.selected = day
                 focus.span = .day
             }
@@ -966,11 +966,11 @@ private struct ScheduleWeekGrid: View {
                 Text(ScheduleDays.short(ScheduleDays.weekday(day)).uppercased())
                     .font(.system(size: 10, weight: .semibold))
                     .tracking(1)
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(OrarioBoard.muted)
                 Text(ScheduleBoardDates.number(day))
                     .font(.system(size: 17, weight: .bold))
                     .monospacedDigit()
-                    .foregroundStyle(today ? Board.accentInkStyle : AnyShapeStyle(Board.ink))
+                    .foregroundStyle(today ? OrarioBoard.accentInkStyle : AnyShapeStyle(OrarioBoard.ink))
             }
             .padding(.leading, 2)
             .contentShape(Rectangle())
@@ -992,12 +992,12 @@ private struct ScheduleWeekGrid: View {
         return VStack(alignment: .leading, spacing: 5) {
             Image(systemName: slot.symbol)
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(Board.muted)
+                .foregroundStyle(OrarioBoard.muted)
                 .help(slot.label)
             if items.isEmpty {
                 Text("—")
                     .font(.system(size: 11))
-                    .foregroundStyle(Board.faint)
+                    .foregroundStyle(OrarioBoard.faint)
             }
             ForEach(items) { item in
                 event(item, missed: lapsed && !item.done)
@@ -1012,11 +1012,11 @@ private struct ScheduleWeekGrid: View {
         } label: {
             HStack(alignment: .top, spacing: 5) {
                 if store.filter == nil && store.shown.count > 1 {
-                    Circle().fill(Board.hue(item.routine.hue)).frame(width: 5, height: 5).padding(.top, 5)
+                    Circle().fill(OrarioBoard.hue(item.routine.hue)).frame(width: 5, height: 5).padding(.top, 5)
                 }
                 ScheduleStepText.make(item.step.title)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Board.ink.opacity(item.done ? 0.75 : 0.95))
+                    .foregroundStyle(OrarioBoard.ink.opacity(item.done ? 0.75 : 0.95))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
@@ -1024,8 +1024,8 @@ private struct ScheduleWeekGrid: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 5)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 8).fill(item.done ? ScheduleTint.done : missed ? ScheduleTint.missed : Board.column))
-            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(item.done || missed ? Color.clear : Board.line, lineWidth: 1))
+            .background(RoundedRectangle(cornerRadius: 8).fill(item.done ? ScheduleTint.done : missed ? ScheduleTint.missed : OrarioBoard.column))
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(item.done || missed ? Color.clear : OrarioBoard.line, lineWidth: 1))
             .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
@@ -1067,8 +1067,8 @@ private struct ScheduleDayView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 4)
                 .padding(.bottom, 24)
-                .animation(Board.glide, value: narrow)
-                .animation(Board.glide, value: focus.span)
+                .animation(OrarioBoard.glide, value: narrow)
+                .animation(OrarioBoard.glide, value: focus.span)
             }
             .scrollIndicators(.automatic)
             .background(ScheduleSwipeCatcher(back: { shiftWeek(-1) }, forward: { shiftWeek(1) }))
@@ -1088,7 +1088,7 @@ private struct ScheduleDayView: View {
             target = ScheduleDays.shift(focus.selected, by: 7)
         }
         note("schedule board swiped span=\(focus.span.rawValue) from=\(focus.selected) to=\(target)")
-        withAnimation(Board.glide) { focus.selected = target }
+        withAnimation(OrarioBoard.glide) { focus.selected = target }
     }
 
     private var title: some View {
@@ -1096,7 +1096,7 @@ private struct ScheduleDayView: View {
         return HStack(alignment: .center, spacing: 12) {
             Text(focus.span == .week ? ScheduleBoardDates.weekRange(ScheduleBoardDates.weekStart(day)) : ScheduleBoardDates.dayTitle(day))
                 .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(Board.ink)
+                .foregroundStyle(OrarioBoard.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             ScheduleSpanToggle(store: store, focus: focus)
@@ -1134,13 +1134,13 @@ private struct ScheduleCalendarView: View {
                 HStack(spacing: 10) {
                     Text(ScheduleBoardDates.monthTitle(month))
                         .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(Board.ink)
+                        .foregroundStyle(OrarioBoard.ink)
                     Spacer()
                     if month != ScheduleBoardDates.monthStart(store.today) {
                         Button("This month") { go(ScheduleBoardDates.monthStart(store.today)) }
                             .buttonStyle(.plain)
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Board.accentInkStyle)
+                            .foregroundStyle(OrarioBoard.accentInkStyle)
                     }
                     chevron("chevron.left", enabled: month > low) { go(ScheduleBoardDates.monthShift(month, by: -1)) }
                     chevron("chevron.right", enabled: month < high) { go(ScheduleBoardDates.monthShift(month, by: 1)) }
@@ -1148,14 +1148,14 @@ private struct ScheduleCalendarView: View {
                 Text("\(tally.done) done · \(tally.missed + tally.partial) missed")
                     .font(.system(size: 12, weight: .medium))
                     .monospacedDigit()
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(OrarioBoard.muted)
                 VStack(spacing: 8) {
                     HStack(spacing: 8) {
                         ForEach(ScheduleDays.weekOrder, id: \.self) { weekday in
                             Text(ScheduleDays.short(weekday).uppercased())
                                 .font(.system(size: 10, weight: .semibold))
                                 .tracking(1.2)
-                                .foregroundStyle(Board.muted)
+                                .foregroundStyle(OrarioBoard.muted)
                                 .frame(maxWidth: .infinity)
                         }
                     }
@@ -1191,17 +1191,17 @@ private struct ScheduleCalendarView: View {
     }
 
     private func go(_ target: String) {
-        withAnimation(Board.glide) { month = target }
+        withAnimation(OrarioBoard.glide) { month = target }
     }
 
     private func chevron(_ symbol: String, enabled: Bool, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(enabled ? Board.ink : Board.faint)
+                .foregroundStyle(enabled ? OrarioBoard.ink : OrarioBoard.faint)
                 .frame(width: 26, height: 26)
-                .background(Circle().fill(Board.column))
-                .overlay(Circle().stroke(Board.line, lineWidth: 1))
+                .background(Circle().fill(OrarioBoard.column))
+                .overlay(Circle().stroke(OrarioBoard.line, lineWidth: 1))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -1218,7 +1218,7 @@ private struct ScheduleCalendarView: View {
                 Text(ScheduleBoardDates.number(day))
                     .font(.system(size: 13, weight: .semibold))
                     .monospacedDigit()
-                    .foregroundStyle(today ? Board.accentInkStyle : AnyShapeStyle(Board.ink))
+                    .foregroundStyle(today ? OrarioBoard.accentInkStyle : AnyShapeStyle(OrarioBoard.ink))
                 Spacer(minLength: 0)
                 if day <= store.today {
                     HStack {
@@ -1230,8 +1230,8 @@ private struct ScheduleCalendarView: View {
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: 68)
-            .background(RoundedRectangle(cornerRadius: 14).fill(Board.column.opacity(before ? 0.5 : 1)))
-            .boardEdge(14, color: today ? Board.accent : Board.line, width: today ? 1.5 : 1)
+            .background(RoundedRectangle(cornerRadius: 14).fill(OrarioBoard.column.opacity(before ? 0.5 : 1)))
+            .boardEdge(14, color: today ? OrarioBoard.accent : OrarioBoard.line, width: today ? 1.5 : 1)
             .opacity(before ? 0.4 : 1)
             .contentShape(RoundedRectangle(cornerRadius: 14))
         }
@@ -1251,7 +1251,7 @@ private struct ScheduleHourRow: View {
         HStack(spacing: 8) {
             Text(title)
                 .font(.system(size: 12))
-                .foregroundStyle(Board.muted)
+                .foregroundStyle(OrarioBoard.muted)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
             Spacer(minLength: 4)
@@ -1259,7 +1259,7 @@ private struct ScheduleHourRow: View {
             Text(ScheduleBoardDates.hour(value))
                 .font(.system(size: 16, weight: .bold))
                 .monospacedDigit()
-                .foregroundStyle(Board.ink)
+                .foregroundStyle(OrarioBoard.ink)
                 .frame(width: 56)
             step("plus", 1)
         }
@@ -1272,10 +1272,10 @@ private struct ScheduleHourRow: View {
         } label: {
             Image(systemName: symbol)
                 .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(target == value ? Board.faint : Board.ink)
+                .foregroundStyle(target == value ? OrarioBoard.faint : OrarioBoard.ink)
                 .frame(width: 24, height: 24)
-                .background(Circle().fill(Board.column))
-                .overlay(Circle().stroke(Board.line, lineWidth: 1))
+                .background(Circle().fill(OrarioBoard.column))
+                .overlay(Circle().stroke(OrarioBoard.line, lineWidth: 1))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -1302,13 +1302,13 @@ private struct ScheduleBackupSection: View {
                     Button("Bring them in") { vault.bringIn() }
                         .buttonStyle(.plain)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Board.accentInkStyle)
+                        .foregroundStyle(OrarioBoard.accentInkStyle)
                         .help("Adds what's on GitHub to this Mac, keeping everything here too")
                     Spacer()
                     Button("Keep this Mac's") { confirmKeep() }
                         .buttonStyle(.plain)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(OrarioBoard.muted)
                 }
             }
             HStack(spacing: 8) {
@@ -1321,17 +1321,17 @@ private struct ScheduleBackupSection: View {
                         }
                     }
                 } label: {
-                    Text("Restore…").font(.system(size: 12, weight: .medium)).foregroundStyle(Board.ink)
+                    Text("Restore…").font(.system(size: 12, weight: .medium)).foregroundStyle(OrarioBoard.ink)
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
-                .foregroundStyle(Board.ink)
-                .tint(Board.ink)
+                .foregroundStyle(OrarioBoard.ink)
+                .tint(OrarioBoard.ink)
                 Spacer()
                 Button("Show backups") { vault.showInFinder() }
                     .buttonStyle(.plain)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(OrarioBoard.muted)
             }
         }
     }
@@ -1342,9 +1342,9 @@ private struct ScheduleBackupSection: View {
 
     private func line(_ title: String, _ value: String, warn: Bool = false) -> some View {
         HStack {
-            Text(title).font(.system(size: 12)).foregroundStyle(Board.muted)
+            Text(title).font(.system(size: 12)).foregroundStyle(OrarioBoard.muted)
             Spacer()
-            Text(value).font(.system(size: 12, weight: .medium)).foregroundStyle(warn ? Color.red.opacity(0.8) : Board.ink).lineLimit(1)
+            Text(value).font(.system(size: 12, weight: .medium)).foregroundStyle(warn ? Color.red.opacity(0.8) : OrarioBoard.ink).lineLimit(1)
         }
     }
 
@@ -1381,7 +1381,7 @@ private struct ScheduleBackupSection: View {
 
 private struct SchedulePrefsPanel: View {
     @ObservedObject var store: ScheduleStore
-    @ObservedObject var themes: BoardThemeStore
+    @ObservedObject var themes: AppThemeStore
     let edit: () -> Void
     let close: () -> Void
 
@@ -1391,15 +1391,15 @@ private struct SchedulePrefsPanel: View {
                 HStack {
                     Text("Preferences")
                         .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(Board.ink)
+                        .foregroundStyle(OrarioBoard.ink)
                     Spacer()
                     Button(action: close) {
                         Image(systemName: "xmark")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(Board.muted)
+                            .foregroundStyle(OrarioBoard.muted)
                             .frame(width: 26, height: 26)
-                            .background(Circle().fill(Board.column))
-                            .overlay(Circle().stroke(Board.line, lineWidth: 1))
+                            .background(Circle().fill(OrarioBoard.column))
+                            .overlay(Circle().stroke(OrarioBoard.line, lineWidth: 1))
                             .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
@@ -1413,11 +1413,11 @@ private struct SchedulePrefsPanel: View {
                 }
                 Text("Morning runs from \(ScheduleBoardDates.hour(store.book.dayFrom)); a day ends at \(ScheduleBoardDates.hour(store.book.dayFrom)) the next morning.")
                     .font(.system(size: 11))
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(OrarioBoard.muted)
                     .fixedSize(horizontal: false, vertical: true)
                 ScheduleHairline().padding(.vertical, 4)
                 ScheduleSectionTitle(text: "THEME")
-                ThemeLinkRow(source: "schedule")
+                ThemeLinkRow(app: "schedule")
                 ScheduleHairline().padding(.vertical, 4)
                 ScheduleBackupSection(store: store)
             }
@@ -1428,14 +1428,14 @@ private struct SchedulePrefsPanel: View {
         .scrollIndicators(.never)
         .frame(width: 280, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Board.theme.panel)
+        .background(OrarioBoard.theme.panel)
     }
 }
 
 private struct ScheduleBoardView: View {
     @ObservedObject var store: ScheduleStore
     @ObservedObject var focus: ScheduleBoardFocus
-    @ObservedObject var themes = BoardThemeStore.shared
+    @ObservedObject var themes = AppThemeStore.shared
     @AppStorage("schedule.board.stats") private var showStats = true
     @AppStorage("schedule.board.panel") private var showPanel = false
     @AppStorage(ScheduleBoardMode.key) private var mode = ScheduleBoardMode.schedule
@@ -1447,7 +1447,7 @@ private struct ScheduleBoardView: View {
                 if showStats {
                     HStack(spacing: 0) {
                         ScheduleSidebar(store: store)
-                        Rectangle().fill(Board.line).frame(width: 1)
+                        Rectangle().fill(OrarioBoard.line).frame(width: 1)
                     }
                     .transition(.move(edge: .leading).combined(with: .opacity))
                 }
@@ -1467,24 +1467,24 @@ private struct ScheduleBoardView: View {
                 }
                 if showPanel {
                     HStack(spacing: 0) {
-                        Rectangle().fill(Board.line).frame(width: 1)
+                        Rectangle().fill(OrarioBoard.line).frame(width: 1)
                         SchedulePrefsPanel(store: store, themes: themes, edit: openEditor) {
                             note("schedule board preferences open=false")
-                            withAnimation(Board.glide) { showPanel = false }
+                            withAnimation(OrarioBoard.glide) { showPanel = false }
                         }
                     }
                     .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
             if editing {
-                Color.black.opacity(themes.theme.isDark ? 0.4 : 0.18)
+                Color.black.opacity(OrarioBoard.theme.isDark ? 0.4 : 0.18)
                     .ignoresSafeArea()
                     .transition(.opacity)
                 GeometryReader { geo in
                     ScheduleEditorOverlay(store: store, close: closeEditor)
                         .frame(width: geo.size.width * 0.88, height: geo.size.height * 0.88)
                         .clipShape(RoundedRectangle(cornerRadius: 18))
-                        .background(RoundedRectangle(cornerRadius: 18).fill(Board.theme.panel).shadow(color: Board.shadow, radius: 30, y: 12))
+                        .background(RoundedRectangle(cornerRadius: 18).fill(OrarioBoard.theme.panel).shadow(color: OrarioBoard.shadow, radius: 30, y: 12))
                         .boardEdge(18)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -1492,24 +1492,24 @@ private struct ScheduleBoardView: View {
             }
         }
         .animation(.smooth(duration: 0.15), value: editing)
-        .animation(Board.glide, value: mode)
-        .animation(Board.glide, value: showStats)
-        .animation(Board.glide, value: showPanel)
-        .id(themes.theme.id)
+        .animation(OrarioBoard.glide, value: mode)
+        .animation(OrarioBoard.glide, value: showStats)
+        .animation(OrarioBoard.glide, value: showPanel)
+        .id(OrarioBoard.theme.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(BoardBackdrop(theme: themes.theme))
+        .background(BoardBackdrop(theme: OrarioBoard.theme))
         .ignoresSafeArea()
-        .environment(\.colorScheme, themes.theme.colorScheme)
+        .appTheme(OrarioBoard.theme)
     }
 
     private var topBar: some View {
         HStack(spacing: 12) {
             Button {
-                withAnimation(Board.glide) { showStats.toggle() }
+                withAnimation(OrarioBoard.glide) { showStats.toggle() }
             } label: {
                 Image(systemName: "sidebar.left")
                     .font(.system(size: 13))
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(OrarioBoard.muted)
                     .frame(width: 26, height: 26)
                     .contentShape(Rectangle())
             }
@@ -1527,14 +1527,14 @@ private struct ScheduleBoardView: View {
 
     private func togglePanel() {
         note("schedule board preferences open=\(!showPanel)")
-        withAnimation(Board.glide) { showPanel.toggle() }
+        withAnimation(OrarioBoard.glide) { showPanel.toggle() }
     }
 
     private func openDay(_ day: String) {
         note("schedule board calendar opened day=\(day) status=\(store.status(on: day))")
         focus.selected = day
         focus.span = .day
-        withAnimation(Board.glide) { mode = ScheduleBoardMode.schedule }
+        withAnimation(OrarioBoard.glide) { mode = ScheduleBoardMode.schedule }
     }
 
     private func openEditor() {

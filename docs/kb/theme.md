@@ -1,6 +1,6 @@
 # Theme
 
-One theme covers every native Pocket app: Aurelius (dropdown timer and board window), Schedule (dropdown, board window, editor), To-do, Scratchpad, System Stats, Calculator and the Pocket Settings window. The `DeclareSession` sheet also uses the tokens. Web apps (Gmail, WhatsApp, Slack, Spotify, Outlook, Matinee) and link apps (Preparo) are not themed. The theme is picked only in Pocket Settings → Appearance (`SettingsWindow.swift`, `PocketSettings.shared.show(section:)`, also "Pocket Settings…" in every status item's right-click menu); the Aurelius and Schedule settings panels show a `ThemeLinkRow` that opens it. The code is in `Sources/Pocket/BoardTheme.swift` (palette, store, helpers, `BoardBackdrop`, `.boardEdge`). The `Board` token enum lives in `Sources/Pocket/PomodoroBoard.swift`.
+Orario, Aurelius and Kairos have their own colour (see [App colours](#app-colours)); the Pocket theme covers the rest. One theme covers every other native Pocket app: Aurelius (dropdown timer and board window), Schedule (dropdown, board window, editor), To-do, Scratchpad, System Stats, Calculator and the Pocket Settings window. The `DeclareSession` sheet also uses the tokens. Web apps (Gmail, WhatsApp, Slack, Spotify, Outlook, Matinee) and link apps (Preparo) are not themed. The theme is picked only in Pocket Settings → Appearance (`SettingsWindow.swift`, `PocketSettings.shared.show(section:)`, also "Pocket Settings…" in every status item's right-click menu); the Aurelius and Schedule settings panels show a `ThemeLinkRow` that opens it. The code is in `Sources/Pocket/BoardTheme.swift` (palette, store, helpers, `BoardBackdrop`, `.boardEdge`). The `Board` token enum lives in `Sources/Pocket/PomodoroBoard.swift`.
 
 Related: [apps/pomodoro.md](apps/pomodoro.md), [apps/schedule.md](apps/schedule.md), [architecture.md](architecture.md), [data-and-backups.md](data-and-backups.md), [operations.md](operations.md) (install and bundling).
 
@@ -70,6 +70,44 @@ Dark, from `dusk(id, name, ground:, glow:, depth:)`: a deep background tinted wi
 `dusk` tones (saturation, lightness): backdrop ground 46/11, sidebar 48/8.5, card 36/15.5, line 28/23, muted 18/70, faint 14/48; ink glow 40/93, accent 62/76, accentInk 70/81; project tints glow + `projectOffsets` at 55/74. On dark themes, text over an accent fill uses `backdrop`, not white.
 
 Bronze and the three embroidered themes were removed on 2026-11-19 at the owner's request; a saved id from them falls back to Sage.
+
+## App colours
+
+Orario (`schedule`), Aurelius (`pomodoro`) and Kairos (`runner`) open in their web app's default theme and can each be
+given any theme from `BoardTheme.all`. The Pocket theme still colours the dropdown, Settings and every other app.
+
+| App | Default | Web counterpart |
+| --- | --- | --- |
+| Orario | `butter` | `/Pocket/orario/` |
+| Aurelius | `rose` | `/Pocket/aurelius/` |
+| Kairos | `apricot` | `/Pocket/kairos/` |
+
+The Hair web app (`/Pocket/`) defaults to Sage, but it has no Mac app of its own: Hair lives inside Orario.
+
+- **Store.** `AppThemeStore.shared` (`BoardTheme.swift`). `AppThemeStore.apps` lists each themed app (`ThemedApp`: id,
+  name, symbol, `fallback` theme id). `theme(for:)` gives the app's theme, `set(_:for:)` changes it, `publisher(for:)`
+  emits on change (for AppKit hosts), `isDefault(_:)` says whether the app still uses its fallback. A pick is saved to
+  UserDefaults `app.theme.<id>` and removed again when it equals the fallback, so changing a default later reaches
+  everyone who never picked. Unknown saved ids fall back to the default.
+- **Tokens.** `protocol BoardScope { static var theme }` gives every token (`ink`, `muted`, `column`, `line`, `accent`,
+  `accentInkStyle`, `hue(_:)`, `glide`, …) through an extension. `Board` (Pocket theme), `OrarioBoard` and
+  `AureliusBoard` conform; Orario's files use `OrarioBoard.*`, Aurelius's files (including `DeclareSession` and `Flap`)
+  use `AureliusBoard.*`. Kairos adds `KairosBoard` reading `theme(for: "runner")`. `Board` keeps the Aurelius formatting
+  helpers.
+- **Shared views.** `.appTheme(theme)` sets `\.boardTheme` and `\.colorScheme` at an app's root; `.boardEdge` without a
+  colour reads `\.boardTheme`, falling back to the Pocket theme. Panels use `ThemedHostingView(rootView:app:)`, and the
+  board windows subscribe to `AppThemeStore.shared.publisher(for:)`.
+- **Icons.** `AppIcon.render` tints a themed app's menu-bar glyph with `iconTint(for:)`, a dynamic colour: the theme's
+  `swatchRing` on a light menu bar and `swatchEdge` on a dark one (for dark themes, `swatchEdge` and `accent`). Dropdown
+  tiles use `iconColor(for:onDark:)` against the Pocket theme. Aurelius's running timer uses the same colour in focus
+  and silver on breaks. `set(_:for:)` calls the app's `changed()` so the menu bar redraws at once.
+- **Settings.** Pocket Settings → Appearance → APP COLOURS has one row per app with every theme as a swatch and a "Use
+  <default>" button once changed. The THEME row in the Orario and Aurelius settings panels shows the app's colour and
+  opens that section.
+- **Log.** `pocket app theme changed app=<id> theme=<id> previous=<id> default=<id>`.
+
+To give another app its own colour: add a `ThemedApp` row, a `BoardScope` enum, switch its files to that enum, wrap the
+root in `.appTheme(...)`, and host it with `ThemedHostingView(rootView:app:)`.
 
 ## `BoardThemeStore`
 

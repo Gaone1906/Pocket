@@ -31,6 +31,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 }
 
 final class SettingsFocus: ObservableObject {
+    @Published var reveal: String?
     @Published var section: SettingsSection {
         didSet {
             guard section != oldValue else { return }
@@ -54,8 +55,9 @@ final class PocketSettings: NSObject, NSWindowDelegate {
         show(section: nil, source: "menu")
     }
 
-    func show(section: SettingsSection?, source: String = "dropdown") {
+    func show(section: SettingsSection?, source: String = "dropdown", reveal: String? = nil) {
         if let section { focus.section = section }
+        focus.reveal = reveal
         AppDelegate.shared.tray.hide(reason: "switched")
         NSApp.setActivationPolicy(.regular)
         if let window {
@@ -132,6 +134,7 @@ struct PocketSettingsView: View {
                 .scrollIndicators(.never)
                 .onAppear { reveal(reader) }
                 .onChange(of: focus.section) { _, _ in reveal(reader) }
+                .onChange(of: focus.reveal) { _, _ in reveal(reader) }
             }
         }
         .animation(Board.glide, value: focus.section)
@@ -143,7 +146,15 @@ struct PocketSettingsView: View {
     }
 
     private func reveal(_ reader: ScrollViewProxy) {
-        guard focus.section == .appearance, themes.theme.isDark else { return }
+        guard focus.section == .appearance else { return }
+        if let target = focus.reveal {
+            DispatchQueue.main.async {
+                withAnimation(Board.glide) { reader.scrollTo(target, anchor: .top) }
+                focus.reveal = nil
+            }
+            return
+        }
+        guard themes.theme.isDark else { return }
         let id = themes.theme.id
         DispatchQueue.main.async { reader.scrollTo(id, anchor: .center) }
     }
@@ -216,7 +227,7 @@ struct PocketSettingsView: View {
 
     private var caption: String {
         switch focus.section {
-        case .appearance: "One theme for every Pocket app. Gmail, WhatsApp, Slack and Spotify keep their own look."
+        case .appearance: "One theme for Pocket and its apps. Orario, Aurelius and Kairos keep their own colour, and Gmail, WhatsApp, Slack and Spotify their own look."
         case .shelves: "Arrange where each app lives."
         case .shortcuts: "Open any app from anywhere. Click a shortcut to change it, or + to add another."
         case .general: "Apps, codes and startup."
@@ -264,7 +275,101 @@ private struct ThemeGallery: View {
                 SettingsTitle(text: "FOLLOWS THE THEME")
                 ThemedAppStrip(theme: themes.theme)
             }
+            VStack(alignment: .leading, spacing: 12) {
+                SettingsTitle(text: "APP COLOURS")
+                AppColourList(theme: themes.theme)
+            }
+            .id("app-colours")
         }
+    }
+}
+
+private struct AppColourList: View {
+    let theme: BoardTheme
+    @ObservedObject private var apps = AppThemeStore.shared
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(AppThemeStore.apps.filter { spec($0.id) != nil }.enumerated()), id: \.element.id) { index, app in
+                if index > 0 { Rectangle().fill(theme.line).frame(height: 1) }
+                AppColourRow(app: app, theme: theme, apps: apps)
+            }
+        }
+        .background(RoundedRectangle(cornerRadius: 16).fill(theme.card))
+        .boardEdge(16, color: theme.line)
+        .frame(maxWidth: 620, alignment: .leading)
+    }
+}
+
+private struct AppColourRow: View {
+    let app: ThemedApp
+    let theme: BoardTheme
+    @ObservedObject var apps: AppThemeStore
+
+    var body: some View {
+        let current = apps.theme(for: app.id)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                AppGlyph(id: app.id)
+                    .foregroundStyle(apps.iconColor(for: app.id, onDark: theme.isDark) ?? theme.ink)
+                    .frame(width: 16, height: 16)
+                    .frame(width: 32, height: 32)
+                    .background(RoundedRectangle(cornerRadius: 9).fill(theme.pill))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(app.name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(theme.ink)
+                    Text(apps.isDefault(app.id) ? "\(current.name), as on the web" : current.name)
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.muted)
+                }
+                Spacer(minLength: 0)
+                if !apps.isDefault(app.id), let fallback = BoardTheme.all.first(where: { $0.id == app.fallback }) {
+                    Button("Use \(fallback.name)") {
+                        withAnimation(.easeInOut(duration: 0.15)) { apps.set(fallback, for: app.id) }
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(theme.accentInkStyle)
+                }
+            }
+            HStack(spacing: 7) {
+                ForEach(BoardTheme.all) { option in
+                    AppColourSwatch(option: option, on: option == current, ring: theme.accentInk) {
+                        withAnimation(.easeInOut(duration: 0.15)) { apps.set(option, for: app.id) }
+                    }
+                    if option.id == BoardTheme.all.last(where: { !$0.isDark })?.id {
+                        Rectangle().fill(theme.line).frame(width: 1, height: 16).padding(.horizontal, 3)
+                    }
+                }
+            }
+        }
+        .padding(16)
+    }
+}
+
+private struct AppColourSwatch: View {
+    let option: BoardTheme
+    let on: Bool
+    let ring: Color
+    let pick: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: pick) {
+            Circle()
+                .fill(option.swatchStyle)
+                .overlay(Circle().stroke(option.swatchEdge, lineWidth: 1))
+                .frame(width: 20, height: 20)
+                .padding(3)
+                .overlay(Circle().stroke(on ? ring : .clear, lineWidth: 2))
+                .scaleEffect(hovering && !on ? 1.08 : 1)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
+        .help(option.name)
     }
 }
 
@@ -367,7 +472,7 @@ private struct ThemePreview: View {
 private struct ThemedAppStrip: View {
     let theme: BoardTheme
 
-    private var apps: [AppSpec] { catalog.filter { $0.web == nil && $0.link == nil } }
+    private var apps: [AppSpec] { catalog.filter { $0.web == nil && $0.link == nil && !AppThemeStore.isThemed($0.id) } }
 
     var body: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 118), spacing: 8, alignment: .leading)], alignment: .leading, spacing: 8) {
@@ -556,31 +661,32 @@ private struct UpdateCard: View {
 }
 
 struct ThemeLinkRow: View {
-    @ObservedObject var themes = BoardThemeStore.shared
-    let source: String
+    @ObservedObject var themes = AppThemeStore.shared
+    let app: String
 
     var body: some View {
+        let theme = themes.theme(for: app)
         Button {
-            PocketSettings.shared.show(section: .appearance, source: source)
+            PocketSettings.shared.show(section: .appearance, source: app, reveal: "app-colours")
         } label: {
             HStack(spacing: 10) {
                 Circle()
-                    .fill(themes.theme.swatchStyle)
-                    .overlay(Circle().stroke(themes.theme.swatchEdge, lineWidth: 1))
+                    .fill(theme.swatchStyle)
+                    .overlay(Circle().stroke(theme.swatchEdge, lineWidth: 1))
                     .frame(width: 22, height: 22)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(themes.theme.name)
+                    Text(theme.name)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Board.ink)
+                        .foregroundStyle(theme.ink)
                         .lineLimit(1)
                     Text("Change in Pocket Settings")
                         .font(.system(size: 11))
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(theme.muted)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(Board.faint)
+                    .foregroundStyle(theme.faint)
             }
             .contentShape(Rectangle())
         }
