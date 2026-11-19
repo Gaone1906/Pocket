@@ -187,8 +187,10 @@ final class KairosWindow: NSObject, NSWindowDelegate {
             window?.appearance = theme.appearance
             window?.backgroundColor = NSColor(theme.backdrop)
         }
-        window.minSize = NSSize(width: 780, height: 540)
-        window.contentView = NSHostingView(rootView: KairosBoardView(runner: KairosRunner.shared, store: ScheduleStore.shared, journal: KairosJournal.shared))
+        let host = NSHostingView(rootView: KairosBoardView(runner: KairosRunner.shared, store: ScheduleStore.shared, journal: KairosJournal.shared))
+        host.sizingOptions = []
+        window.contentView = host
+        window.contentMinSize = NSSize(width: 820, height: 620)
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.center()
@@ -361,6 +363,8 @@ private struct KairosBoardView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 40)
                 .padding(.bottom, 24)
+                .frame(maxWidth: .infinity)
+                .kairosFill()
         }
     }
 }
@@ -639,15 +643,15 @@ private struct KairosRun: View {
             top
             segments
             if state.waiting {
-                waiting
+                waiting.kairosFill()
             } else {
                 switch beat.kind {
-                case .count: KairosCount(runner: runner, live: live, beat: beat, state: state)
-                case .rest: KairosRest(runner: runner, beat: beat)
-                case .reps: KairosReps(runner: runner, live: live, beat: beat)
+                case .count: KairosCount(runner: runner, live: live, beat: beat, state: state).kairosFill()
+                case .rest: KairosRest(runner: runner, beat: beat).kairosFill()
+                case .reps: KairosReps(runner: runner, live: live, beat: beat).kairosFill()
                 case .say: KairosSay(runner: runner, beat: beat, state: state)
                 case .write: KairosWrite(runner: runner, journal: journal, live: live, beat: beat, state: state).id(entryId)
-                case .log: KairosLog(runner: runner, journal: journal, live: live, beat: beat, state: state).id(entryId)
+                case .log: KairosLog(runner: runner, journal: journal, live: live, beat: beat, state: state).id(entryId).kairosFill()
                 }
             }
         }
@@ -746,6 +750,22 @@ private struct KairosRun: View {
                 .keyboardShortcut(.return, modifiers: [])
         }
     }
+}
+
+private struct KairosFill: ViewModifier {
+    func body(content: Content) -> some View {
+        GeometryReader { geo in
+            ScrollView(.vertical) {
+                content
+                    .frame(maxWidth: .infinity, minHeight: geo.size.height, alignment: .top)
+            }
+            .scrollIndicators(.automatic)
+        }
+    }
+}
+
+extension View {
+    fileprivate func kairosFill() -> some View { modifier(KairosFill()) }
 }
 
 private struct KairosRing: View {
