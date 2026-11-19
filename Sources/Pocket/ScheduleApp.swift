@@ -524,7 +524,7 @@ private struct ScheduleNoRoutines: View {
     var body: some View {
         VStack(spacing: 8) {
             Spacer()
-            Image(systemName: "checklist")
+            Image(systemName: "sun.horizon")
                 .font(.system(size: 28, weight: .light))
                 .foregroundStyle(Board.faint)
                 .padding(.bottom, 4)

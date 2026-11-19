@@ -10,9 +10,9 @@ Related files: [../architecture.md](../architecture.md) (PocketApp, catalog, hot
 
 | | |
 | --- | --- |
-| Catalog entry | `AppSpec(id: "schedule", name: "Schedule", symbol: "checklist.checked", hotKey: kVK_ANSI_O, claimsHotKey: true, pinnedByDefault: true)` in `Catalog.swift` |
+| Catalog entry | `AppSpec(id: "schedule", name: "Schedule", symbol: "sun.horizon", hotKey: kVK_ANSI_O, claimsHotKey: true, pinnedByDefault: true)` in `Catalog.swift` |
 | Default shortcut | **⌥O**, taken from Outlook. Outlook now has `hotKey: nil`. See [Shortcut migration](#shortcut-migration). |
-| Menu-bar icon | SF Symbol `checklist.checked`, with a red badge counting the **unchecked steps in the current slot** of today, for the routines the filter shows (`ScheduleApp.remaining`). There is no badge at 0. |
+| Menu-bar icon | SF Symbol `sun.horizon`, with a red badge counting the **unchecked steps in the current slot** of today, for the routines the filter shows (`ScheduleApp.remaining`). There is no badge at 0. |
 | Placement | The app is pinned to the menu bar, not the dropdown tray, on existing installs too (`pinnedByDefault`). |
 | Dropdown | 380×560, fixed (`defaultSize` = `minSize`, `resizable` false). |
 | Right-click menu | "Open schedule", which opens the board window. |

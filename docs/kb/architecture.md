@@ -131,7 +131,7 @@ The catalog (order = setup order):
 | `calendar` | Calendar | `calendar` | – | ⌥D | native | no | no |
 | `todo` | To-do | `checklist` | – | ⌥T | native | no | no |
 | `pomodoro` | Pomodoro | `timer` | – | ⌥P | native | no | no |
-| `schedule` | Schedule | `checklist.checked` | – | ⌥O | native | **yes** | **yes** |
+| `schedule` | Schedule | `sun.horizon` | – | ⌥O | native | **yes** | **yes** |
 | `calculator` | Calculator | `plusminus.circle` | – | ⌥C | native | no | no |
 | `scratchpad` | Scratchpad | `note.text` | – | ⌥N | native | no | no |
 | `stats` | System Stats | `gauge.with.dots.needle.33percent` | – | none | native | no | no |
