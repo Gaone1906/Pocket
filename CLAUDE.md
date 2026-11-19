@@ -69,14 +69,15 @@ Reference integration: Preparo, the exam practice app at `~/Desktop/workspace/pe
 
 ## Backups: setting up and restoring data
 
-Pocket's data is two JSON files under `~/Library/Application Support/Pocket` (`$ROOT` below): `Pomodoro/board.json`
-(projects and sessions) and `todos.json`. Everything else there can be rebuilt. Where copies live:
+Pocket's data is three JSON files under `~/Library/Application Support/Pocket` (`$ROOT` below): `Pomodoro/board.json`
+(projects and sessions), `todos.json`, and `schedule.json` (Schedule routines and check-offs). Everything else there can
+be rebuilt. Where copies live:
 
 | Copy | Location |
 | --- | --- |
-| Daily snapshots | `$ROOT/Backups/board/board-YYYY-MM-DD.json`, `$ROOT/Backups/todos/todos-YYYY-MM-DD.json` |
-| Kept-aside and broken files | `board-before-restore-*.json` in the same folder; unreadable originals as `$ROOT/Pomodoro/board.broken-*.json` |
-| Git repo (optional) | `board.json` and `todos.json` at the root of the private repo in `pocket.backup.repo`, cloned to `$ROOT/DataRepo` |
+| Daily snapshots | `$ROOT/Backups/board/board-YYYY-MM-DD.json`, `$ROOT/Backups/todos/todos-YYYY-MM-DD.json`, `$ROOT/Backups/schedule/schedule-YYYY-MM-DD.json` |
+| Kept-aside and broken files | `board-before-restore-*.json` in the same folder (`schedule-before-delete-*`, `-before-merge-*`, `-before-restore-*` for the schedule); unreadable originals as `$ROOT/Pomodoro/board.broken-*.json` or `$ROOT/schedule.broken-*.json` |
+| Git repo (optional) | `board.json`, `todos.json` and `schedule.json` at the root of the private repo in `pocket.backup.repo`, cloned to `$ROOT/DataRepo` |
 | Mirror folder (optional) | `pocket.backup.folder`, or `My Drive/Pocket Backups/<name>/` when Google Drive for Desktop is installed |
 
 The owner's data repo is the private `Gaone1906/pocket-data`, synced with the `gh` account `Gaone1906`. Never put data in
@@ -84,8 +85,8 @@ the Pocket code repo; it is public.
 
 ### Moving to another Mac (the owner, or anyone restoring their own data)
 
-Sync will not overwrite the repo with less: if the repo holds sessions or to-dos this Mac has never seen, it holds that
-file back, and board settings → Backup says "GitHub has N sessions this Mac doesn't" with **Bring them in** (merge by id,
+Sync will not overwrite the repo with less: if the repo holds sessions, to-dos or schedule check-offs/routines this Mac
+has never seen, it holds that file back, and board settings → Backup says "GitHub has N sessions this Mac doesn't" with **Bring them in** (merge by id,
 keeping everything local; the current board is kept aside first) and **Keep this Mac's** (overwrite, after a confirm).
 "Seen" means present locally or pushed from this Mac before, tracked by id in `$ROOT/sync-state.json`, so deleting a
 session here still syncs normally. So on a new Mac the shortest path is: install, run step 5, open Pocket, press
@@ -93,12 +94,13 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 
 1. Install Pocket (`scripts/install.sh`), then quit it from the menu-bar icon's right-click menu.
 2. Get the data: `gh auth login`, then `gh repo clone <owner>/pocket-data /tmp/pocket-data`. Without git, download the
-   newest `board-*.json` and `todos-*.json` from the Drive folder.
+   newest `board-*.json`, `todos-*.json` and `schedule-*.json` from the Drive folder (`board/`, `todos/`, `schedule/`).
 3. Put it in place:
    ```bash
    mkdir -p ~/Library/Application\ Support/Pocket/Pomodoro
    cp /tmp/pocket-data/board.json ~/Library/Application\ Support/Pocket/Pomodoro/board.json
    cp /tmp/pocket-data/todos.json ~/Library/Application\ Support/Pocket/todos.json
+   cp /tmp/pocket-data/schedule.json ~/Library/Application\ Support/Pocket/schedule.json
    ```
 4. Check it parses: `python3 -m json.tool < ~/Library/Application\ Support/Pocket/Pomodoro/board.json | head`.
 5. Only now turn on sync:
@@ -121,7 +123,9 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 ### Restoring on the same Mac
 
 - From a daily snapshot: board settings → Backup → Restore…, pick a day. The current board is kept aside first.
-- By hand, or for to-dos (no restore menu): quit Pocket, copy the snapshot over `board.json` or `todos.json`, reopen.
+- From a schedule snapshot: Schedule's expanded window → settings sidebar → Backup → Restore…; the current schedule is kept aside first.
+- By hand, or for to-dos (no restore menu): quit Pocket, copy the snapshot over `board.json`, `todos.json` or
+  `schedule.json` (from `$ROOT/Backups/schedule/`, or `schedule.json` in the repo), reopen.
 - From an older git version: `git -C "$ROOT/DataRepo" log --oneline -- board.json`, then
   `git -C "$ROOT/DataRepo" show <sha>:board.json > /tmp/board.json`, check it, and copy it in with Pocket quit.
 
@@ -133,8 +137,24 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 - `pull failed` usually means two Macs pushed at once. Fix it in `$ROOT/DataRepo` (`git pull --rebase`, keep the copy with
   more sessions), or delete `$ROOT/DataRepo` and Pocket will clone it again.
 - "GitHub has N … this Mac doesn't": another Mac (or an older install) pushed data this one lacks. Use the buttons
-  described above; the log line `pocket vault sync held name=<board|todos> unseen=<n>` gives the counts.
+  described above; the log line `pocket vault sync held name=<board|todos|schedule> unseen=<n>` gives the counts.
 - To turn sync off: `defaults delete com.pranav.pocket pocket.backup.repo`.
+
+## Schedule app
+
+A weekly routine tracker (`⌥O`). Data model in `Sources/Pocket/ScheduleModel.swift` (`ScheduleStore.shared`, saved to
+`$ROOT/schedule.json` through `DataVault` as `schedule`):
+- `routines`: each has a name, a hue, a start day, notes, and a `plan` keyed `"<weekday>-<morning|night>"` (Calendar
+  weekdays, 1 = Sunday), so 7 × 2 cells, each its own ordered list of steps (`title`, `tip`). Weeks repeat; there are no
+  other repeat rules.
+- `checks`: one per ticked step per day, with the deterministic id `routine|day|slot|step` (UUIDs and a `yyyy-MM-dd` day),
+  so merging two copies is a union by id. Sync counts both check ids and routine ids as "seen".
+- The day rolls over at 4am (`dayFrom`), so a 1am night routine still counts for the day before; the night slot starts at
+  `nightFrom` (default 16:00, set in the Schedule settings). History starts 19 Nov 2026 (`ScheduleStore.startDay`).
+
+Views: `ScheduleApp.swift` (the dropdown: today's morning/night checklist with tips), `ScheduleBoard.swift` (the expanded
+window: Schedule and Calendar views, routine filter, settings sidebar with backups), `ScheduleEditor.swift` (the
+"Change the schedule" weekly editor overlay). Views call the store's editing methods; the store does the logging.
 
 ## Changing Pocket itself
 
@@ -147,7 +167,9 @@ session here still syncs normally. So on a new Mac the shortest path is: install
   anything touches `PocketData`); every path, backups and the data repo included, then lives there.
 - `DataVault` (`Sources/Pocket/DataVault.swift`) owns safety: a dated snapshot on every save (30 days plus one per month),
   quarantine and recovery on unreadable loads, keep-aside before restore, an optional mirror folder, and git sync to
-  `pocket.backup.repo`. Any new persisted file must load through the same guard and snapshot on save.
+  `pocket.backup.repo`. Any new persisted file must load through the same guard and snapshot on save, and gets one row in
+  `VaultFile.all` (name, source path, the noun for "GitHub has N …"); `DataVault.ids(in:name:)` says which ids count as
+  "seen" for it.
 - Validate input in the server and answer `400` with a readable message; never crash on a body.
 - Log every remote action with the `note(...)` helper, including the source, project and the values that shaped the outcome.
 - No comments in code.
