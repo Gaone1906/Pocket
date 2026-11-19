@@ -87,7 +87,7 @@ const server = createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && !path.startsWith("/auth") && !path.startsWith("/rest")) {
-    const file = normalize(join(root, path === "/" ? "index.html" : path));
+    const file = normalize(join(root, path.endsWith("/") ? path + "index.html" : path));
     if (!file.startsWith(root) || file.includes("/dev/")) return send(res, 404, { error: "not found" });
     try {
       const data = await readFile(file);
