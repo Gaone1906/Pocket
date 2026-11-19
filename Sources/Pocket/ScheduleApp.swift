@@ -406,7 +406,7 @@ private struct ScheduleRow: View {
                 }
                 .buttonStyle(.plain)
                 .help(item.done ? "Mark as not done" : "Mark as done")
-                Text(item.step.title)
+                ScheduleStepText.make(item.step.title)
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(item.done ? Board.muted : Board.ink)
                     .strikethrough(item.done, color: Board.faint)

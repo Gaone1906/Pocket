@@ -415,21 +415,12 @@ private struct ScheduleSidebarRow: View {
 
 private struct ScheduleSidebar: View {
     @ObservedObject var store: ScheduleStore
-    let prefsOpen: Bool
-    let edit: () -> Void
-    let prefs: () -> Void
 
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 14) {
                 todayCard
                 sinceCard
-                ScheduleHairline().padding(.vertical, 6)
-                VStack(alignment: .leading, spacing: 6) {
-                    ScheduleSectionTitle(text: "SETTINGS").padding(.bottom, 4)
-                    ScheduleSidebarRow(symbol: "square.and.pencil", title: "Change the schedule", on: false, action: edit)
-                    ScheduleSidebarRow(symbol: "slider.horizontal.3", title: "Preferences", on: prefsOpen, action: prefs)
-                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 52)
@@ -705,7 +696,7 @@ private struct ScheduleSlotCard: View {
                     .foregroundStyle(item.done ? Board.accentInkStyle : AnyShapeStyle(Board.faint))
                     .padding(.top, 1)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(item.step.title)
+                    ScheduleStepText.make(item.step.title)
                         .font(.system(size: 13.5, weight: .medium))
                         .foregroundStyle(item.done ? Board.muted : Board.ink)
                         .strikethrough(item.done, color: Board.faint)
@@ -731,32 +722,41 @@ private struct ScheduleSlotCard: View {
     }
 }
 
-private struct ScheduleNotesCard: View {
+private struct ScheduleProductsCard: View {
     @ObservedObject var store: ScheduleStore
 
+    private struct Product {
+        let key: String
+        let title: String
+        var days: Set<Int> = []
+        var slots: Set<ScheduleSlot> = []
+        var times = 0
+    }
+
     var body: some View {
-        let routines = store.shown.filter { !$0.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        if !routines.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                ScheduleSectionTitle(text: "NOTES")
-                VStack(alignment: .leading, spacing: 14) {
-                    ForEach(routines) { routine in
-                        VStack(alignment: .leading, spacing: 6) {
-                            if store.filter == nil {
-                                HStack(spacing: 7) {
-                                    Circle().fill(Board.hue(routine.hue)).frame(width: 7, height: 7)
-                                    Text(routine.name)
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundStyle(Board.muted)
-                                }
+        let list = products
+        if !list.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                ScheduleSectionTitle(text: "EACH WEEK")
+                VStack(spacing: 0) {
+                    ForEach(Array(list.enumerated()), id: \.element.key) { index, product in
+                        if index > 0 { ScheduleHairline() }
+                        HStack(alignment: .center, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                ScheduleStepText.make(product.title)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(Board.ink)
+                                Text(when(product))
+                                    .font(.system(size: 11.5))
+                                    .foregroundStyle(Board.muted)
                             }
-                            Text(routine.notes.trimmingCharacters(in: .whitespacesAndNewlines))
-                                .font(.system(size: 12.5))
-                                .foregroundStyle(Board.ink.opacity(0.85))
-                                .lineSpacing(3)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .textSelection(.enabled)
+                            Spacer(minLength: 8)
+                            Text("\(product.times)×")
+                                .font(.system(size: 13, weight: .semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(Board.accentInkStyle)
                         }
+                        .padding(.vertical, 9)
                     }
                 }
             }
@@ -764,6 +764,99 @@ private struct ScheduleNotesCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 16).fill(Board.column.opacity(0.55)))
             .boardEdge(16)
+        }
+    }
+
+    private var products: [Product] {
+        var found: [String: Product] = [:]
+        for routine in store.shown {
+            for weekday in ScheduleDays.weekOrder {
+                for slot in ScheduleSlot.allCases {
+                    for step in routine.steps(weekday, slot) {
+                        let title = step.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !title.isEmpty else { continue }
+                        let key = title.lowercased()
+                        var product = found[key] ?? Product(key: key, title: title)
+                        product.days.insert(weekday)
+                        product.slots.insert(slot)
+                        product.times += 1
+                        found[key] = product
+                    }
+                }
+            }
+        }
+        return found.values.sorted { $0.times != $1.times ? $0.times < $1.times : $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+    }
+
+    private func when(_ product: Product) -> String {
+        let days = product.days.count == 7 ? "Every day" : ScheduleDays.weekOrder.filter { product.days.contains($0) }.map { ScheduleDays.short($0) }.joined(separator: ", ")
+        if product.slots.count == 2 { return days + " · morning and night" }
+        return days + (product.slots.contains(.morning) ? " · morning" : " · night")
+    }
+}
+
+private struct ScheduleSwipeCatcher: NSViewRepresentable {
+    let back: () -> Void
+    let forward: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        context.coordinator.view = view
+        context.coordinator.start()
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        context.coordinator.back = back
+        context.coordinator.forward = forward
+    }
+
+    static func dismantleNSView(_ view: NSView, coordinator: Coordinator) {
+        coordinator.stop()
+    }
+
+    final class Coordinator {
+        weak var view: NSView?
+        var back: () -> Void = {}
+        var forward: () -> Void = {}
+        private var monitor: Any?
+        private var travel = CGSize.zero
+        private var fired = false
+
+        func start() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+                self?.handle(event)
+                return event
+            }
+        }
+
+        func stop() {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = nil
+        }
+
+        private func handle(_ event: NSEvent) {
+            guard event.hasPreciseScrollingDeltas, event.momentumPhase.isEmpty, let view, let window = view.window, event.window === window else { return }
+            guard view.bounds.contains(view.convert(event.locationInWindow, from: nil)) else { return }
+            if event.phase.contains(.began) {
+                travel = .zero
+                fired = false
+            }
+            if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
+                travel = .zero
+                fired = false
+                return
+            }
+            guard !fired else { return }
+            travel.width += event.scrollingDeltaX
+            travel.height += event.scrollingDeltaY
+            guard abs(travel.width) > 60, abs(travel.width) > abs(travel.height) * 2 else { return }
+            fired = true
+            let finger = event.isDirectionInvertedFromDevice ? travel.width : -travel.width
+            if finger > 0 { back() } else { forward() }
         }
     }
 }
@@ -921,7 +1014,7 @@ private struct ScheduleWeekGrid: View {
                 if store.filter == nil && store.shown.count > 1 {
                     Circle().fill(Board.hue(item.routine.hue)).frame(width: 5, height: 5).padding(.top, 5)
                 }
-                Text(item.step.title)
+                ScheduleStepText.make(item.step.title)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Board.ink.opacity(item.done ? 0.75 : 0.95))
                     .multilineTextAlignment(.leading)
@@ -937,7 +1030,7 @@ private struct ScheduleWeekGrid: View {
         }
         .buttonStyle(.plain)
         .disabled(future)
-        .help(item.step.tip.isEmpty ? item.step.title : item.step.tip)
+        .help(item.step.tip.isEmpty ? ScheduleStepText.plain(item.step.title) : item.step.tip)
     }
 }
 
@@ -966,7 +1059,10 @@ private struct ScheduleDayView: View {
                         }
                         .transition(.opacity)
                     }
-                    ScheduleNotesCard(store: store)
+                    if focus.span == .week {
+                        ScheduleProductsCard(store: store)
+                            .transition(.opacity)
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 4)
@@ -975,7 +1071,24 @@ private struct ScheduleDayView: View {
                 .animation(Board.glide, value: focus.span)
             }
             .scrollIndicators(.automatic)
+            .background(ScheduleSwipeCatcher(back: { shiftWeek(-1) }, forward: { shiftWeek(1) }))
         }
+    }
+
+    private func shiftWeek(_ direction: Int) {
+        let start = ScheduleBoardDates.weekStart(focus.selected)
+        let earliest = ScheduleBoardDates.weekStart(store.firstDay)
+        let latest = ScheduleBoardDates.weekStart(ScheduleDays.shift(ScheduleBoardDates.monthShift(store.today, by: 2), by: -1))
+        let target: String
+        if direction < 0 {
+            guard start > earliest else { return }
+            target = max(ScheduleDays.shift(focus.selected, by: -7), store.firstDay)
+        } else {
+            guard start < latest else { return }
+            target = ScheduleDays.shift(focus.selected, by: 7)
+        }
+        note("schedule board swiped span=\(focus.span.rawValue) from=\(focus.selected) to=\(target)")
+        withAnimation(Board.glide) { focus.selected = target }
     }
 
     private var title: some View {
@@ -1066,6 +1179,15 @@ private struct ScheduleCalendarView: View {
             .padding(.top, 4)
             .padding(.bottom, 24)
         }
+        .background(ScheduleSwipeCatcher(back: {
+            guard month > low else { return }
+            note("schedule board swiped month=\(month) by=-1")
+            go(ScheduleBoardDates.monthShift(month, by: -1))
+        }, forward: {
+            guard month < high else { return }
+            note("schedule board swiped month=\(month) by=1")
+            go(ScheduleBoardDates.monthShift(month, by: 1))
+        }))
     }
 
     private func go(_ target: String) {
@@ -1260,6 +1382,7 @@ private struct ScheduleBackupSection: View {
 private struct SchedulePrefsPanel: View {
     @ObservedObject var store: ScheduleStore
     @ObservedObject var themes: BoardThemeStore
+    let edit: () -> Void
     let close: () -> Void
 
     var body: some View {
@@ -1282,6 +1405,8 @@ private struct SchedulePrefsPanel: View {
                     .buttonStyle(.plain)
                     .help("Close preferences")
                 }
+                ScheduleSidebarRow(symbol: "square.and.pencil", title: "Change the schedule", on: false, action: edit)
+                    .padding(.horizontal, -8)
                 ScheduleSectionTitle(text: "DAY").padding(.top, 6)
                 ScheduleHourRow(title: "Night routine from", value: store.book.nightFrom, range: (store.book.dayFrom + 1)...23) { hour in
                     store.setNightFrom(hour)
@@ -1321,7 +1446,7 @@ private struct ScheduleBoardView: View {
             HStack(spacing: 0) {
                 if showStats {
                     HStack(spacing: 0) {
-                        ScheduleSidebar(store: store, prefsOpen: showPanel, edit: openEditor, prefs: togglePanel)
+                        ScheduleSidebar(store: store)
                         Rectangle().fill(Board.line).frame(width: 1)
                     }
                     .transition(.move(edge: .leading).combined(with: .opacity))
@@ -1343,7 +1468,7 @@ private struct ScheduleBoardView: View {
                 if showPanel {
                     HStack(spacing: 0) {
                         Rectangle().fill(Board.line).frame(width: 1)
-                        SchedulePrefsPanel(store: store, themes: themes) {
+                        SchedulePrefsPanel(store: store, themes: themes, edit: openEditor) {
                             note("schedule board preferences open=false")
                             withAnimation(Board.glide) { showPanel = false }
                         }
