@@ -1471,7 +1471,7 @@ private struct KairosReps: View {
             Spacer(minLength: 0)
             if beat.reps > 0 {
                 Text("\(beat.reps)")
-                    .font(.system(size: 84, weight: .light))
+                    .font(.system(size: 84, weight: .light, design: .default))
                     .monospacedDigit()
                     .foregroundStyle(KairosBoard.ink)
             }

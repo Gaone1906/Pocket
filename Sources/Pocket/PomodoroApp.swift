@@ -403,7 +403,7 @@ private struct FlapCard: View {
                 Flap.cardBottom
             }
             Text(text)
-                .font(.system(size: 92, weight: .bold).width(.condensed))
+                .font(.system(size: 92, weight: .bold, design: .default).width(.condensed))
                 .monospacedDigit()
                 .foregroundStyle(tint)
             Flap.seam.frame(height: 2)
@@ -471,7 +471,7 @@ struct PomodoroView: View {
             HStack(spacing: 8) {
                 FlapCard(text: parts.first ?? "00", tint: tint)
                 Text(":")
-                    .font(.system(size: 60, weight: .bold).width(.condensed))
+                    .font(.system(size: 60, weight: .bold, design: .default).width(.condensed))
                     .foregroundStyle(Flap.colon)
                     .offset(y: -4)
                 FlapCard(text: parts.last ?? "00", tint: tint)
