@@ -437,24 +437,28 @@ private struct ScheduleSidebar: View {
     }
 
     private var todayCard: some View {
-        let items = ScheduleSlot.allCases.flatMap { store.items(on: store.today, slot: $0) }
-        let done = items.filter(\.done).count
         let slot = store.slotNow
+        let items = store.items(on: store.today, slot: slot)
+        let done = items.filter(\.done).count
         return card("TODAY") {
-            figure("\(done) of \(items.count)", items.count == 1 ? "step done" : "steps done", accent: true)
-            ScheduleHairline()
             HStack(spacing: 8) {
                 Image(systemName: slot.symbol)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Board.accentInkStyle)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(slot.label)
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundStyle(Board.ink)
-                    Text(slot == .night ? "now · from \(ScheduleBoardDates.hour(store.book.nightFrom))" : "now · until \(ScheduleBoardDates.hour(store.book.nightFrom))")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Board.muted)
-                }
+                Text(slot.label)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(Board.ink)
+            }
+            ScheduleHairline()
+            if items.isEmpty {
+                figure("Rest", "nothing planned", accent: true, size: 22)
+            } else if done == items.count {
+                Text("All done for now!")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(Board.accentInkStyle)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                figure("\(done) of \(items.count)", items.count == 1 ? "step done" : "steps done", accent: true)
             }
         }
     }
