@@ -84,8 +84,8 @@ function render() {
   const active = document.activeElement;
   const inForm = active && active.closest && active.closest("form, .overlay");
   const keep =
-    active && (active.name || active.dataset.edNotes) && inForm
-      ? { sel: active.dataset.edNotes ? `[data-ed-notes="${active.dataset.edNotes}"]` : `form[data-form="${active.closest("form")?.dataset.form}"] [name="${active.name}"]`, value: active.value, pos: active.selectionStart, end: active.selectionEnd }
+    active && active.name && inForm
+      ? { sel: `form[data-form="${active.closest("form")?.dataset.form}"] [name="${active.name}"]`, value: active.value, pos: active.selectionStart, end: active.selectionEnd }
       : null;
   const scrolls = {};
   document.querySelectorAll("[data-keep-scroll]").forEach((el) => (scrolls[el.dataset.keepScroll] = el.scrollTop));
@@ -162,10 +162,6 @@ document.addEventListener("click", async (e) => {
   } else if (d.signout !== undefined) {
     if (confirm("Disconnect this device? Anything not yet uploaded is lost.")) store.disconnect();
   }
-});
-
-document.addEventListener("input", (e) => {
-  if (ui.tab === "orario") orario.onInput(e);
 });
 
 document.addEventListener("change", (e) => {

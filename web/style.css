@@ -1297,24 +1297,6 @@ button:disabled {
   min-width: 0;
 }
 
-.notes-input {
-  display: block;
-  width: calc(100% - 32px);
-  margin: 4px 16px 12px;
-  border: 1px solid var(--line);
-  background: var(--pill);
-  border-radius: 12px;
-  padding: 10px 12px;
-  font-size: 16px;
-  line-height: 1.45;
-  resize: vertical;
-  outline: none;
-}
-
-.notes-input:focus {
-  border-color: var(--accent);
-}
-
 .hint {
   text-align: center;
   color: var(--faint);
