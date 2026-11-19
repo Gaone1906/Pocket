@@ -2035,7 +2035,7 @@ private struct KairosJournalPage: View {
         } else if composing {
             KairosNewEntry(journal: journal, today: today) { saved in
                 composing = false
-                if let saved { book = KairosJournal.book(saved) }
+                if let saved { book = journal.book(saved) }
             }
         } else if !manual, let tag = dailyBook {
             let kind = KairosShelf.kind(tag)
@@ -2068,7 +2068,7 @@ private struct KairosJournalPage: View {
     }
 
     private func manualLeaves(_ name: String) -> [KairosLeaf] {
-        journal.manual.filter { KairosJournal.book($0) == name }.reversed().map { entry in
+        journal.manual.filter { journal.book($0) == name }.reversed().map { entry in
             var blocks: [(label: String?, text: String)] = []
             if let prompts = entry.prompts, !prompts.isEmpty {
                 let lines = entry.lines ?? []
@@ -2143,7 +2143,7 @@ private struct KairosJournalPage: View {
     }
 
     private var months: some View {
-        let newest = Dictionary(journal.manual.map { (KairosJournal.book($0), $0.day) }, uniquingKeysWith: { max($0, $1) })
+        let newest = Dictionary(journal.manual.map { (journal.book($0), $0.day) }, uniquingKeysWith: { max($0, $1) })
         let list = newest.keys.sorted { a, b in newest[a]! != newest[b]! ? newest[a]! > newest[b]! : a < b }
         return VStack(alignment: .leading, spacing: 0) {
             if list.isEmpty {
@@ -2154,7 +2154,7 @@ private struct KairosJournalPage: View {
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 170, maximum: 170), spacing: 24, alignment: .leading)], alignment: .leading, spacing: 30) {
                     ForEach(Array(list.enumerated()), id: \.element) { index, name in
-                        let count = journal.manual.filter { KairosJournal.book($0) == name }.count
+                        let count = journal.manual.filter { journal.book($0) == name }.count
                         KairosBookCover(title: name, line: "\(count) entr\(count == 1 ? "y" : "ies")", meta: "last \(KairosLook.short(newest[name] ?? today))",
                                         cover: KairosShelf.covers[index % KairosShelf.covers.count], width: 170, height: 220) {
                             book = name

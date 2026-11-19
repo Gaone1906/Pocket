@@ -387,9 +387,18 @@ final class KairosJournal: ObservableObject {
 
     static let blankBook = "Blank page"
 
-    static func book(_ entry: KairosEntry) -> String {
+    func book(_ entry: KairosEntry) -> String {
         let name = (entry.routineName ?? "").trimmingCharacters(in: .whitespaces)
-        return name.isEmpty ? blankBook : name
+        if !name.isEmpty { return name }
+        let shelf = templates
+        if let prompts = entry.prompts, !prompts.isEmpty, let match = shelf.first(where: { ($0.lines ?? []) == prompts }), let title = match.title {
+            return title
+        }
+        let title = (entry.title ?? "").trimmingCharacters(in: .whitespaces)
+        if let match = shelf.first(where: { ($0.title ?? "").caseInsensitiveCompare(title) == .orderedSame }), let found = match.title {
+            return found
+        }
+        return Self.blankBook
     }
 
     static func fresh(_ kind: String, title: String, prompts: [String], day: String) -> KairosEntry {
