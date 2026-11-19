@@ -146,6 +146,7 @@ final class ScheduleStore: ObservableObject {
             let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in self?.tick() }
             RunLoop.main.add(timer, forMode: .common)
             clock = timer
+            addMindfulnessIfDue()
         }
         if FileManager.default.fileExists(atPath: file.path) {
             do {
@@ -411,6 +412,18 @@ final class ScheduleStore: ObservableObject {
         }
     }
 
+    private func addMindfulnessIfDue() {
+        let flag = "schedule.seeded.mindfulness-2026-11"
+        guard !UserDefaults.standard.bool(forKey: flag) else { return }
+        UserDefaults.standard.set(true, forKey: flag)
+        var routine = ScheduleSeed.mindfulness()
+        guard !book.routines.contains(where: { $0.name == routine.name }) else { return }
+        routine.hue = (book.routines.map(\.hue).max() ?? -1) + 1
+        book.routines.append(routine)
+        note("schedule routine seeded name=\(routine.name) starts=\(routine.starts) hue=\(routine.hue)")
+        save()
+    }
+
     private func save() {
         do {
             let data = try Self.encode(book)
@@ -424,6 +437,93 @@ final class ScheduleStore: ObservableObject {
 }
 
 enum ScheduleSeed {
+    static func mindfulness() -> ScheduleRoutine {
+        enum Goal { case job, abs, hair, all }
+        let wakeTip = "Before you touch your phone: sit up in bed, drink a glass of water, and take 3 slow breaths, in through the nose for 4, out through the mouth for 6. The phone stays away until this session is done."
+        let breathTip = "Sit upright, eyes closed. Breathe naturally and count each out-breath from 1 to 10, then start again. When your mind wanders (it will, often), notice it without judging and go back to 1. Coming back is the practice, not a failure."
+        let kindnessTip = "Sit upright, eyes closed, hand on your chest. Repeat slowly to yourself: \"May I be confident. May I be healthy and strong. May I be at ease.\" After 4 minutes, picture your family and wish them the same, then everyone you'll meet today. Self-kindness is the root of real confidence."
+        let awareTip = "Sit upright, eyes closed. Don't hold onto anything: notice sounds, body sensations and thoughts as they come and go, like clouds passing. Label them lightly (\"hearing\", \"thinking\", \"planning\") and let them go. This trains you to watch doubts without believing them."
+        let affirmTip = """
+        Stand tall, shoulders back, chin up, ideally at a mirror. Say each line out loud, slowly, 3 times, and feel it as true now:
+        "I am confident, calm and worthy of good things."
+        "I am selected for a secure, respected government job."
+        "I am disciplined, and my body is lean, strong and defined."
+        "My hair grows back thicker and healthier every week."
+        "Good things flow into my life easily."
+        """
+        let gratitudeTip = "Write 3 specific good things from today and why each happened, e.g. \"Finished 2 focus sessions because I put my phone in another room.\" Specific beats general: it trains your mind to notice what's working."
+        let winsTip = "Write one thing you did well or bravely today, toward any goal, however small: a study block, a workout, the hair routine on time, speaking up. Confidence is built from this evidence, so reread the list when you doubt yourself."
+        let reviewTip = "Reread this week's wins and scripts. Note what moved each goal forward and what got in the way. Rewrite your affirmations if a line no longer feels right, and pick one focus per goal for next week."
+        let scanTip = "Lie down, lights off. Move your attention slowly from your toes to the top of your head, relaxing each part as you breathe out. If you're still awake at the end, rest on your breath and let sleep come."
+        func visualTip(_ goal: Goal) -> String {
+            switch goal {
+            case .job: return "Eyes closed. See it as already real, in detail: the result page with your name on it, the call home to tell your family, your first morning walking into the office. Feel the relief and pride in your body. End by seeing yourself sitting down to study today, calm and focused."
+            case .abs: return "Eyes closed. See it as already real: you in the mirror with a lean, defined stomach, how your T-shirt fits, how light and strong you feel moving. Feel the pride. End by seeing yourself doing today's workout and choosing good food."
+            case .hair: return "Eyes closed. See it as already real: running your hand through thick hair, a photo of yourself you love, the barber saying it's grown back well. Feel how good it is. End by seeing yourself doing the Hair care routine on time today."
+            case .all: return "Eyes closed. Spend about 4 minutes on each goal as already real: the government job (your name on the result, your first day), the six pack (you in the mirror, lean and strong), your hair (thick under your hand). Feel each fully, then see yourself taking this week's steps calmly."
+            }
+        }
+        func actionTip(_ goal: Goal) -> String {
+            switch goal {
+            case .job: return "Attraction works with action. Choose one concrete step for the job today and decide when you'll do it, e.g. \"2 focus sessions in Aurelius before lunch\" or \"one full mock test tonight\"."
+            case .abs: return "Attraction works with action. Choose one concrete step for your six pack today, e.g. \"finish this morning's Fitness session\", \"protein at every meal\" or \"no sugar today\"."
+            case .hair: return "Attraction works with action. Choose one concrete step for your hair today, e.g. \"every Hair care step on time\", \"8 hours of sleep\" or \"cap on outdoors\"."
+            case .all: return "Choose one concrete step for each goal this week and put it where you'll see it."
+            }
+        }
+        func scriptTip(_ goal: Goal) -> String {
+            switch goal {
+            case .job: return "Write 5 to 10 lines in the present tense, as if it already happened, and include feelings. e.g. \"I'm so grateful. I saw my name on the final list today. I called my family and we celebrated together. I start my government job next month and I feel secure and proud.\""
+            case .abs: return "Write 5 to 10 lines in the present tense, as if it already happened, and include feelings. e.g. \"I'm so grateful for my body. I can see my abs clearly in the mirror. My clothes fit perfectly and I feel light, strong and confident everywhere I go.\""
+            case .hair: return "Write 5 to 10 lines in the present tense, as if it already happened, and include feelings. e.g. \"I'm so grateful. My hair is thick and full again. My crown is covered, I love how I look in photos, and I don't think about my hair anymore.\""
+            case .all: return ""
+            }
+        }
+        func label(_ goal: Goal) -> String {
+            switch goal {
+            case .job: return "government job"
+            case .abs: return "six pack"
+            case .hair: return "hair"
+            case .all: return "all three goals"
+            }
+        }
+        let wake = ScheduleStep(title: "Wake up | water, 3 slow breaths, no phone", tip: wakeTip)
+        let affirm = ScheduleStep(title: "Affirmations | out loud, standing tall, 3 min", tip: affirmTip)
+        let gratitude = ScheduleStep(title: "Gratitude | 3 good things, 4 min", tip: gratitudeTip)
+        let wins = ScheduleStep(title: "Wins log | 1 win toward a goal, 3 min", tip: winsTip)
+        let scan = ScheduleStep(title: "Body scan | lying down, 8 min, then sleep", tip: scanTip)
+        let days: [Int: (meditation: ScheduleStep?, goal: Goal)] = [
+            2: (ScheduleStep(title: "Breath meditation | 8 min", tip: breathTip), .job),
+            3: (ScheduleStep(title: "Loving-kindness | 8 min", tip: kindnessTip), .abs),
+            4: (ScheduleStep(title: "Open awareness | 8 min", tip: awareTip), .hair),
+            5: (ScheduleStep(title: "Breath meditation | 8 min", tip: breathTip), .job),
+            6: (ScheduleStep(title: "Loving-kindness | 8 min", tip: kindnessTip), .abs),
+            7: (ScheduleStep(title: "Open awareness | 8 min", tip: awareTip), .hair),
+            1: (nil, .all)
+        ]
+        var routine = ScheduleRoutine(name: "Mindfulness", hue: 2, starts: "2026-11-20")
+        for (weekday, day) in days {
+            var morning = [wake]
+            if let meditation = day.meditation { morning.append(meditation) }
+            morning.append(ScheduleStep(title: "Visualize | \(label(day.goal)), \(day.goal == .all ? 13 : 5) min", tip: visualTip(day.goal)))
+            morning.append(affirm)
+            morning.append(ScheduleStep(title: "One action | for \(day.goal == .all ? "each goal this week" : "your " + label(day.goal) + " today"), 2 min", tip: actionTip(day.goal)))
+            let middle = day.goal == .all
+                ? ScheduleStep(title: "Weekly review | wins, affirmations, next week, 5 min", tip: reviewTip)
+                : ScheduleStep(title: "Scripting | \(label(day.goal)), as if it's done, 5 min", tip: scriptTip(day.goal))
+            routine.plan[ScheduleRoutine.key(weekday, .morning)] = morning
+            routine.plan[ScheduleRoutine.key(weekday, .night)] = [gratitude, wins, middle, scan]
+        }
+        routine.notes = """
+        About 20 minutes first thing after waking and 20 minutes last thing before sleep. The phone stays away until the morning session is done.
+        Goal focus rotates: Monday and Thursday the government job, Tuesday and Friday the six pack, Wednesday and Saturday your hair, Sunday all three with a weekly review.
+        Keep one notebook for gratitude, wins and scripting, so you can reread your progress.
+        Attraction works best paired with action: study in Aurelius, the Fitness mornings, and the Hair care routine are how the goals arrive.
+        Missing a step or a day is fine; just pick up at the next session. Consistency matters more than perfection.
+        """
+        return routine
+    }
+
     static func hairCare() -> ScheduleRoutine {
         let washTip = "Wet your hair well, work it into the scalp (not just the hair) until it lathers, leave 3–5 minutes, rinse completely. Keep it out of your eyes."
         let dryTip = "Towel off, then a cool dryer. Minokem must never go on a wet or damp scalp."
