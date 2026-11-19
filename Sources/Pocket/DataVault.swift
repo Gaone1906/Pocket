@@ -11,6 +11,7 @@ enum PocketData {
 
     static var board: URL { root.appendingPathComponent("Pomodoro/board.json") }
     static var todos: URL { root.appendingPathComponent("todos.json") }
+    static var schedule: URL { root.appendingPathComponent("schedule.json") }
     static var backups: URL { root.appendingPathComponent("Backups", isDirectory: true) }
     static var repo: URL { root.appendingPathComponent("DataRepo", isDirectory: true) }
     static var syncState: URL { root.appendingPathComponent("sync-state.json") }
