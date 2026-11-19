@@ -178,8 +178,6 @@ window: Schedule and Calendar views, routine filter, settings sidebar with backu
 - Log every remote action with the `note(...)` helper, including the source, project and the values that shaped the outcome.
 - No comments in code.
 - Build with `swift build`. Install and relaunch with `scripts/install.sh`. Then check routes with `curl`.
-- Embroidered themes (`Sources/Pocket/Embroidery.swift`) load their tiger and dragon art from
-  `Resources/Embroidery/*.jpg`, which `scripts/install.sh` copies into `Contents/Resources/Embroidery`. A plain
-  `swift run` has no bundle, so the art is missing there and `board embroidery art missing` is logged. A new colourway
-  needs a tiger and a dragon on flat black fabric (tiger lower left facing right, dragon upper right facing left), an
-  `Embroidery` entry and a place in `BoardTheme.all`.
+- Themes live in `Sources/Pocket/BoardTheme.swift`: `pastel(...)` for light themes and `dusk(..., ground:, glow:)` for
+  dark ones (a deep tinted ground with a pastel glow). One theme covers every native app and is picked only in Pocket
+  Settings (`SettingsWindow.swift`). Theme ids are persisted, so never rename one.

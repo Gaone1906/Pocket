@@ -254,6 +254,7 @@ struct ScratchEditor: NSViewRepresentable {
         view.isVerticallyResizable = true
         view.textContainer?.widthTracksTextView = true
         view.typingAttributes = ScratchFormat.body
+        view.insertionPointColor = NSColor(Board.accentInk)
         view.delegate = context.coordinator
         scroll.documentView = view
         context.coordinator.view = view
@@ -263,6 +264,7 @@ struct ScratchEditor: NSViewRepresentable {
     }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
+        (scroll.documentView as? NSTextView)?.insertionPointColor = NSColor(Board.accentInk)
         if context.coordinator.loaded != store.current { context.coordinator.show(store.current) }
     }
 
@@ -308,6 +310,7 @@ struct ScratchEditor: NSViewRepresentable {
 
 struct ScratchView: View {
     @ObservedObject var store: ScratchStore
+    @ObservedObject var themes = BoardThemeStore.shared
     @State private var editor: ScratchTextView?
     @State private var hovered: UUID?
 
@@ -315,11 +318,11 @@ struct ScratchView: View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
-                    Text("PAGES").font(.system(size: 10, weight: .semibold)).tracking(1.2).foregroundStyle(.secondary)
+                    Text("PAGES").font(.system(size: 10, weight: .semibold)).tracking(1.6).foregroundStyle(Board.muted)
                     Spacer()
                     Button { store.create() } label: { Image(systemName: "square.and.pencil") }
                         .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Board.muted)
                         .help("New page")
                 }
                 .padding(.horizontal, 10)
@@ -333,15 +336,18 @@ struct ScratchView: View {
             }
             .padding(.top, 34)
             .frame(width: 150)
-            .background(Color.primary.opacity(0.04))
-            Divider()
+            .background(themes.theme.panel)
+            Rectangle().fill(Board.line).frame(width: 1)
             VStack(spacing: 0) {
                 toolbar
-                Divider()
+                Rectangle().fill(Board.line).frame(height: 1)
                 ScratchEditor(store: store) { view in DispatchQueue.main.async { editor = view } }
             }
         }
+        .background(BoardBackdrop(theme: themes.theme))
         .ignoresSafeArea()
+        .environment(\.colorScheme, themes.theme.colorScheme)
+        .tint(themes.theme.accent)
     }
 
     func row(_ page: ScratchPage) -> some View {
@@ -350,16 +356,16 @@ struct ScratchView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(page.title.isEmpty ? "New page" : page.title)
                     .font(.system(size: 12, weight: selected ? .semibold : .regular))
-                    .foregroundStyle(page.title.isEmpty ? .secondary : .primary)
+                    .foregroundStyle(page.title.isEmpty ? Board.muted : Board.ink)
                     .lineLimit(1)
                 Text(page.updated, format: .dateTime.day().month(.abbreviated).hour().minute())
                     .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(selected ? Board.muted : Board.faint)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Color.accentColor.opacity(0.18) : hovered == page.id ? Color.primary.opacity(0.06) : .clear))
+            .background(RoundedRectangle(cornerRadius: 6).fill(selected ? Board.accent.opacity(themes.theme.isDark ? 0.24 : 0.2) : hovered == page.id ? Board.ink.opacity(0.06) : .clear))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -399,7 +405,7 @@ struct ScratchView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Board.muted)
         .help(help)
     }
 }
@@ -412,7 +418,7 @@ final class ScratchpadApp: PocketApp {
     override var minSize: NSSize { NSSize(width: 440, height: 360) }
 
     override func makeContent() -> NSView {
-        NSHostingView(rootView: ScratchView(store: store))
+        ThemedHostingView(rootView: ScratchView(store: store))
     }
 
     override func didShow() {

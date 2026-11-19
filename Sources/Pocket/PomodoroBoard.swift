@@ -385,7 +385,7 @@ private struct TallyGroup: View {
 
     func mark(_ stick: TallyStick, length: CGFloat) -> some View {
         Capsule()
-            .fill(Board.theme.sheen(tint))
+            .fill(tint)
             .opacity(stick.fraction < 1 ? 0.75 : 1)
             .frame(width: 3, height: max(6, length * stick.fraction))
             .padding(.horizontal, 4)
@@ -735,23 +735,8 @@ private struct BoardSettingsPanel: View {
             SettingRow(title: "Long break", value: $model.longBreakMinutes, range: 1...90, unit: "min")
             SettingRow(title: "Long break after", value: $model.longEvery, range: 2...12, unit: "sessions")
             Rectangle().fill(Board.line).frame(height: 1).padding(.vertical, 4)
-            HStack(alignment: .firstTextBaseline) {
-                BoardSectionTitle(text: "THEME")
-                Spacer()
-                Text(themes.theme.name)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Board.accentInkStyle)
-            }
-            Grid(horizontalSpacing: 8, verticalSpacing: 14) {
-                ForEach(Array(stride(from: 0, to: BoardTheme.all.count, by: 5)), id: \.self) { start in
-                    GridRow {
-                        ForEach(BoardTheme.all[start..<min(start + 5, BoardTheme.all.count)]) { theme in
-                            swatch(theme)
-                        }
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            BoardSectionTitle(text: "THEME")
+            ThemeLinkRow(source: "pomodoro")
             Rectangle().fill(Board.line).frame(height: 1).padding(.vertical, 4)
             BoardBackupSection(store: PomodoroBoardStore.shared)
             Spacer()
@@ -762,23 +747,6 @@ private struct BoardSettingsPanel: View {
         .frame(width: 280, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Board.theme.panel)
-    }
-
-    private func swatch(_ theme: BoardTheme) -> some View {
-        let on = theme == themes.theme
-        return Button {
-            withAnimation(.easeInOut(duration: 0.15)) { themes.theme = theme }
-        } label: {
-            Circle()
-                .fill(theme.swatchStyle)
-                .overlay(Circle().stroke(theme.swatchEdge, lineWidth: 1))
-                .frame(width: 32, height: 32)
-                .padding(3)
-                .overlay(Circle().stroke(on ? theme.swatchRing : .clear, lineWidth: 1.5))
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .help(theme.name)
     }
 }
 
@@ -820,11 +788,12 @@ private struct BoardBackupSection: View {
                         }
                     }
                 } label: {
-                    Text("Restore…").font(.system(size: 12, weight: .medium))
+                    Text("Restore…").font(.system(size: 12, weight: .medium)).foregroundStyle(Board.ink)
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
                 .foregroundStyle(Board.ink)
+                .tint(Board.ink)
                 Spacer()
                 Button("Show backups") { vault.showInFinder() }
                     .buttonStyle(.plain)
@@ -888,7 +857,7 @@ struct PomodoroBoardView: View {
             if showStats {
                 HStack(spacing: 0) {
                     BoardStats(store: store)
-                    Rectangle().fill(Board.line.opacity(Board.theme.embroidery == nil ? 1 : 0.2)).frame(width: 1)
+                    Rectangle().fill(Board.line).frame(width: 1)
                 }
                 .transition(.move(edge: .leading).combined(with: .opacity))
             }
@@ -939,7 +908,7 @@ struct PomodoroBoardView: View {
                                     }
                                     .foregroundStyle(Board.muted)
                                     .frame(width: 200, height: 110)
-                                    .background(RoundedRectangle(cornerRadius: 16).fill(Board.theme.embroidery == nil ? Color.clear : Board.column))
+                                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.clear))
                                     .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Board.line, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5])))
                                     .contentShape(Rectangle())
                                 }
