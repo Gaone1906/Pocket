@@ -30,9 +30,9 @@ func tray(_ name: String, theme: String, editing: Bool = false, out: String) {
     BoardThemeStore.shared.theme = BoardTheme.all.first { $0.id == theme } ?? BoardTheme.all[0]
     var measured: CGFloat = 600
     let probe = TrayView(layout: Layout.shared, themes: BoardThemeStore.shared, open: { _ in }, fit: { measured = $0 }, editing: editing)
-    render(probe, size: CGSize(width: TrayView.width, height: 1400), appearance: BoardThemeStore.shared.theme.appearance.name, to: "/tmp/probe.png")
+    render(probe, size: CGSize(width: TrayView.width, height: 1400), appearance: (BoardThemeStore.shared.theme.isDark ? .darkAqua : .aqua), to: "/tmp/probe.png")
     let view = TrayView(layout: Layout.shared, themes: BoardThemeStore.shared, open: { _ in }, fit: { _ in }, editing: editing)
-    render(view.clipShape(RoundedRectangle(cornerRadius: 14)), size: CGSize(width: TrayView.width, height: min(measured, 1000)), appearance: BoardThemeStore.shared.theme.appearance.name, to: "\(out)/\(name).png")
+    render(view.clipShape(RoundedRectangle(cornerRadius: 14)), size: CGSize(width: TrayView.width, height: min(measured, 1000)), appearance: (BoardThemeStore.shared.theme.isDark ? .darkAqua : .aqua), to: "\(out)/\(name).png")
 }
 
 func trayShots(to out: String) {
