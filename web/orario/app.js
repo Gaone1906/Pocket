@@ -1,6 +1,6 @@
 import * as store from "./store.js";
 import { THEMES, apply } from "./themes.js";
-import { $, esc, ICONS, readLocal, writeLocal } from "./util.js";
+import { $, esc, ICONS } from "./util.js";
 import * as orario from "./orario.js";
 
 const TABS = [
@@ -10,7 +10,7 @@ const TABS = [
 
 const ui = {
   setupError: "",
-  tab: readLocal("orario.master.tab", "orario"),
+  tab: "orario",
   toast: "",
 };
 
@@ -90,17 +90,18 @@ function render() {
   const views = { orario: orario.view, settings: viewSettings };
   const syncState = st.problem ? "warn" : store.pendingCount() ? "pending" : "ok";
   const tabTitle = TABS.find(([k]) => k === ui.tab)[1];
+  const inSettings = ui.tab === "settings";
   app.innerHTML = `
-    <nav class="tabs">
-      <div class="brand side"><span class="logo"></span><b>Orario</b></div>
-      ${TABS.map(([k, l]) => `<button class="tab ${ui.tab === k ? "on" : ""} ${k === "settings" ? "end" : ""}" data-tab="${k}">${ICONS[k]}<span>${l}</span></button>`).join("")}
-    </nav>
     <main>
-      <header><h2>${tabTitle}</h2><span class="sync ${syncState}" title="${esc(st.problem || (store.pendingCount() ? "Uploading" : "Synced"))}"></span></header>
+      <header>
+        ${inSettings ? `<button class="icon quiet back" data-tab="orario" aria-label="Back">${ICONS.left}</button>` : `<span class="logo"></span>`}
+        <h2>${tabTitle}</h2>
+        <span class="sync ${syncState}" title="${esc(st.problem || (store.pendingCount() ? "Uploading" : "Synced"))}"></span>
+        <button class="icon gear ${inSettings ? "on" : ""}" data-tab="${inSettings ? "orario" : "settings"}" aria-label="${inSettings ? "Close settings" : "Settings"}">${ICONS.settings}</button>
+      </header>
       ${views[ui.tab]()}
     </main>
     ${ui.toast ? `<div class="toast">${esc(ui.toast)}</div>` : ""}`;
-  document.body.classList.toggle("locked", !!orario.ui.editor && ui.tab === "orario");
   document.querySelectorAll("[data-keep-scroll]").forEach((el) => {
     if (scrolls[el.dataset.keepScroll] != null) el.scrollTop = scrolls[el.dataset.keepScroll];
   });
@@ -114,7 +115,6 @@ function render() {
       } catch (e) {}
     }
   }
-  if (ui.tab === "orario") orario.afterRender();
 }
 
 function toast(text) {
@@ -133,7 +133,6 @@ document.addEventListener("click", async (e) => {
   const d = t.dataset;
   if (d.tab) {
     ui.tab = d.tab;
-    writeLocal("orario.master.tab", d.tab);
     render();
     window.scrollTo(0, 0);
     return;
@@ -170,22 +169,10 @@ document.addEventListener("change", (e) => {
   if (ui.tab === "orario" && orario.onChange(e) === "render") render();
 });
 
-document.addEventListener("focusout", (e) => {
-  if (ui.tab === "orario" && orario.ui.editor) {
-    const r = orario.onFocusOut(e);
-    if (r === "render") render();
-  }
-});
-
 document.addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
   const kind = form.dataset.form;
-  if (ui.tab === "orario") {
-    const r = orario.onSubmit(kind, form);
-    if (r === "render") render();
-    if (r) return;
-  }
   const f = new FormData(form);
   if (kind === "server") {
     const fromLink = parseLink(f.get("link") || "");

@@ -72,7 +72,7 @@ svg {
 }
 
 main {
-  padding: calc(var(--safe-t) + 14px) 16px calc(var(--safe-b) + 96px);
+  padding: calc(var(--safe-t) + 14px) 16px calc(var(--safe-b) + 32px);
   max-width: 720px;
   margin: 0 auto;
 }
@@ -97,6 +97,31 @@ header h2 {
   border-radius: 50%;
   margin-left: auto;
   background: var(--accent);
+}
+
+.icon.gear {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: var(--pill);
+  border: 1px solid var(--line);
+}
+
+.icon.gear svg {
+  width: 21px;
+  height: 21px;
+}
+
+.icon.gear.on {
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+header .back {
+  margin-left: -8px;
 }
 
 .sync.pending {
@@ -206,7 +231,6 @@ header h2 {
     margin-top: auto;
   }
   main {
-    margin-left: 220px;
     max-width: 980px;
     padding: 30px 40px 40px;
   }
