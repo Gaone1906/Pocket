@@ -1,3 +1,4 @@
+import Carbon
 import Combine
 import Foundation
 
@@ -76,15 +77,32 @@ final class Layout: ObservableObject {
             map[app.id] = .option(key)
             added.append(app.id)
         }
+        var moved: [String] = []
+        if !defaults.bool(forKey: "shortcuts.elements") {
+            for (id, code) in Layout.elementKeys where known.contains(id) {
+                let key = Shortcut.option(code)
+                map.filter { $0.key != id && $0.value == key }.forEach { map[$0.key] = nil }
+                if map[id] != key {
+                    map[id] = key
+                    moved.append(id)
+                }
+            }
+            defaults.set(true, forKey: "shortcuts.elements")
+        }
         shortcuts = map
         extraShortcuts = defaults.data(forKey: "shortcuts.extra").flatMap { try? JSONDecoder().decode([String: [Shortcut]].self, from: $0) } ?? [:]
         defaults.set(Array(offered).sorted(), forKey: "shortcuts.offered")
-        if stored == nil || !added.isEmpty, let data = try? JSONEncoder().encode(map) {
+        if stored == nil || !added.isEmpty || !moved.isEmpty, let data = try? JSONEncoder().encode(map) {
             defaults.set(data, forKey: "shortcuts")
-            note("pocket shortcut defaults given apps=\(added.joined(separator: ","))")
+            note("pocket shortcut defaults given apps=\(added.joined(separator: ",")) moved=\(moved.joined(separator: ","))")
         }
         save()
     }
+
+    static let elementKeys: [(String, UInt32)] = [
+        ("pomodoro", UInt32(kVK_ANSI_1)), ("runner", UInt32(kVK_ANSI_2)),
+        ("schedule", UInt32(kVK_ANSI_3)), ("calorie", UInt32(kVK_ANSI_4)),
+    ]
 
     var tray: [String] { shelves.flatMap(\.apps) }
     var enabled: [String] { bar + tray }

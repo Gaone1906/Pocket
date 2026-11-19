@@ -14,6 +14,9 @@ struct Shortcut: Codable, Equatable {
         UInt32(kVK_ANSI_Q): "Q", UInt32(kVK_ANSI_R): "R", UInt32(kVK_ANSI_S): "S", UInt32(kVK_ANSI_T): "T",
         UInt32(kVK_ANSI_U): "U", UInt32(kVK_ANSI_V): "V", UInt32(kVK_ANSI_W): "W", UInt32(kVK_ANSI_X): "X",
         UInt32(kVK_ANSI_Y): "Y", UInt32(kVK_ANSI_Z): "Z",
+        UInt32(kVK_ANSI_0): "0", UInt32(kVK_ANSI_1): "1", UInt32(kVK_ANSI_2): "2", UInt32(kVK_ANSI_3): "3",
+        UInt32(kVK_ANSI_4): "4", UInt32(kVK_ANSI_5): "5", UInt32(kVK_ANSI_6): "6", UInt32(kVK_ANSI_7): "7",
+        UInt32(kVK_ANSI_8): "8", UInt32(kVK_ANSI_9): "9",
     ]
 
     static let named: [UInt32: String] = [

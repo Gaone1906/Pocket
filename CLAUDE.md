@@ -163,7 +163,7 @@ kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md); 
 
 ## Aqua app (formerly Orario, and before that Schedule)
 
-A weekly routine tracker (`⌥O`); its code, app id and data file still use `schedule`. Data model in `Sources/Pocket/ScheduleModel.swift` (`ScheduleStore.shared`, saved to
+A weekly routine tracker (`⌥3`); its code, app id and data file still use `schedule`. Data model in `Sources/Pocket/ScheduleModel.swift` (`ScheduleStore.shared`, saved to
 `$ROOT/schedule.json` through `DataVault` as `schedule`):
 - `routines`: each has a name, a hue, a start day, notes, and a `plan` keyed `"<weekday>-<morning|night>"` (Calendar
   weekdays, 1 = Sunday), so 7 × 2 cells, each its own ordered list of steps (`title`, `tip`). Weeks repeat; there are no
@@ -202,7 +202,7 @@ shared `Board` theme tokens; there is no theme picker inside Calendar.
 
 ## Ventus app
 
-Runs today's timed routines step by step (`⌥K`); its code, app id, data file and record kind say `runner`. Details in
+Runs today's timed routines step by step (`⌥2`); its code, app id, data file and record kind say `runner`. Details in
 [docs/kb/apps/kairos.md](docs/kb/apps/kairos.md). Rules to keep true:
 - Code holds only templates. Every workout number, move name, timer, cue, affirmation line and writing prompt lives in the
   `run` object on each Aqua step in the database, so a routine change is a data change. Never hard-code them.
@@ -214,7 +214,7 @@ Runs today's timed routines step by step (`⌥K`); its code, app id, data file a
 
 ## Terra app
 
-Calorie tracker (`⌥E`); its app id, data file and record kinds say `calorie`. Details in
+Calorie tracker (`⌥4`); its app id, data file and record kinds say `calorie`. Details in
 [docs/kb/apps/misura.md](docs/kb/apps/misura.md). Rules to keep true:
 - Every personal number (birth date, height, weights, goal, dates, lowest budget, Watch share) lives in the plan in
   `$ROOT/calorie.json` (`{"plan", "entries", "weights"}`, `DataVault` name `calorie`), never in code.
