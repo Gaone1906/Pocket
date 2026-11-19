@@ -554,7 +554,8 @@ private struct BoardColumn: View {
                         Image(systemName: "ellipsis")
                     }
                     .menuStyle(.borderlessButton)
-                        .fixedSize()
+                    .menuIndicator(.hidden)
+                    .fixedSize()
                     .foregroundStyle(Board.muted)
                 }
             }
@@ -790,7 +791,6 @@ private struct BoardBackupSection: View {
                     Text("Restore…").font(.system(size: 12, weight: .medium)).foregroundStyle(Board.ink)
                 }
                 .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
                 .fixedSize()
                 .foregroundStyle(Board.ink)
                 .tint(Board.ink)
