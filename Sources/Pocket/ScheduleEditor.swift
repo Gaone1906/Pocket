@@ -21,7 +21,7 @@ struct ScheduleEditorOverlay: View {
                 .padding(.horizontal, 22)
                 .padding(.top, 18)
                 .padding(.bottom, 14)
-            Rectangle().fill(Board.line).frame(height: 1)
+            Rectangle().fill(OrarioBoard.line).frame(height: 1)
             if let routine {
                 ScrollView(.vertical) {
                     ScheduleEditorGrid(store: store, routine: routine, editing: $editing)
@@ -49,15 +49,15 @@ struct ScheduleEditorOverlay: View {
             HStack {
                 Text("Change the schedule")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(Board.ink)
+                    .foregroundStyle(OrarioBoard.ink)
                 Spacer()
                 Button(action: dismiss) {
                     Image(systemName: "xmark")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(OrarioBoard.muted)
                         .frame(width: 26, height: 26)
-                        .background(Circle().fill(Board.column))
-                        .overlay(Circle().stroke(Board.line, lineWidth: 1))
+                        .background(Circle().fill(OrarioBoard.column))
+                        .overlay(Circle().stroke(OrarioBoard.line, lineWidth: 1))
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -79,7 +79,7 @@ struct ScheduleEditorOverlay: View {
     private func pill(_ item: ScheduleRoutine) -> some View {
         let on = item.id == routine?.id
         if renaming == item.id {
-            ScheduleEditorPillField(hue: Board.hue(item.hue), text: $renameText, prompt: "Routine name")
+            ScheduleEditorPillField(hue: OrarioBoard.hue(item.hue), text: $renameText, prompt: "Routine name")
                 .focused($nameFocus, equals: .rename)
                 .onSubmit(commitRename)
                 .onExitCommand { renaming = nil }
@@ -87,14 +87,14 @@ struct ScheduleEditorOverlay: View {
         } else {
             HStack(spacing: 2) {
                 Button {
-                    withAnimation(Board.glide) { selected = item.id }
+                    withAnimation(OrarioBoard.glide) { selected = item.id }
                     editing = nil
                 } label: {
                     HStack(spacing: 7) {
-                        Circle().fill(Board.hue(item.hue)).frame(width: 7, height: 7)
+                        Circle().fill(OrarioBoard.hue(item.hue)).frame(width: 7, height: 7)
                         Text(item.name)
                             .font(.system(size: 12, weight: on ? .semibold : .medium))
-                            .foregroundStyle(on ? Board.ink : Board.muted)
+                            .foregroundStyle(on ? OrarioBoard.ink : OrarioBoard.muted)
                             .lineLimit(1)
                     }
                     .padding(.leading, 12)
@@ -113,7 +113,7 @@ struct ScheduleEditorOverlay: View {
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Board.muted)
+                            .foregroundStyle(OrarioBoard.muted)
                             .frame(width: 22, height: 22)
                             .contentShape(Circle())
                     }
@@ -125,15 +125,15 @@ struct ScheduleEditorOverlay: View {
                 }
             }
             .frame(height: 30)
-            .background(RoundedRectangle(cornerRadius: 15).fill(on ? Board.column : Color.clear))
-            .overlay(RoundedRectangle(cornerRadius: 15).strokeBorder(on ? Board.hue(item.hue).opacity(0.7) : Board.line, lineWidth: on ? 1.5 : 1))
+            .background(RoundedRectangle(cornerRadius: 15).fill(on ? OrarioBoard.column : Color.clear))
+            .overlay(RoundedRectangle(cornerRadius: 15).strokeBorder(on ? OrarioBoard.hue(item.hue).opacity(0.7) : OrarioBoard.line, lineWidth: on ? 1.5 : 1))
         }
     }
 
     @ViewBuilder
     private var addPill: some View {
         if adding {
-            ScheduleEditorPillField(hue: Board.faint, text: $newName, prompt: "New routine")
+            ScheduleEditorPillField(hue: OrarioBoard.faint, text: $newName, prompt: "New routine")
                 .focused($nameFocus, equals: .add)
                 .onSubmit(commitAdd)
                 .onExitCommand { cancelAdd() }
@@ -146,9 +146,9 @@ struct ScheduleEditorOverlay: View {
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(OrarioBoard.muted)
                     .frame(width: 30, height: 30)
-                    .overlay(Capsule().stroke(Board.line, style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
+                    .overlay(Capsule().stroke(OrarioBoard.line, style: StrokeStyle(lineWidth: 1, dash: [3, 3])))
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
@@ -160,10 +160,10 @@ struct ScheduleEditorOverlay: View {
         VStack(spacing: 10) {
             Image(systemName: "calendar.badge.plus")
                 .font(.system(size: 28, weight: .light))
-                .foregroundStyle(Board.faint)
+                .foregroundStyle(OrarioBoard.faint)
             Text("Add a routine with + to start planning your week")
                 .font(.system(size: 12))
-                .foregroundStyle(Board.muted)
+                .foregroundStyle(OrarioBoard.muted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -191,7 +191,7 @@ struct ScheduleEditorOverlay: View {
         let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
         let id = store.addRoutine(name)
-        withAnimation(Board.glide) { selected = id }
+        withAnimation(OrarioBoard.glide) { selected = id }
     }
 
     private func cancelAdd() {
@@ -213,7 +213,7 @@ struct ScheduleEditorOverlay: View {
         }
         editing = nil
         store.deleteRoutine(item.id)
-        withAnimation(Board.glide) { selected = store.routines.first?.id }
+        withAnimation(OrarioBoard.glide) { selected = store.routines.first?.id }
     }
 }
 
@@ -233,13 +233,13 @@ private struct ScheduleEditorPillField: View {
             TextField(prompt, text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Board.ink)
+                .foregroundStyle(OrarioBoard.ink)
                 .frame(width: 130)
         }
         .padding(.horizontal, 12)
         .frame(height: 30)
-        .background(RoundedRectangle(cornerRadius: 15).fill(Board.column))
-        .overlay(RoundedRectangle(cornerRadius: 15).strokeBorder(Board.accent.opacity(0.7), lineWidth: 1.5))
+        .background(RoundedRectangle(cornerRadius: 15).fill(OrarioBoard.column))
+        .overlay(RoundedRectangle(cornerRadius: 15).strokeBorder(OrarioBoard.accent.opacity(0.7), lineWidth: 1.5))
     }
 }
 
@@ -261,10 +261,10 @@ private struct ScheduleEditorGrid: View {
                     Text(ScheduleDays.short(weekday).uppercased())
                         .font(.system(size: 10, weight: .semibold))
                         .tracking(1.6)
-                        .foregroundStyle(isToday ? Board.accentInkStyle : AnyShapeStyle(Board.muted))
+                        .foregroundStyle(isToday ? OrarioBoard.accentInkStyle : AnyShapeStyle(OrarioBoard.muted))
                         .frame(maxWidth: .infinity)
                         .frame(height: 24)
-                        .background(Capsule().fill(isToday ? Board.accent.opacity(0.14) : Color.clear))
+                        .background(Capsule().fill(isToday ? OrarioBoard.accent.opacity(0.14) : Color.clear))
                         .help(isToday ? "\(ScheduleDays.name(weekday)) (today)" : ScheduleDays.name(weekday))
                 }
             }
@@ -273,11 +273,11 @@ private struct ScheduleEditorGrid: View {
                     VStack(spacing: 6) {
                         Image(systemName: slot.symbol)
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(Board.muted)
+                            .foregroundStyle(OrarioBoard.muted)
                         Text(slot.label.uppercased())
                             .font(.system(size: 9, weight: .semibold))
                             .tracking(1.2)
-                            .foregroundStyle(Board.muted)
+                            .foregroundStyle(OrarioBoard.muted)
                     }
                     .frame(width: labelWidth)
                     .padding(.top, 12)
@@ -317,9 +317,9 @@ private struct ScheduleEditorCell: View {
         }
         .padding(10)
         .frame(minHeight: 96, maxHeight: .infinity, alignment: .topLeading)
-        .background(RoundedRectangle(cornerRadius: 14).fill(Board.column))
-        .boardEdge(14, color: isToday ? Board.accent.opacity(0.55) : Board.line)
-        .animation(Board.glide, value: steps.map(\.id))
+        .background(RoundedRectangle(cornerRadius: 14).fill(OrarioBoard.column))
+        .boardEdge(14, color: isToday ? OrarioBoard.accent.opacity(0.55) : OrarioBoard.line)
+        .animation(OrarioBoard.glide, value: steps.map(\.id))
     }
 
     @ViewBuilder
@@ -328,11 +328,11 @@ private struct ScheduleEditorCell: View {
             TextField("New step", text: $draft)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
-                .foregroundStyle(Board.ink)
+                .foregroundStyle(OrarioBoard.ink)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 5)
-                .background(RoundedRectangle(cornerRadius: 7).fill(Board.theme.panel))
-                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Board.accent.opacity(0.6), lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 7).fill(OrarioBoard.theme.panel))
+                .overlay(RoundedRectangle(cornerRadius: 7).stroke(OrarioBoard.accent.opacity(0.6), lineWidth: 1))
                 .focused($focused)
                 .onSubmit(commit)
                 .onExitCommand(perform: cancel)
@@ -347,7 +347,7 @@ private struct ScheduleEditorCell: View {
                     Image(systemName: "plus").font(.system(size: 9, weight: .bold))
                     Text("Add").font(.system(size: 11, weight: .medium))
                 }
-                .foregroundStyle(Board.faint)
+                .foregroundStyle(OrarioBoard.faint)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -401,7 +401,7 @@ private struct ScheduleEditorStepRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
             Text(step.title)
                 .font(.system(size: 12))
-                .foregroundStyle(Board.ink)
+                .foregroundStyle(OrarioBoard.ink)
                 .lineLimit(3)
                 .truncationMode(.tail)
                 .fixedSize(horizontal: false, vertical: true)
@@ -409,7 +409,7 @@ private struct ScheduleEditorStepRow: View {
             if !step.tip.isEmpty, !hovering {
                 Image(systemName: "text.bubble")
                     .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(Board.faint)
+                    .foregroundStyle(OrarioBoard.faint)
             }
             if hovering {
                 Button {
@@ -418,7 +418,7 @@ private struct ScheduleEditorStepRow: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(OrarioBoard.muted)
                         .frame(width: 14, height: 14)
                         .contentShape(Rectangle())
                 }
@@ -429,7 +429,7 @@ private struct ScheduleEditorStepRow: View {
         }
         .padding(.horizontal, 5)
         .padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 7).fill(hovering || editing == step.id ? Board.line.opacity(0.45) : Color.clear))
+        .background(RoundedRectangle(cornerRadius: 7).fill(hovering || editing == step.id ? OrarioBoard.line.opacity(0.45) : Color.clear))
         .contentShape(Rectangle())
         .onHover { inside in withAnimation(.easeOut(duration: 0.12)) { hovering = inside } }
         .onTapGesture { editing = editing == step.id ? nil : step.id }
@@ -460,28 +460,28 @@ private struct ScheduleStepEditor: View {
             Text("\(ScheduleDays.name(weekday).uppercased()) · \(slot.label.uppercased())")
                 .font(.system(size: 10, weight: .semibold))
                 .tracking(1.6)
-                .foregroundStyle(Board.muted)
+                .foregroundStyle(OrarioBoard.muted)
             TextField("Step", text: $title)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Board.ink)
+                .foregroundStyle(OrarioBoard.ink)
                 .padding(8)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Board.column))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Board.line, lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 8).fill(OrarioBoard.column))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(OrarioBoard.line, lineWidth: 1))
                 .onSubmit(finish)
             Text("HOW TO DO IT")
                 .font(.system(size: 10, weight: .semibold))
                 .tracking(1.6)
-                .foregroundStyle(Board.muted)
+                .foregroundStyle(OrarioBoard.muted)
                 .padding(.top, 4)
             TextEditor(text: $tip)
                 .font(.system(size: 12))
-                .foregroundStyle(Board.ink)
+                .foregroundStyle(OrarioBoard.ink)
                 .scrollContentBackground(.hidden)
                 .padding(6)
                 .frame(height: 120)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Board.column))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Board.line, lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 8).fill(OrarioBoard.column))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(OrarioBoard.line, lineWidth: 1))
             HStack(spacing: 6) {
                 iconButton("arrow.up", help: "Move up", disabled: index == 0) { move(-1) }
                 iconButton("arrow.down", help: "Move down", disabled: index >= count - 1) { move(1) }
@@ -499,8 +499,8 @@ private struct ScheduleStepEditor: View {
         }
         .padding(16)
         .frame(width: 320)
-        .background(Board.theme.panel)
-        .environment(\.colorScheme, Board.theme.colorScheme)
+        .background(OrarioBoard.theme.panel)
+        .environment(\.colorScheme, OrarioBoard.theme.colorScheme)
         .onAppear {
             title = step.title
             tip = step.tip
@@ -512,10 +512,10 @@ private struct ScheduleStepEditor: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(disabled ? Board.faint : Board.muted)
+                .foregroundStyle(disabled ? OrarioBoard.faint : OrarioBoard.muted)
                 .frame(width: 28, height: 26)
-                .background(RoundedRectangle(cornerRadius: 7).fill(Board.column))
-                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Board.line, lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 7).fill(OrarioBoard.column))
+                .overlay(RoundedRectangle(cornerRadius: 7).stroke(OrarioBoard.line, lineWidth: 1))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

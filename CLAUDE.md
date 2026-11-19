@@ -219,5 +219,7 @@ shared `Board` theme tokens; there is no theme picker inside Calendar.
 - No comments in code.
 - Build with `swift build`. Install and relaunch with `scripts/install.sh`. Then check routes with `curl`.
 - Themes live in `Sources/Pocket/BoardTheme.swift`: `pastel(...)` for light themes and `dusk(..., ground:, glow:)` for
-  dark ones (a deep tinted ground with a pastel glow). One theme covers every native app and is picked only in Pocket
-  Settings (`SettingsWindow.swift`). Theme ids are persisted, so never rename one.
+  dark ones (a deep tinted ground with a pastel glow). The Pocket theme covers the dropdown, Settings and most native
+  apps; Orario, Aurelius and Kairos have their own colour (`AppThemeStore`, defaults Butter, Rose and Apricot like their
+  web apps) that tints their menu-bar icon and their windows. Both are picked only in Pocket Settings → Appearance
+  (`SettingsWindow.swift`); see `docs/kb/theme.md`. Theme ids are persisted, so never rename one.

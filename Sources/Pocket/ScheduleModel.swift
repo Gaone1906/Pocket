@@ -27,7 +27,7 @@ enum ScheduleStepText {
     static func make(_ title: String) -> Text {
         let split = parts(title)
         guard !split.detail.isEmpty else { return Text(split.name) }
-        return Text(split.name).fontWeight(.semibold) + Text(" " + split.detail).fontWeight(.regular).foregroundStyle(Board.muted)
+        return Text(split.name).fontWeight(.semibold) + Text(" " + split.detail).fontWeight(.regular).foregroundStyle(OrarioBoard.muted)
     }
 
     static func plain(_ title: String) -> String {

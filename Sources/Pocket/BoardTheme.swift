@@ -144,6 +144,133 @@ final class BoardThemeStore: ObservableObject {
     }
 }
 
+struct ThemedApp: Identifiable {
+    let id: String
+    let name: String
+    let fallback: String
+}
+
+final class AppThemeStore: ObservableObject {
+    static let shared = AppThemeStore()
+    private static let prefix = "app.theme."
+
+    static let apps = [
+        ThemedApp(id: "schedule", name: "Orario", fallback: "butter"),
+        ThemedApp(id: "pomodoro", name: "Aurelius", fallback: "rose"),
+        ThemedApp(id: "runner", name: "Kairos", fallback: "apricot"),
+    ]
+
+    @Published private(set) var picks: [String: String]
+
+    private init() {
+        var picks: [String: String] = [:]
+        for app in Self.apps {
+            if let saved = UserDefaults.standard.string(forKey: Self.prefix + app.id), BoardTheme.all.contains(where: { $0.id == saved }) {
+                picks[app.id] = saved
+            }
+        }
+        self.picks = picks
+    }
+
+    static func isThemed(_ app: String) -> Bool { apps.contains { $0.id == app } }
+
+    func theme(for app: String) -> BoardTheme { Self.resolve(app, in: picks) }
+
+    private static func resolve(_ app: String, in picks: [String: String]) -> BoardTheme {
+        guard let entry = apps.first(where: { $0.id == app }) else { return BoardThemeStore.shared.theme }
+        let id = picks[app] ?? entry.fallback
+        return BoardTheme.all.first { $0.id == id } ?? BoardThemeStore.shared.theme
+    }
+
+    func isDefault(_ app: String) -> Bool { picks[app] == nil }
+
+    func set(_ theme: BoardTheme, for app: String) {
+        guard let entry = Self.apps.first(where: { $0.id == app }) else { return }
+        let previous = self.theme(for: app).id
+        let pick = theme.id == entry.fallback ? nil : theme.id
+        guard picks[app] != pick else { return }
+        picks[app] = pick
+        if let pick {
+            UserDefaults.standard.set(pick, forKey: Self.prefix + app)
+        } else {
+            UserDefaults.standard.removeObject(forKey: Self.prefix + app)
+        }
+        note("pocket app theme changed app=\(app) theme=\(theme.id) previous=\(previous) default=\(entry.fallback)")
+        AppDelegate.shared.apps[app]?.changed()
+    }
+
+    func publisher(for app: String) -> AnyPublisher<BoardTheme, Never> {
+        guard Self.isThemed(app) else { return BoardThemeStore.shared.$theme.eraseToAnyPublisher() }
+        return $picks.map { Self.resolve(app, in: $0) }
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .eraseToAnyPublisher()
+    }
+
+    func iconColor(for app: String, onDark: Bool) -> Color? {
+        guard Self.isThemed(app) else { return nil }
+        let theme = self.theme(for: app)
+        if onDark { return theme.isDark ? theme.accent : theme.swatchEdge }
+        return theme.isDark ? theme.swatchEdge : theme.swatchRing
+    }
+
+    func iconTint(for app: String) -> NSColor? {
+        guard let light = iconColor(for: app, onDark: false), let dark = iconColor(for: app, onDark: true) else { return nil }
+        let lightTint = NSColor(light), darkTint = NSColor(dark)
+        return NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? darkTint : lightTint
+        }
+    }
+}
+
+protocol BoardScope {
+    static var theme: BoardTheme { get }
+}
+
+extension BoardScope {
+    static var backdrop: Color { theme.backdrop }
+    static var sidebar: Color { theme.sidebar }
+    static var column: Color { theme.card }
+    static var line: Color { theme.line }
+    static var muted: Color { theme.muted }
+    static var ink: Color { theme.ink }
+    static var faint: Color { theme.faint }
+    static var accent: Color { theme.accent }
+    static var accentInk: Color { theme.accentInk }
+    static var accentStyle: AnyShapeStyle { theme.accentStyle }
+    static var accentInkStyle: AnyShapeStyle { theme.accentInkStyle }
+    static var shadow: Color { theme.shadow }
+    static var hueCount: Int { BoardTheme.projectOffsets.count }
+    static var glide: Animation { .smooth(duration: 0.3) }
+
+    static func hue(_ index: Int) -> Color { theme.projectTint(index) }
+}
+
+enum OrarioBoard: BoardScope {
+    static var theme: BoardTheme { AppThemeStore.shared.theme(for: "schedule") }
+}
+
+enum AureliusBoard: BoardScope {
+    static var theme: BoardTheme { AppThemeStore.shared.theme(for: "pomodoro") }
+}
+
+private struct BoardThemeKey: EnvironmentKey {
+    static var defaultValue: BoardTheme? { nil }
+}
+
+extension EnvironmentValues {
+    var boardTheme: BoardTheme? {
+        get { self[BoardThemeKey.self] }
+        set { self[BoardThemeKey.self] = newValue }
+    }
+}
+
+extension View {
+    func appTheme(_ theme: BoardTheme) -> some View {
+        environment(\.boardTheme, theme).environment(\.colorScheme, theme.colorScheme)
+    }
+}
+
 struct BoardBackdrop: View {
     let theme: BoardTheme
 
@@ -153,8 +280,19 @@ struct BoardBackdrop: View {
 }
 
 extension View {
-    func boardEdge(_ radius: CGFloat, color: Color = Board.line, width: CGFloat = 1) -> some View {
-        overlay(RoundedRectangle(cornerRadius: radius).stroke(color, lineWidth: width))
+    func boardEdge(_ radius: CGFloat, color: Color? = nil, width: CGFloat = 1) -> some View {
+        modifier(BoardEdge(radius: radius, color: color, width: width))
+    }
+}
+
+private struct BoardEdge: ViewModifier {
+    let radius: CGFloat
+    let color: Color?
+    let width: CGFloat
+    @Environment(\.boardTheme) private var scoped
+
+    func body(content: Content) -> some View {
+        content.overlay(RoundedRectangle(cornerRadius: radius).stroke(color ?? (scoped ?? Board.theme).line, lineWidth: width))
     }
 }
 
@@ -163,8 +301,18 @@ final class ThemedHostingView<Content: View>: NSHostingView<Content> {
 
     required init(rootView: Content) {
         super.init(rootView: rootView)
-        appearance = BoardThemeStore.shared.theme.appearance
-        themeWatch = BoardThemeStore.shared.$theme.sink { [weak self] theme in self?.appearance = theme.appearance }
+        watch(app: nil)
+    }
+
+    init(rootView: Content, app: String) {
+        super.init(rootView: rootView)
+        watch(app: app)
+    }
+
+    private func watch(app: String?) {
+        let source = app.map { AppThemeStore.shared.publisher(for: $0) } ?? BoardThemeStore.shared.$theme.eraseToAnyPublisher()
+        appearance = (app.map { AppThemeStore.shared.theme(for: $0) } ?? BoardThemeStore.shared.theme).appearance
+        themeWatch = source.sink { [weak self] theme in self?.appearance = theme.appearance }
     }
 
     @available(*, unavailable)

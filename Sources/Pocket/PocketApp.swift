@@ -115,7 +115,8 @@ enum AppIcon {
             ?? NSImage(systemSymbolName: spec.symbol, accessibilityDescription: spec.name)
     }
 
-    static func render(_ spec: AppSpec, unread: Int = 0, tint: NSColor = .labelColor) -> NSImage? {
+    static func render(_ spec: AppSpec, unread: Int = 0, tint: NSColor? = nil) -> NSImage? {
+        let tint = tint ?? AppThemeStore.shared.iconTint(for: spec.id) ?? .labelColor
         guard let glyph = glyph(spec) else {
             note("pocket menu glyph missing app=\(spec.id) symbol=\(spec.symbol)")
             return nil

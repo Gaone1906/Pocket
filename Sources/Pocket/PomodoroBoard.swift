@@ -171,7 +171,7 @@ final class PomodoroBoardStore: ObservableObject {
     @discardableResult
     func addProject() -> UUID {
         let used = Set(projects.map(\.hue))
-        let hue = (0..<Board.hueCount).first { !used.contains($0) } ?? projects.count % Board.hueCount
+        let hue = (0..<AureliusBoard.hueCount).first { !used.contains($0) } ?? projects.count % AureliusBoard.hueCount
         let project = PomodoroProject(id: UUID(), name: "", hue: hue)
         projects.append(project)
         save()
@@ -195,25 +195,8 @@ final class PomodoroBoardStore: ObservableObject {
     }
 }
 
-enum Board {
+enum Board: BoardScope {
     static var theme: BoardTheme { BoardThemeStore.shared.theme }
-    static var backdrop: Color { theme.backdrop }
-    static var sidebar: Color { theme.sidebar }
-    static var column: Color { theme.card }
-    static var line: Color { theme.line }
-    static var muted: Color { theme.muted }
-    static var ink: Color { theme.ink }
-    static var faint: Color { theme.faint }
-    static var accent: Color { theme.accent }
-    static var accentInk: Color { theme.accentInk }
-    static var accentStyle: AnyShapeStyle { theme.accentStyle }
-    static var accentInkStyle: AnyShapeStyle { theme.accentInkStyle }
-    static var shadow: Color { theme.shadow }
-    static let hueCount = BoardTheme.projectOffsets.count
-
-    static let glide = Animation.smooth(duration: 0.3)
-
-    static func hue(_ index: Int) -> Color { theme.projectTint(index) }
 
     static func sessionLabel(_ session: PomodoroSession) -> String {
         guard session.isDeclared else {
@@ -319,10 +302,10 @@ private struct GlowDot: View {
 
     var body: some View {
         Circle()
-            .fill(Board.accentStyle)
+            .fill(AureliusBoard.accentStyle)
             .frame(width: 10, height: 10)
-            .shadow(color: Board.accent.opacity(bright ? 0.95 : 0.55), radius: bright ? 7 : 4)
-            .shadow(color: Board.accent.opacity(0.35), radius: 12)
+            .shadow(color: AureliusBoard.accent.opacity(bright ? 0.95 : 0.55), radius: bright ? 7 : 4)
+            .shadow(color: AureliusBoard.accent.opacity(0.35), radius: 12)
             .frame(width: 22, height: 22)
             .contentShape(Rectangle())
             .onAppear {
@@ -445,7 +428,7 @@ private struct BoardCalendar: View {
     private struct Lane: Identifiable {
         let project: PomodoroProject?
         var id: String { project?.id.uuidString ?? "unassigned" }
-        var tint: Color { project.map { Board.hue($0.hue) } ?? Board.accent }
+        var tint: Color { project.map { AureliusBoard.hue($0.hue) } ?? AureliusBoard.accent }
         var name: String { project.map { $0.name.isEmpty ? "Untitled" : $0.name } ?? "Unassigned" }
     }
 
@@ -461,24 +444,24 @@ private struct BoardCalendar: View {
                             Circle().fill(lane.tint).frame(width: 7, height: 7)
                             Text(lane.name)
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(Board.ink)
+                                .foregroundStyle(AureliusBoard.ink)
                                 .lineLimit(1)
                             Spacer(minLength: 4)
                             Text(Board.unitsLabel(Board.units(store.sessions(in: lane.project?.id))))
                                 .font(.system(size: 12, weight: .semibold))
                                 .monospacedDigit()
-                                .foregroundStyle(Board.muted)
+                                .foregroundStyle(AureliusBoard.muted)
                         }
                         .padding(.horizontal, 16)
                         .frame(width: 260, height: 46)
-                        .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
+                        .background(RoundedRectangle(cornerRadius: 16).fill(AureliusBoard.column))
                         .boardEdge(16)
                     }
                 }
                 if days.isEmpty {
                     Text("Finished sessions show up here, one row per day")
                         .font(.system(size: 12))
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(AureliusBoard.muted)
                         .padding(.leading, 164)
                         .padding(.top, 10)
                 }
@@ -487,17 +470,17 @@ private struct BoardCalendar: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(Board.dayDate(entry.day))
                                 .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(Board.ink)
+                                .foregroundStyle(AureliusBoard.ink)
                                 .lineLimit(1)
                             Text([Board.dayTag(entry.day), "\(Board.unitsLabel(Board.units(entry.sessions))) sessions"].compactMap { $0 }.joined(separator: " · "))
                                 .font(.system(size: 11))
                                 .monospacedDigit()
-                                .foregroundStyle(Board.muted)
+                                .foregroundStyle(AureliusBoard.muted)
                         }
                         .padding(14)
                         .frame(width: 150, alignment: .topLeading)
                         .frame(maxHeight: .infinity, alignment: .topLeading)
-                        .background(RoundedRectangle(cornerRadius: 16).fill(Board.sidebar))
+                        .background(RoundedRectangle(cornerRadius: 16).fill(AureliusBoard.sidebar))
                         .boardEdge(16)
                         ForEach(lanes) { lane in
                             let sessions = entry.sessions.filter { $0.project == lane.project?.id }
@@ -505,7 +488,7 @@ private struct BoardCalendar: View {
                                 if sessions.isEmpty {
                                     Text("–")
                                         .font(.system(size: 12))
-                                        .foregroundStyle(Board.faint)
+                                        .foregroundStyle(AureliusBoard.faint)
                                 } else {
                                     SessionMarks(sessions: sessions, assigned: lane.project != nil, tint: lane.tint, store: store)
                                 }
@@ -513,7 +496,7 @@ private struct BoardCalendar: View {
                             .padding(16)
                             .frame(width: 260, alignment: .topLeading)
                             .frame(minHeight: 72, maxHeight: .infinity, alignment: .topLeading)
-                            .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
+                            .background(RoundedRectangle(cornerRadius: 16).fill(AureliusBoard.column))
                             .boardEdge(16)
                         }
                     }
@@ -536,7 +519,7 @@ private struct BoardColumn: View {
     @FocusState private var editing: Bool
 
     private var sessions: [PomodoroSession] { store.sessions(in: project?.id) }
-    private var tint: Color { project.map { Board.hue($0.hue) } ?? Board.accent }
+    private var tint: Color { project.map { AureliusBoard.hue($0.hue) } ?? AureliusBoard.accent }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -546,20 +529,20 @@ private struct BoardColumn: View {
                     TextField("Project name", text: $name)
                         .textFieldStyle(.plain)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Board.ink)
+                        .foregroundStyle(AureliusBoard.ink)
                         .focused($editing)
                         .onSubmit { commit(project.id) }
                         .onChange(of: editing) { _, now in if !now { commit(project.id) } }
                 } else {
                     Text("Unassigned")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Board.ink)
+                        .foregroundStyle(AureliusBoard.ink)
                 }
                 Spacer(minLength: 4)
                 Text(Board.unitsLabel(Board.units(sessions)))
                     .font(.system(size: 12, weight: .semibold))
                     .monospacedDigit()
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(AureliusBoard.muted)
                 if let project {
                     Menu {
                         Button("Declare a session…") { declare(project.id) }
@@ -571,12 +554,12 @@ private struct BoardColumn: View {
                     .menuStyle(.borderlessButton)
                     .menuIndicator(.hidden)
                     .fixedSize()
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(AureliusBoard.muted)
                 }
             }
             Text(sessions.isEmpty ? (project == nil ? "Finished sessions land here" : "Drag or click a session to assign it") : "\(Board.duration(sessions.reduce(0) { $0 + $1.minutes })) focused")
                 .font(.system(size: 11))
-                .foregroundStyle(Board.muted)
+                .foregroundStyle(AureliusBoard.muted)
                 .padding(.leading, 15)
             ScrollView(.vertical, showsIndicators: false) {
                 SessionMarks(sessions: sessions.sorted { $0.ended < $1.ended }, assigned: project != nil, tint: tint, store: store)
@@ -586,8 +569,8 @@ private struct BoardColumn: View {
         .padding(16)
         .frame(width: 260)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
-        .boardEdge(16, color: targeted ? tint.opacity(0.8) : Board.line, width: targeted ? 1.5 : 1)
+        .background(RoundedRectangle(cornerRadius: 16).fill(AureliusBoard.column))
+        .boardEdge(16, color: targeted ? tint.opacity(0.8) : AureliusBoard.line, width: targeted ? 1.5 : 1)
         .contextMenu {
             Button("Declare a session…") { declare(project?.id) }
             if let project {
@@ -623,17 +606,17 @@ private struct SettingRow: View {
         HStack(spacing: 10) {
             Text(title)
                 .font(.system(size: 12))
-                .foregroundStyle(Board.muted)
+                .foregroundStyle(AureliusBoard.muted)
             Spacer(minLength: 4)
             step("minus", -1)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text("\(value)")
                     .font(.system(size: 18, weight: .bold))
                     .monospacedDigit()
-                    .foregroundStyle(Board.ink)
+                    .foregroundStyle(AureliusBoard.ink)
                 Text(unit)
                     .font(.system(size: 10))
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(AureliusBoard.muted)
             }
             .frame(width: 66)
             step("plus", 1)
@@ -646,10 +629,10 @@ private struct SettingRow: View {
         } label: {
             Image(systemName: symbol)
                 .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(Board.ink)
+                .foregroundStyle(AureliusBoard.ink)
                 .frame(width: 24, height: 24)
-                .background(Circle().fill(Board.column))
-                .overlay(Circle().stroke(Board.line, lineWidth: 1))
+                .background(Circle().fill(AureliusBoard.column))
+                .overlay(Circle().stroke(AureliusBoard.line, lineWidth: 1))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -663,7 +646,7 @@ private struct BoardSectionTitle: View {
         Text(text)
             .font(.system(size: 10, weight: .semibold))
             .tracking(1.6)
-            .foregroundStyle(Board.muted)
+            .foregroundStyle(AureliusBoard.muted)
     }
 }
 
@@ -681,7 +664,7 @@ private struct BoardStats: View {
         .padding(.bottom, 20)
         .frame(width: 220, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Board.sidebar)
+        .background(AureliusBoard.sidebar)
     }
 
     private func card(_ title: String, _ sessions: [PomodoroSession]) -> some View {
@@ -694,26 +677,26 @@ private struct BoardStats: View {
                     Text(Board.unitsLabel(units))
                         .font(.system(size: 30, weight: .bold))
                         .monospacedDigit()
-                        .foregroundStyle(Board.accentInkStyle)
+                        .foregroundStyle(AureliusBoard.accentInkStyle)
                     Text(units == 1 ? "session" : "sessions")
                         .font(.system(size: 11))
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(AureliusBoard.muted)
                 }
-                Rectangle().fill(Board.line).frame(height: 1)
+                Rectangle().fill(AureliusBoard.line).frame(height: 1)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(minutes == 0 ? "0m" : Board.duration(minutes))
                         .font(.system(size: 22, weight: .bold))
                         .monospacedDigit()
-                        .foregroundStyle(Board.ink)
+                        .foregroundStyle(AureliusBoard.ink)
                     Text("focused")
                         .font(.system(size: 11))
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(AureliusBoard.muted)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(RoundedRectangle(cornerRadius: 16).fill(Board.column))
+            .background(RoundedRectangle(cornerRadius: 16).fill(AureliusBoard.column))
             .boardEdge(16)
         }
         .padding(.top, 8)
@@ -722,7 +705,7 @@ private struct BoardStats: View {
 
 private struct BoardSettingsPanel: View {
     @ObservedObject var model: PomodoroModel
-    @ObservedObject var themes: BoardThemeStore
+    @ObservedObject var themes: AppThemeStore
     let close: () -> Void
 
     var body: some View {
@@ -730,15 +713,15 @@ private struct BoardSettingsPanel: View {
             HStack {
                 Text("Settings")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(Board.ink)
+                    .foregroundStyle(AureliusBoard.ink)
                 Spacer()
                 Button(action: close) {
                     Image(systemName: "xmark")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(AureliusBoard.muted)
                         .frame(width: 26, height: 26)
-                        .background(Circle().fill(Board.column))
-                        .overlay(Circle().stroke(Board.line, lineWidth: 1))
+                        .background(Circle().fill(AureliusBoard.column))
+                        .overlay(Circle().stroke(AureliusBoard.line, lineWidth: 1))
                         .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
@@ -749,10 +732,10 @@ private struct BoardSettingsPanel: View {
             SettingRow(title: "Short break", value: $model.breakMinutes, range: 1...60, unit: "min")
             SettingRow(title: "Long break", value: $model.longBreakMinutes, range: 1...90, unit: "min")
             SettingRow(title: "Long break after", value: $model.longEvery, range: 2...12, unit: "sessions")
-            Rectangle().fill(Board.line).frame(height: 1).padding(.vertical, 4)
+            Rectangle().fill(AureliusBoard.line).frame(height: 1).padding(.vertical, 4)
             BoardSectionTitle(text: "THEME")
-            ThemeLinkRow(source: "pomodoro")
-            Rectangle().fill(Board.line).frame(height: 1).padding(.vertical, 4)
+            ThemeLinkRow(app: "pomodoro")
+            Rectangle().fill(AureliusBoard.line).frame(height: 1).padding(.vertical, 4)
             BoardBackupSection(store: PomodoroBoardStore.shared)
             Spacer()
         }
@@ -761,7 +744,7 @@ private struct BoardSettingsPanel: View {
         .padding(.bottom, 20)
         .frame(width: 280, alignment: .leading)
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Board.theme.panel)
+        .background(AureliusBoard.theme.panel)
     }
 }
 
@@ -784,13 +767,13 @@ private struct BoardBackupSection: View {
                     Button("Bring them in") { vault.bringIn() }
                         .buttonStyle(.plain)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Board.accentInkStyle)
+                        .foregroundStyle(AureliusBoard.accentInkStyle)
                         .help("Adds what's on GitHub to this Mac, keeping everything here too")
                     Spacer()
                     Button("Keep this Mac's") { confirmKeep() }
                         .buttonStyle(.plain)
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Board.muted)
+                        .foregroundStyle(AureliusBoard.muted)
                 }
             }
             HStack(spacing: 8) {
@@ -803,26 +786,26 @@ private struct BoardBackupSection: View {
                         }
                     }
                 } label: {
-                    Text("Restore…").font(.system(size: 12, weight: .medium)).foregroundStyle(Board.ink)
+                    Text("Restore…").font(.system(size: 12, weight: .medium)).foregroundStyle(AureliusBoard.ink)
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
-                .foregroundStyle(Board.ink)
-                .tint(Board.ink)
+                .foregroundStyle(AureliusBoard.ink)
+                .tint(AureliusBoard.ink)
                 Spacer()
                 Button("Show backups") { vault.showInFinder() }
                     .buttonStyle(.plain)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Board.muted)
+                    .foregroundStyle(AureliusBoard.muted)
             }
         }
     }
 
     private func line(_ title: String, _ value: String, warn: Bool = false) -> some View {
         HStack {
-            Text(title).font(.system(size: 12)).foregroundStyle(Board.muted)
+            Text(title).font(.system(size: 12)).foregroundStyle(AureliusBoard.muted)
             Spacer()
-            Text(value).font(.system(size: 12, weight: .medium)).foregroundStyle(warn ? Color.red.opacity(0.8) : Board.ink).lineLimit(1)
+            Text(value).font(.system(size: 12, weight: .medium)).foregroundStyle(warn ? Color.red.opacity(0.8) : AureliusBoard.ink).lineLimit(1)
         }
     }
 
@@ -860,7 +843,7 @@ private struct BoardBackupSection: View {
 struct PomodoroBoardView: View {
     @ObservedObject var model: PomodoroModel
     @ObservedObject var store: PomodoroBoardStore
-    @ObservedObject var themes = BoardThemeStore.shared
+    @ObservedObject var themes = AppThemeStore.shared
     @AppStorage("pomodoro.board.stats") private var showStats = true
     @AppStorage("pomodoro.board.panel") private var showPanel = false
     @AppStorage("pomodoro.board.mode") private var mode = "sessions"
@@ -872,18 +855,18 @@ struct PomodoroBoardView: View {
             if showStats {
                 HStack(spacing: 0) {
                     BoardStats(store: store)
-                    Rectangle().fill(Board.line).frame(width: 1)
+                    Rectangle().fill(AureliusBoard.line).frame(width: 1)
                 }
                 .transition(.move(edge: .leading).combined(with: .opacity))
             }
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 12) {
                     Button {
-                        withAnimation(Board.glide) { showStats.toggle() }
+                        withAnimation(AureliusBoard.glide) { showStats.toggle() }
                     } label: {
                         Image(systemName: "sidebar.left")
                             .font(.system(size: 13))
-                            .foregroundStyle(Board.muted)
+                            .foregroundStyle(AureliusBoard.muted)
                             .frame(width: 26, height: 26)
                             .contentShape(Rectangle())
                     }
@@ -893,7 +876,7 @@ struct PomodoroBoardView: View {
                     Spacer()
                     BoardSettingsButton(open: showPanel) {
                         note("pomodoro board settings panel open=\(!showPanel)")
-                        withAnimation(Board.glide) { showPanel.toggle() }
+                        withAnimation(AureliusBoard.glide) { showPanel.toggle() }
                     }
                 }
                 .padding(.leading, showStats ? 20 : 84)
@@ -921,10 +904,10 @@ struct PomodoroBoardView: View {
                                         Text("New project")
                                             .font(.system(size: 12, weight: .medium))
                                     }
-                                    .foregroundStyle(Board.muted)
+                                    .foregroundStyle(AureliusBoard.muted)
                                     .frame(width: 200, height: 110)
                                     .background(RoundedRectangle(cornerRadius: 16).fill(Color.clear))
-                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Board.line, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5])))
+                                    .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(AureliusBoard.line, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5])))
                                     .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
@@ -942,16 +925,16 @@ struct PomodoroBoardView: View {
             }
             if showPanel {
                 HStack(spacing: 0) {
-                    Rectangle().fill(Board.line).frame(width: 1)
+                    Rectangle().fill(AureliusBoard.line).frame(width: 1)
                     BoardSettingsPanel(model: model, themes: themes) {
-                        withAnimation(Board.glide) { showPanel = false }
+                        withAnimation(AureliusBoard.glide) { showPanel = false }
                     }
                 }
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
             if let target = declaring {
-                Color.black.opacity(themes.theme.isDark ? 0.4 : 0.18)
+                Color.black.opacity(AureliusBoard.theme.isDark ? 0.4 : 0.18)
                     .ignoresSafeArea()
                     .onTapGesture { closeDeclare() }
                     .transition(.opacity)
@@ -961,14 +944,14 @@ struct PomodoroBoardView: View {
             }
         }
         .animation(.smooth(duration: 0.15), value: declaring?.id)
-        .animation(Board.glide, value: mode)
-        .animation(Board.glide, value: showStats)
-        .animation(Board.glide, value: showPanel)
-        .id(themes.theme.id)
+        .animation(AureliusBoard.glide, value: mode)
+        .animation(AureliusBoard.glide, value: showStats)
+        .animation(AureliusBoard.glide, value: showPanel)
+        .id(AureliusBoard.theme.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(BoardBackdrop(theme: themes.theme))
+        .background(BoardBackdrop(theme: AureliusBoard.theme))
         .ignoresSafeArea()
-        .environment(\.colorScheme, themes.theme.colorScheme)
+        .appTheme(AureliusBoard.theme)
     }
 }
 
@@ -995,7 +978,7 @@ private struct BoardSettingsButton: View {
     var body: some View {
         let icon = Image(systemName: "slider.horizontal.3")
             .font(.system(size: 14, weight: .semibold))
-            .foregroundStyle(open ? Board.accentInkStyle : AnyShapeStyle(Board.muted))
+            .foregroundStyle(open ? AureliusBoard.accentInkStyle : AnyShapeStyle(AureliusBoard.muted))
             .frame(width: 40, height: 40)
             .contentShape(Circle())
         Button(action: action) {
@@ -1004,7 +987,7 @@ private struct BoardSettingsButton: View {
             } else {
                 icon
                     .background(Circle().fill(.ultraThinMaterial))
-                    .overlay(Circle().strokeBorder(Board.line, lineWidth: 1))
+                    .overlay(Circle().strokeBorder(AureliusBoard.line, lineWidth: 1))
             }
         }
         .buttonStyle(.plain)
@@ -1027,7 +1010,7 @@ private struct BoardModeToggle: View {
             segments
                 .padding(4)
                 .background(Capsule().fill(.ultraThinMaterial))
-                .overlay(Capsule().strokeBorder(Board.line, lineWidth: 1))
+                .overlay(Capsule().strokeBorder(AureliusBoard.line, lineWidth: 1))
         }
     }
 
@@ -1037,18 +1020,18 @@ private struct BoardModeToggle: View {
                 Button {
                     guard mode != value else { return }
                     note("pomodoro board view mode=\(value)")
-                    withAnimation(Board.glide) { mode = value }
+                    withAnimation(AureliusBoard.glide) { mode = value }
                 } label: {
                     Text(title)
                         .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(mode == value ? Board.ink : Board.muted.opacity(0.7))
+                        .foregroundStyle(mode == value ? AureliusBoard.ink : AureliusBoard.muted.opacity(0.7))
                         .padding(.horizontal, 16)
                         .frame(height: 34)
                         .background {
                             if mode == value {
                                 Capsule()
-                                    .fill(Board.theme.pill)
-                                    .shadow(color: Board.shadow, radius: 4, y: 1)
+                                    .fill(AureliusBoard.theme.pill)
+                                    .shadow(color: AureliusBoard.shadow, radius: 4, y: 1)
                                     .matchedGeometryEffect(id: "pill", in: pill)
                             }
                         }
@@ -1083,9 +1066,9 @@ final class PomodoroBoardWindow: NSObject, NSWindowDelegate {
         window.title = "Aurelius"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
-        window.appearance = Board.theme.appearance
-        window.backgroundColor = NSColor(Board.backdrop)
-        themeWatch = BoardThemeStore.shared.$theme.sink { [weak window] theme in
+        window.appearance = AureliusBoard.theme.appearance
+        window.backgroundColor = NSColor(AureliusBoard.backdrop)
+        themeWatch = AppThemeStore.shared.publisher(for: "pomodoro").sink { [weak window] theme in
             window?.appearance = theme.appearance
             window?.backgroundColor = NSColor(theme.backdrop)
         }
