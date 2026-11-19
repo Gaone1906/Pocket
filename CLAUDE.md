@@ -73,7 +73,7 @@ Reference integration: Preparo, the exam practice app at `~/Desktop/workspace/pe
 ## Backups: setting up and restoring data
 
 Pocket's data is three JSON files under `~/Library/Application Support/Pocket` (`$ROOT` below): `Pomodoro/board.json`
-(projects and sessions), `todos.json`, and `schedule.json` (Schedule routines and check-offs). Everything else there can
+(projects and sessions), `todos.json`, and `schedule.json` (Orario routines and check-offs). Everything else there can
 be rebuilt. Where copies live:
 
 | Copy | Location |
@@ -126,7 +126,7 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 ### Restoring on the same Mac
 
 - From a daily snapshot: board settings → Backup → Restore…, pick a day. The current board is kept aside first.
-- From a schedule snapshot: Schedule's expanded window → settings sidebar → Backup → Restore…; the current schedule is kept aside first.
+- From a schedule snapshot: Orario's expanded window → settings sidebar → Backup → Restore…; the current schedule is kept aside first.
 - By hand, or for to-dos (no restore menu): quit Pocket, copy the snapshot over `board.json`, `todos.json` or
   `schedule.json` (from `$ROOT/Backups/schedule/`, or `schedule.json` in the repo), reopen.
 - From an older git version: `git -C "$ROOT/DataRepo" log --oneline -- board.json`, then
@@ -143,9 +143,9 @@ session here still syncs normally. So on a new Mac the shortest path is: install
   described above; the log line `pocket vault sync held name=<board|todos|schedule> unseen=<n>` gives the counts.
 - To turn sync off: `defaults delete com.pranav.pocket pocket.backup.repo`.
 
-## Schedule app
+## Orario app (formerly Schedule)
 
-A weekly routine tracker (`⌥O`). Data model in `Sources/Pocket/ScheduleModel.swift` (`ScheduleStore.shared`, saved to
+A weekly routine tracker (`⌥O`); its code, app id and data file still use `schedule`. Data model in `Sources/Pocket/ScheduleModel.swift` (`ScheduleStore.shared`, saved to
 `$ROOT/schedule.json` through `DataVault` as `schedule`):
 - `routines`: each has a name, a hue, a start day, notes, and a `plan` keyed `"<weekday>-<morning|night>"` (Calendar
   weekdays, 1 = Sunday), so 7 × 2 cells, each its own ordered list of steps (`title`, `tip`). Weeks repeat; there are no
@@ -153,7 +153,7 @@ A weekly routine tracker (`⌥O`). Data model in `Sources/Pocket/ScheduleModel.s
 - `checks`: one per ticked step per day, with the deterministic id `routine|day|slot|step` (UUIDs and a `yyyy-MM-dd` day),
   so merging two copies is a union by id. Sync counts both check ids and routine ids as "seen".
 - The day rolls over at 4am (`dayFrom`), so a 1am night routine still counts for the day before; the night slot starts at
-  `nightFrom` (default 16:00, set in the Schedule settings). History starts 19 Nov 2026 (`ScheduleStore.startDay`).
+  `nightFrom` (default 16:00, set in the Orario settings). History starts 19 Nov 2026 (`ScheduleStore.startDay`).
 
 Views: `ScheduleApp.swift` (the dropdown: today's morning/night checklist with tips), `ScheduleBoard.swift` (the expanded
 window: Schedule and Calendar views, routine filter, settings sidebar with backups), `ScheduleEditor.swift` (the
