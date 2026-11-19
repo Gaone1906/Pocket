@@ -1,5 +1,6 @@
 const KEY = "pocket.cloud.v1";
 const EPOCH_2001 = 978307200;
+const SHARED = "00000000-0000-0000-0000-000000000000";
 
 const listeners = new Set();
 let state = load();
@@ -11,7 +12,6 @@ let pollTimer = null;
 function blank() {
   return {
     config: null,
-    session: null,
     device: defaultDevice(),
     cursor: "1970-01-01T00:00:00Z",
     records: {},
@@ -102,29 +102,22 @@ export function setDevice(name) {
 export function configure(url, key) {
   const clean = url.trim().replace(/\/+$/, "");
   state.config = { url: clean, key: key.trim() };
+  state.cursor = "1970-01-01T00:00:00Z";
   state.problem = null;
   emit();
-}
-
-export function clearConfig() {
-  state.config = null;
-  emit();
+  syncNow();
+  startPolling();
 }
 
 export function signedIn() {
-  return !!(state.config && state.session);
+  return !!state.config;
 }
 
-async function call(path, options = {}, retry = true) {
+async function call(path, options = {}) {
   const { url, key } = state.config;
   const headers = { apikey: key, "Content-Type": "application/json", ...(options.headers || {}) };
-  if (state.session && !options.anonymous) headers.Authorization = "Bearer " + state.session.access_token;
-  if (!state.session || options.anonymous) headers.Authorization = headers.Authorization || "Bearer " + key;
+  if (!key.startsWith("sb_")) headers.Authorization = "Bearer " + key;
   const res = await fetch(url + path, { ...options, headers });
-  if (res.status === 401 && retry && state.session && !options.anonymous) {
-    await refresh();
-    return call(path, options, false);
-  }
   if (!res.ok) {
     let message = res.status + " " + res.statusText;
     try {
@@ -139,51 +132,10 @@ async function call(path, options = {}, retry = true) {
   return text ? JSON.parse(text) : null;
 }
 
-function adopt(session) {
-  state.session = {
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
-    expires_at: Date.now() + (session.expires_in || 3600) * 1000,
-    user: { id: session.user.id, email: session.user.email },
-  };
-}
-
-export async function sendCode(email) {
-  await call("/auth/v1/otp", { method: "POST", anonymous: true, body: JSON.stringify({ email: email.trim(), create_user: true }) });
-}
-
-export async function verifyCode(email, code) {
-  const session = await call("/auth/v1/verify", {
-    method: "POST",
-    anonymous: true,
-    body: JSON.stringify({ type: "email", email: email.trim(), token: code.trim() }),
-  });
-  adopt(session);
-  state.cursor = "1970-01-01T00:00:00Z";
-  state.problem = null;
-  emit();
-  await syncNow();
-  startPolling();
-}
-
-async function refresh() {
-  const session = await call("/auth/v1/token?grant_type=refresh_token", {
-    method: "POST",
-    anonymous: true,
-    body: JSON.stringify({ refresh_token: state.session.refresh_token }),
-  });
-  adopt(session);
-  persist();
-}
-
-export async function signOut() {
-  try {
-    if (state.session) await call("/auth/v1/logout", { method: "POST" }, false);
-  } catch (e) {}
-  const config = state.config;
+export function disconnect() {
   const device = state.device;
+  clearInterval(pollTimer);
   state = blank();
-  state.config = config;
   state.device = device;
   emit();
 }
@@ -198,7 +150,7 @@ async function flush() {
   if (!keys.length) return;
   const rows = keys.map((key) => {
     const r = state.records[key];
-    return { user_id: state.session.user.id, kind: r.kind, id: r.id, data: r.data, deleted: r.deleted, device: state.device };
+    return { user_id: SHARED, kind: r.kind, id: r.id, data: r.data, deleted: r.deleted, device: state.device };
   });
   for (let i = 0; i < rows.length; i += 500) {
     await call("/rest/v1/records?on_conflict=user_id,kind,id", {
@@ -258,8 +210,7 @@ export async function syncNow() {
     state.lastSync = new Date().toISOString();
     state.problem = null;
   } catch (e) {
-    state.problem = e.status === 400 && /refresh/i.test(e.message) ? "Signed out. Sign in again to keep syncing." : e.message || "Sync failed";
-    if (e.status === 400 && /refresh/i.test(e.message)) state.session = null;
+    state.problem = e.message || "Sync failed";
   } finally {
     flushing = false;
     pulling = false;

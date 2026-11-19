@@ -2,12 +2,11 @@ import { createServer } from "node:http";
 import { readFile, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
-import { randomUUID } from "node:crypto";
 
 const port = Number(process.env.PORT || 8790);
 const root = new URL("..", import.meta.url).pathname;
 const dbFile = process.env.POCKET_DEV_DB || "";
-const db = dbFile && existsSync(dbFile) ? JSON.parse(readFileSync(dbFile, "utf8")) : { users: {}, records: [], tokens: {}, refresh: {} };
+const db = dbFile && existsSync(dbFile) ? JSON.parse(readFileSync(dbFile, "utf8")) : { records: [] };
 const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".webmanifest": "application/manifest+json", ".json": "application/json" };
 let clock = 0;
 
@@ -32,14 +31,6 @@ function send(res, status, body) {
   res.end(body === undefined ? "" : JSON.stringify(body));
 }
 
-function session(userId) {
-  const access = "at-" + randomUUID();
-  const refresh = "rt-" + randomUUID();
-  db.tokens[access] = userId;
-  db.refresh[refresh] = userId;
-  return { access_token: access, refresh_token: refresh, expires_in: 3600, token_type: "bearer", user: { id: userId, email: db.users[userId] } };
-}
-
 function body(req) {
   return new Promise((resolve) => {
     let data = "";
@@ -54,9 +45,10 @@ function body(req) {
   });
 }
 
+const SHARED = "00000000-0000-0000-0000-000000000000";
+
 function caller(req) {
-  const auth = req.headers.authorization || "";
-  return db.tokens[auth.replace(/^Bearer /, "")];
+  return req.headers.apikey ? SHARED : null;
 }
 
 const server = createServer(async (req, res) => {
@@ -64,38 +56,9 @@ const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") return send(res, 204);
   const path = url.pathname;
 
-  if (path === "/auth/v1/otp" && req.method === "POST") {
-    const { email } = (await body(req)) || {};
-    if (!email) return send(res, 400, { msg: "email required" });
-    console.log(`otp email=${email} code=123456`);
-    return send(res, 200, {});
-  }
-  if (path === "/auth/v1/verify" && req.method === "POST") {
-    const { email, token } = (await body(req)) || {};
-    if (token !== "123456") return send(res, 403, { msg: "Token has expired or is invalid" });
-    let id = Object.keys(db.users).find((k) => db.users[k] === email);
-    if (!id) {
-      id = randomUUID();
-      db.users[id] = email;
-    }
-    const s = session(id);
-    await save();
-    return send(res, 200, s);
-  }
-  if (path === "/auth/v1/token" && url.searchParams.get("grant_type") === "refresh_token") {
-    const { refresh_token } = (await body(req)) || {};
-    const id = db.refresh[refresh_token];
-    if (!id) return send(res, 400, { error: "invalid_grant", error_description: "Invalid Refresh Token: Refresh Token Not Found" });
-    delete db.refresh[refresh_token];
-    const s = session(id);
-    await save();
-    return send(res, 200, s);
-  }
-  if (path === "/auth/v1/logout") return send(res, 204);
-
   if (path === "/rest/v1/records") {
     const user = caller(req);
-    if (!user) return send(res, 401, { message: "JWT expired" });
+    if (!user) return send(res, 401, { message: "No API key found in request" });
     if (req.method === "GET") {
       const gt = (url.searchParams.get("updated_at") || "gt.1970-01-01T00:00:00Z").slice(3);
       const limit = Number(url.searchParams.get("limit") || 1000);
@@ -137,4 +100,4 @@ const server = createServer(async (req, res) => {
   send(res, 404, { error: "no route" });
 });
 
-server.listen(port, "127.0.0.1", () => console.log(`pocket dev backend http://127.0.0.1:${port} code=123456`));
+server.listen(port, "127.0.0.1", () => console.log(`pocket dev backend http://127.0.0.1:${port}`));
