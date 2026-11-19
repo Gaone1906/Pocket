@@ -34,6 +34,23 @@ So a new web or link app needs only a catalog entry. For the shared panel, statu
 - **Right-click menu** (`WebApp.menuItems`): "Reload <Name>", "Restart <Name> (if frozen)" and "Open <Name> in browser". The common items from `AppDelegate.appendCommonItems` follow.
 - **Preparo** opens `http://localhost:8960/` in Ardia (bundle id `com.ardia.browser`), or in the default browser when Ardia isn't installed. It never shows a panel.
 
+## Spotify companion (`SpotifyApp`)
+
+`SpotifyApp` (`Sources/Pocket/SpotifyApp.swift`) subclasses `WebApp`; `makeApp` routes `id == "spotify"` to it. The web
+panel stays for browsing and searching, but audio plays in the native Spotify app (`com.spotify.client`), kept hidden,
+because the web player would stall and stop starting new tracks.
+
+- **Launch.** Opening the panel launches Spotify if it isn't running, with `activates = false` and `hides = true`.
+  Without Spotify installed it logs `spotify app missing` and the web player works as before.
+- **Kept hidden.** Workspace observers hide Spotify whenever it launches, unhides or activates. Activating it from the
+  Dock more than 15 s after Pocket launched it opens Pocket's Spotify panel instead. The Dock icon stays while it runs.
+- **Claim.** Once running, `osascript` mutes Spotify, plays, pauses and restores the volume, so it becomes the active
+  Spotify Connect device and the web panel plays songs on it. Skipped when Spotify is already playing; retried up to 3
+  times. Needs the Automation permission (Info.plist `NSAppleEventsUsageDescription`).
+- **Right-click menu** adds "Show the Spotify app" (lets it stay visible until it loses focus, e.g. to sign in) and
+  "Play on this Mac's Spotify app" (claims again).
+- Log lines: `pocket spotify app launching|launched|launch failed|hidden|shown|quit|missing`, `pocket spotify claim`.
+
 ## Files
 
 | File | Key symbols |

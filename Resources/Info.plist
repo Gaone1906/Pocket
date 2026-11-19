@@ -13,6 +13,7 @@
   <key>LSUIElement</key><true/>
   <key>NSMicrophoneUsageDescription</key><string>Calls in WhatsApp, Slack and other web apps use your microphone.</string>
   <key>NSCameraUsageDescription</key><string>Video calls in WhatsApp, Slack and other web apps use your camera.</string>
+  <key>NSAppleEventsUsageDescription</key><string>Pocket keeps the Spotify app hidden and makes it the device your Spotify panel plays on.</string>
   <key>NSCalendarsFullAccessUsageDescription</key><string>Pocket shows your calendar events in its month view.</string>
   <key>NSCalendarsUsageDescription</key><string>Pocket shows your calendar events in its month view.</string>
 </dict>
