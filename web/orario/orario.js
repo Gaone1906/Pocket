@@ -1,5 +1,5 @@
 import * as store from "./store.js";
-import { esc, dayKey, parseDay, shiftDay, weekday, weekStart, monthStart, monthShift, WEEK, SHORT, LONG, ICONS, isoNow, dayTitle, readLocal, writeLocal } from "./util.js";
+import { esc, dayKey, parseDay, shiftDay, weekday, weekStart, monthStart, monthShift, WEEK, SHORT, ICONS, isoNow, dayTitle, readLocal, writeLocal } from "./util.js";
 
 const START_DAY = "2026-11-19";
 const SLOTS = ["morning", "night"];
@@ -11,8 +11,6 @@ export const ui = {
   tips: new Set(),
   fold: false,
   filter: readLocal("orario.master.filter", null),
-  editor: null,
-  confirm: null,
 };
 
 function settings() {
@@ -102,26 +100,6 @@ function setCheck(item, on) {
   } else {
     store.remove("schedule.check", item.id);
   }
-}
-
-function putRoutine(r) {
-  store.put("schedule.routine", r.id, {
-    id: r.id,
-    name: r.name ?? "",
-    hue: r.hue ?? 0,
-    starts: r.starts || today(),
-    plan: r.plan || {},
-    notes: r.notes ?? "",
-    _pos: r._pos ?? 0,
-  });
-}
-
-function updateRoutine(id, change) {
-  const r = store.get("schedule.routine", id);
-  if (!r) return;
-  const copy = JSON.parse(JSON.stringify(r));
-  change(copy);
-  if (JSON.stringify(copy) !== JSON.stringify(r)) putRoutine(copy);
 }
 
 function statusDot(s) {
@@ -327,7 +305,7 @@ export function view() {
   const ctx = context();
   const all = routines();
   const body = !all.length
-    ? `<div class="card empty big">No routines yet.<br><button class="primary" data-orario-edit>Make your first routine</button></div>`
+    ? `<div class="card empty big">No routines yet. Add one in Orario on the Mac.</div>`
     : ui.mode === "week"
     ? weekView(ctx)
     : ui.mode === "month"
@@ -338,114 +316,10 @@ export function view() {
       <div class="seg three">
         ${[["day", "Day"], ["week", "Week"], ["month", "Month"]].map(([k, l]) => `<button class="${ui.mode === k ? "on" : ""}" data-orario-mode="${k}">${l}</button>`).join("")}
       </div>
-      <button class="icon pill-btn" data-orario-edit aria-label="Change the schedule">${ICONS.pencil}</button>
     </div>
     ${filterControl()}
     ${body}
-  </section>
-  ${ui.editor ? editorView() : ""}`;
-}
-
-function editorRoutine() {
-  const all = routines();
-  if (!all.length) return null;
-  const id = ui.editor.routine && all.some((r) => r.id === ui.editor.routine) ? ui.editor.routine : ui.filter && all.some((r) => r.id === ui.filter) ? ui.filter : all[0].id;
-  ui.editor.routine = id;
-  return all.find((r) => r.id === id);
-}
-
-function editorView() {
-  const ed = ui.editor;
-  const all = routines();
-  const r = editorRoutine();
-  const wd = ed.weekday;
-  const todayWd = weekday(today());
-  const pills = all
-    .map((x) =>
-      ed.renaming === x.id
-        ? `<form class="pill-form" data-form="rename"><input name="name" value="${esc(x.name)}" aria-label="Routine name" autocomplete="off" enterkeyhint="done"></form>`
-        : `<button class="rpill ${x.id === r?.id ? "on" : ""}" data-ed-routine="${x.id}"><i style="background:var(--tint-${(x.hue ?? 0) % 8})"></i>${esc(x.name || "Untitled")}</button>`
-    )
-    .join("");
-  const adding = ed.newRoutine ? `<form class="pill-form" data-form="new-routine"><input name="name" placeholder="Routine name" autocomplete="off" enterkeyhint="done"></form>` : `<button class="rpill add" data-ed-new-routine aria-label="New routine">${ICONS.plus}</button>`;
-  let body = "";
-  if (r) {
-    const checkCount = store.all("schedule.check").filter((c) => c.routine === r.id).length;
-    const slotBlock = (slot) => {
-      const steps = (r.plan && r.plan[`${wd}-${slot}`]) || [];
-      return `<div class="card list ed-slot">
-        <h3>${slot === "morning" ? ICONS.sun : ICONS.moon}${slot === "morning" ? "Morning" : "Night"}<span class="count">${steps.length || ""}</span></h3>
-        ${steps
-          .map(
-            (s) => `<button class="row ed-step" data-ed-step="${slot}|${s.id}"><div class="grow"><div>${esc(s.title)}</div>${s.tip ? `<div class="tip one">${esc(s.tip)}</div>` : ""}</div>${ICONS.right}</button>`
-          )
-          .join("")}
-        <form class="row add-step" data-form="add-${slot}"><span class="plus">${ICONS.plus}</span><input name="title" placeholder="Add a step" autocomplete="off" enterkeyhint="done"></form>
-      </div>`;
-    };
-    body = `
-      <div class="ed-actions">
-        <button class="link" data-ed-rename="${r.id}">Rename</button>
-        <button class="link danger" data-ed-delete="${r.id}">Delete…</button>
-      </div>
-      ${
-        ui.confirm === r.id
-          ? `<div class="card confirm"><p>Delete <b>${esc(r.name || "Untitled")}</b>${checkCount ? ` and its ${checkCount} check-off${checkCount === 1 ? "" : "s"}` : ""}? Other devices lose it too.</p><div class="controls left"><button class="ghost danger" data-ed-delete-yes="${r.id}">Delete</button><button class="ghost" data-ed-delete-no>Cancel</button></div></div>`
-          : ""
-      }
-      <div class="wdays">${WEEK.map((w) => `<button class="wd ${w === wd ? "on" : ""} ${w === todayWd ? "today" : ""}" data-ed-weekday="${w}"><span>${SHORT[w]}</span><i>${["morning", "night"].reduce((a, s) => a + (((r.plan && r.plan[`${w}-${s}`]) || []).length), 0) || ""}</i></button>`).join("")}</div>
-      <div class="ed-day">${LONG[wd]}</div>
-      ${slotBlock("morning")}
-      ${slotBlock("night")}
-      <p class="hint">Weeks repeat; put a step on each day you want it.</p>`;
-  } else {
-    body = `<div class="card empty big">Add a routine with + above.</div>`;
-  }
-  return `<div class="overlay" role="dialog" aria-label="Change the schedule">
-    <div class="overlay-bar"><h2>Change the schedule</h2><button class="primary small" data-ed-close>Done</button></div>
-    <div class="overlay-body" data-keep-scroll="editor">
-      <div class="pills">${pills}${adding}</div>
-      ${body}
-    </div>
-    ${ed.step ? stepSheet(r) : ""}
-  </div>`;
-}
-
-function stepSheet(r) {
-  const { slot, id } = ui.editor.step;
-  const key = `${ui.editor.weekday}-${slot}`;
-  const steps = (r && r.plan && r.plan[key]) || [];
-  const index = steps.findIndex((s) => s.id === id);
-  if (index < 0) return "";
-  const s = steps[index];
-  return `<div class="sheet-back" data-ed-step-close></div>
-  <form class="sheet card" data-form="step">
-    <div class="sheet-head"><h3>${LONG[ui.editor.weekday]} ${slot}</h3><button type="button" class="icon quiet" data-ed-step-close aria-label="Close">${ICONS.close}</button></div>
-    <label>Step<input name="title" value="${esc(s.title)}" required autocomplete="off"></label>
-    <label>How to do it<textarea name="tip" rows="5">${esc(s.tip || "")}</textarea></label>
-    <div class="sheet-tools">
-      <button type="button" class="icon pill-btn" data-ed-move="-1" ${index === 0 ? "disabled" : ""} aria-label="Move up">${ICONS.up}</button>
-      <button type="button" class="icon pill-btn" data-ed-move="1" ${index === steps.length - 1 ? "disabled" : ""} aria-label="Move down">${ICONS.down}</button>
-      <button type="button" class="icon pill-btn danger" data-ed-step-delete aria-label="Delete step">${ICONS.trash}</button>
-      <button class="primary right">Done</button>
-    </div>
-  </form>`;
-}
-
-function saveStepForm(form) {
-  if (!form || !ui.editor?.step) return;
-  const f = new FormData(form);
-  const title = String(f.get("title") || "").trim();
-  const tip = String(f.get("tip") || "").trim();
-  const { slot, id } = ui.editor.step;
-  const key = `${ui.editor.weekday}-${slot}`;
-  updateRoutine(ui.editor.routine, (r) => {
-    const s = (r.plan[key] || []).find((x) => x.id === id);
-    if (s && title) {
-      s.title = title;
-      s.tip = tip;
-    }
-  });
+  </section>`;
 }
 
 export function onChange(e) {
@@ -456,83 +330,6 @@ export function onChange(e) {
     return "render";
   }
   return false;
-}
-
-export function onFocusOut(e) {
-  const form = e.target.closest && e.target.closest("form");
-  if (!form) return;
-  const kind = form.dataset.form;
-  if (kind === "rename" && !form.contains(e.relatedTarget)) submitRename(form);
-  if (kind === "new-routine" && !form.contains(e.relatedTarget)) submitNewRoutine(form);
-  if ((kind === "add-morning" || kind === "add-night") && !form.contains(e.relatedTarget)) {
-    const input = form.querySelector("input");
-    if (input.value.trim()) submitStep(form, kind.slice(4), false);
-  }
-}
-
-function submitRename(form) {
-  if (!ui.editor || !ui.editor.renaming) return;
-  const id = ui.editor.renaming;
-  const name = String(new FormData(form).get("name") || "").trim();
-  ui.editor.renaming = null;
-  if (name) updateRoutine(id, (r) => (r.name = name));
-  return "render";
-}
-
-function submitNewRoutine(form) {
-  if (!ui.editor || !ui.editor.newRoutine) return;
-  ui.editor.newRoutine = false;
-  const name = String(new FormData(form).get("name") || "").trim();
-  if (!name) return "render";
-  const all = routines();
-  const id = store.uuid();
-  const hue = all.reduce((m, r) => Math.max(m, r.hue ?? 0), -1) + 1;
-  putRoutine({ id, name, hue, starts: today(), plan: {}, notes: "", _pos: all.reduce((m, r) => Math.max(m, r._pos ?? 0), 0) + 1 });
-  ui.editor.routine = id;
-  return "render";
-}
-
-function submitStep(form, slot, keepFocus) {
-  const input = form.querySelector("input");
-  const title = input.value.trim();
-  if (!title) return;
-  const key = `${ui.editor.weekday}-${slot}`;
-  input.value = "";
-  updateRoutine(ui.editor.routine, (r) => {
-    r.plan = r.plan || {};
-    r.plan[key] = [...(r.plan[key] || []), { id: store.uuid(), title, tip: "" }];
-  });
-  if (keepFocus) ui.editor.refocus = `add-${slot}`;
-}
-
-export function onSubmit(kind, form) {
-  if (kind === "rename") return submitRename(form) || true;
-  if (kind === "new-routine") return submitNewRoutine(form) || true;
-  if (kind === "add-morning" || kind === "add-night") {
-    submitStep(form, kind.slice(4), true);
-    return true;
-  }
-  if (kind === "step") {
-    saveStepForm(form);
-    ui.editor.step = null;
-    return "render";
-  }
-  return false;
-}
-
-export function afterRender() {
-  if (ui.editor && ui.editor.refocus) {
-    const el = document.querySelector(`form[data-form="${ui.editor.refocus}"] input`);
-    ui.editor.refocus = null;
-    if (el) el.focus();
-  }
-  if (ui.editor && (ui.editor.renaming || ui.editor.newRoutine) && !document.activeElement?.closest?.(".pill-form")) {
-    const el = document.querySelector(".pill-form input");
-    if (el) {
-      el.focus();
-      el.select();
-    }
-  }
 }
 
 export function onClick(d) {
@@ -590,87 +387,6 @@ export function onClick(d) {
     const on = flag === "1";
     for (const it of items(day, slot, ctx.pool, ctx.done)) if (it.done !== on) setCheck(it, on);
     return true;
-  }
-  if (d.orarioEdit !== undefined) {
-    ui.editor = { routine: null, weekday: weekday(ui.day || today()), step: null, renaming: null, newRoutine: !routines().length };
-    ui.confirm = null;
-    return "render";
-  }
-  if (d.edClose !== undefined) {
-    ui.editor = null;
-    ui.confirm = null;
-    return "render";
-  }
-  if (d.edRoutine) {
-    if (ui.editor.routine === d.edRoutine && !ui.editor.renaming) ui.editor.renaming = d.edRoutine;
-    else ui.editor.routine = d.edRoutine;
-    ui.confirm = null;
-    return "render";
-  }
-  if (d.edNewRoutine !== undefined) {
-    ui.editor.newRoutine = true;
-    return "render";
-  }
-  if (d.edRename) {
-    ui.editor.renaming = d.edRename;
-    return "render";
-  }
-  if (d.edDelete) {
-    ui.confirm = d.edDelete;
-    return "render";
-  }
-  if (d.edDeleteNo !== undefined) {
-    ui.confirm = null;
-    return "render";
-  }
-  if (d.edDeleteYes) {
-    const id = d.edDeleteYes;
-    for (const c of store.all("schedule.check")) if (c.routine === id) store.remove("schedule.check", c.id);
-    store.remove("schedule.routine", id);
-    if (ui.filter === id) {
-      ui.filter = null;
-      writeLocal("orario.master.filter", null);
-    }
-    ui.confirm = null;
-    ui.editor.routine = null;
-    return "render";
-  }
-  if (d.edWeekday) {
-    ui.editor.weekday = Number(d.edWeekday);
-    return "render";
-  }
-  if (d.edStep) {
-    const [slot, id] = d.edStep.split("|");
-    ui.editor.step = { slot, id };
-    return "render";
-  }
-  if (d.edStepClose !== undefined) {
-    saveStepForm(document.querySelector('form[data-form="step"]'));
-    ui.editor.step = null;
-    return "render";
-  }
-  if (d.edMove) {
-    saveStepForm(document.querySelector('form[data-form="step"]'));
-    const { slot, id } = ui.editor.step;
-    const key = `${ui.editor.weekday}-${slot}`;
-    updateRoutine(ui.editor.routine, (r) => {
-      const list = r.plan[key] || [];
-      const i = list.findIndex((s) => s.id === id);
-      const j = i + Number(d.edMove);
-      if (i < 0 || j < 0 || j >= list.length) return;
-      [list[i], list[j]] = [list[j], list[i]];
-    });
-    return "render";
-  }
-  if (d.edStepDelete !== undefined) {
-    const { slot, id } = ui.editor.step;
-    const key = `${ui.editor.weekday}-${slot}`;
-    updateRoutine(ui.editor.routine, (r) => {
-      r.plan[key] = (r.plan[key] || []).filter((s) => s.id !== id);
-      if (!r.plan[key].length) delete r.plan[key];
-    });
-    ui.editor.step = null;
-    return "render";
   }
   return false;
 }
