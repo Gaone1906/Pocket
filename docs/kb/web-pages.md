@@ -19,7 +19,7 @@ Related: [cloud-sync.md](cloud-sync.md) (the table, sync rules, setup link, dev 
 | Icon | Shared Pocket icon | Koi whose fins flow into ripples, blue on pale blue | Lion whose mane turns to flame, red on pale red | Eagle dissolving into wind, stone on pale stone | Mantis built from leaves, green on pale green |
 | Title and Home Screen name | Routine | Aqua | Ignis | Ventus | Terra |
 | Local state key | `pocket.cloud.v1` | `orario.cloud.v1` | `aurelius.cloud.v1` | `runner.cloud.v1` | `misura.cloud.v1` |
-| Cache prefix (`sw.js`) | `pocket-` (`pocket-v10`) | `aqua-web-` (`aqua-web-v2`, also clears `orario-master-`) | `ignis-web-` (`ignis-web-v2`, also clears `aurelius-web-`) | `runner-` (`runner-v4`) | `terra-web-` (`terra-web-v2`, also clears `misura-`) |
+| Cache prefix (`sw.js`) | `pocket-` (`pocket-v10`) | `aqua-web-` (`aqua-web-v2`, also clears `orario-master-`) | `ignis-web-` (`ignis-web-v2`, also clears `aurelius-web-`) | `runner-` (`runner-v4`) | `terra-web-` (`terra-web-v3`, also clears `misura-`) |
 
 `web/pomodoro/`, `web/aurelius/`, `web/orario/`, `web/kairos/` and `web/misura/` hold only an `index.html` that redirects to `../ignis/`, `../ignis/`, `../aqua/`, `../ventus/` and `../terra/`, keeping the query and hash, so old bookmarks, Home Screen icons and setup links still work. The folders were renamed on 2026-11-19 with the apps (Aurelius → Ignis, Kairos → Ventus, Orario → Aqua, Misura → Terra).
 
@@ -70,7 +70,7 @@ Files: `index.html`, `app.js` (views and runner), `plan.js` (templates to beats)
 
 The calorie tracker (built 2026-11-19), the web half of [apps/misura.md](apps/misura.md).
 - First run asks for the setup link, then the plan (born, sex, height, activity, weight, start day, goal weight and day, pace, lowest budget).
-- Day: week strip with a dot per logged day (red when over), a ring of kcal left, the day's entries and weight, and Meal, Workout and Weight buttons. Tap an entry to edit or delete it. "Poha 380" in the name field fills the kcal too.
+- Day: week strip with a dot per logged day (red when over), a ring of kcal left, the day's entries and weight, and a + button at the bottom right (on Day, Week and Month) that fades the page and fans out Meal, Workout and Weight, each opening its sheet. Tap an entry to edit or delete it. "Poha 380" in the name field fills the kcal too.
 - Week: deficit against what is due with the "Under the limit" or "Over the limit" badge, a bar per day (eaten, and workout beside it) on one baseline with a dashed budget line, and a table of Day, kg, Eaten and Deficit / goal.
 - Month: a calendar coloured green or red per logged day, weight lost against the month's target with the trend, and the month's deficit.
 - Settings: the plan, Watch share, Eat back, Show kcal left, export and sync.
