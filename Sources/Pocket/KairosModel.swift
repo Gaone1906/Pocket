@@ -385,6 +385,13 @@ final class KairosJournal: ObservableObject {
         }
     }
 
+    static let blankBook = "Blank page"
+
+    static func book(_ entry: KairosEntry) -> String {
+        let name = (entry.routineName ?? "").trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? blankBook : name
+    }
+
     static func fresh(_ kind: String, title: String, prompts: [String], day: String) -> KairosEntry {
         let step = UUID().uuidString
         return KairosEntry(id: "\(kind)|\(step)", routine: kind, day: day, slot: "", step: step, title: title, tag: kind,
