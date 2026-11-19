@@ -128,10 +128,9 @@ final class PocketServer {
         "GET /pomodoro/sessions?since=<ISO 8601>&project=<name>": "finished focus sessions",
         "GET /pomodoro/stats": "today and all-time totals",
         "GET /cloud": "cloud sync status",
-        "POST /cloud/signin": "email a sign-in code; body {email}",
-        "POST /cloud/verify": "finish sign-in; body {code}",
+        "POST /cloud/connect": "start syncing from the setup link; body {link}",
         "POST /cloud/sync": "sync with the cloud now",
-        "POST /cloud/signout": "stop syncing on this Mac",
+        "POST /cloud/disconnect": "stop syncing on this Mac",
     ]
 
     private func route(_ request: Request) -> Response {
@@ -216,24 +215,19 @@ final class PocketServer {
             switch (request.method, request.path) {
             case ("GET", "/cloud"):
                 return Response(status: 200, body: cloud.status())
-            case ("POST", "/cloud/signin"):
-                guard let email = try Self.text(Self.object(request.body), "email"), email.contains("@") else { throw Invalid(message: "body needs {\"email\": \"you@example.com\"}") }
-                try cloud.sendCode(email: email)
-                note("pocket server cloud code requested source=\(source) email=\(email)")
-                return Response(status: 200, body: ["sent": true, "email": email] as [String: Any])
-            case ("POST", "/cloud/verify"):
-                guard let code = try Self.text(Self.object(request.body), "code"), !code.isEmpty else { throw Invalid(message: "body needs {\"code\": \"123456\"}") }
-                try cloud.verify(code: code)
-                note("pocket server cloud verified source=\(source)")
+            case ("POST", "/cloud/connect"):
+                guard let link = try Self.text(Self.object(request.body), "link"), link.contains("connect=") else { throw Invalid(message: "body needs {\"link\": \"<the Pocket setup link>\"}") }
+                try cloud.connect(link: link)
+                note("pocket server cloud connected source=\(source)")
                 return Response(status: 200, body: cloud.status())
             case ("POST", "/cloud/sync"):
                 cloud.syncNow()
                 note("pocket server cloud sync requested source=\(source)")
                 return Response(status: 202, body: cloud.status())
-            case ("POST", "/cloud/signout"):
-                cloud.signOut()
-                note("pocket server cloud signout source=\(source)")
-                return Response(status: 200, body: ["signedIn": false])
+            case ("POST", "/cloud/disconnect"):
+                cloud.disconnect()
+                note("pocket server cloud disconnect source=\(source)")
+                return Response(status: 200, body: ["configured": false])
             default:
                 return Response(status: 404, body: ["error": "no route \(request.method) \(request.path)", "routes": Self.routes])
             }

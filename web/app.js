@@ -12,10 +12,6 @@ const TABS = [
 
 const ui = {
   tab: readLocal("pocket.tab", "orario"),
-  setupEmail: "",
-  setupStep: "email",
-  setupError: "",
-  busy: false,
   toast: "",
 };
 
@@ -47,46 +43,26 @@ function viewSettings() {
     </div>
     <div class="card list">
       <h3>Sync</h3>
-      <div class="row"><span class="grow">Account</span><span class="sub">${esc(st.session?.user?.email || "—")}</span></div>
       <div class="row"><span class="grow">This device</span><input class="inline" data-device value="${esc(st.device)}" aria-label="Device name"></div>
       <div class="row"><span class="grow">Last synced</span><span class="sub">${last ? last.toLocaleString([], { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" }) : "never"}</span></div>
       <div class="row"><span class="grow">Waiting to upload</span><span class="sub">${store.pendingCount()}</span></div>
       ${st.problem ? `<div class="row warn">${esc(st.problem)}</div>` : ""}
-      <div class="controls left"><button class="ghost" data-sync>Sync now</button><button class="ghost" data-export>Download a copy</button><button class="ghost danger" data-signout>Sign out</button></div>
+      <div class="controls left"><button class="ghost" data-sync>Sync now</button><button class="ghost" data-export>Download a copy</button><button class="ghost danger" data-signout>Disconnect</button></div>
     </div>
   </section>`;
 }
 
 function viewSetup() {
-  const st = store.snapshot();
-  const step = !st.config ? "server" : ui.setupStep;
   return `
   <div class="setup">
     <div class="card setup-card">
       <div class="brand"><span class="logo"></span><h1>Pocket</h1></div>
-      ${
-        step === "server"
-          ? `<p>Connect this device to your Pocket database. Open the setup link from your Mac, or paste the two values from Supabase → Project Settings → API.</p>
-        <form data-form="server">
-          <input name="url" placeholder="Project URL (https://xxxx.supabase.co)" required autocomplete="off" aria-label="Project URL">
-          <input name="key" placeholder="Anon public key" required autocomplete="off" aria-label="Anon public key">
-          <button class="primary wide">Continue</button>
-        </form>`
-          : step === "email"
-          ? `<p>Sign in with your email. We'll send a 6-digit code.</p>
-        <form data-form="email">
-          <input name="email" type="email" placeholder="you@example.com" value="${esc(ui.setupEmail)}" required autocomplete="email" aria-label="Email">
-          <button class="primary wide" ${ui.busy ? "disabled" : ""}>${ui.busy ? "Sending…" : "Send code"}</button>
-        </form>
-        <button class="link" data-reset-server>Use a different database</button>`
-          : `<p>Enter the code sent to <b>${esc(ui.setupEmail)}</b>.</p>
-        <form data-form="code">
-          <input name="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" required maxlength="10" aria-label="Code">
-          <button class="primary wide" ${ui.busy ? "disabled" : ""}>${ui.busy ? "Checking…" : "Sign in"}</button>
-        </form>
-        <button class="link" data-back-email>Use a different email</button>`
-      }
-      ${ui.setupError ? `<div class="warn">${esc(ui.setupError)}</div>` : ""}
+      <p>Open the setup link on this device, or paste the two values from Supabase → Project Settings → API.</p>
+      <form data-form="server">
+        <input name="url" placeholder="Project URL (https://xxxx.supabase.co)" required autocomplete="off" aria-label="Project URL">
+        <input name="key" placeholder="Anon public key" required autocomplete="off" aria-label="Anon public key">
+        <button class="primary wide">Continue</button>
+      </form>
     </div>
   </div>`;
 }
@@ -179,13 +155,7 @@ document.addEventListener("click", async (e) => {
     a.download = `pocket-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
   } else if (d.signout !== undefined) {
-    if (confirm("Sign out on this device? Changes not yet uploaded will be lost.")) await store.signOut();
-  } else if (d.resetServer !== undefined) {
-    store.clearConfig();
-  } else if (d.backEmail !== undefined) {
-    ui.setupStep = "email";
-    ui.setupError = "";
-    render();
+    if (confirm("Disconnect this device? Anything not yet uploaded is lost.")) store.disconnect();
   }
 });
 
@@ -218,37 +188,7 @@ document.addEventListener("submit", async (e) => {
     if (r) return;
   }
   const f = new FormData(form);
-  if (kind === "server") {
-    store.configure(f.get("url"), f.get("key"));
-    ui.setupError = "";
-    ui.setupStep = "email";
-    render();
-  } else if (kind === "email") {
-    ui.setupEmail = f.get("email");
-    ui.busy = true;
-    ui.setupError = "";
-    render();
-    try {
-      await store.sendCode(ui.setupEmail);
-      ui.setupStep = "code";
-    } catch (err) {
-      ui.setupError = err.message;
-    }
-    ui.busy = false;
-    render();
-  } else if (kind === "code") {
-    ui.busy = true;
-    ui.setupError = "";
-    render();
-    try {
-      await store.verifyCode(ui.setupEmail, f.get("code"));
-      ui.setupStep = "email";
-    } catch (err) {
-      ui.setupError = err.message;
-    }
-    ui.busy = false;
-    render();
-  }
+  if (kind === "server") store.configure(f.get("url"), f.get("key"));
 });
 
 function readSetupLink() {

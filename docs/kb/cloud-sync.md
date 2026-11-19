@@ -8,16 +8,16 @@ Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs)
 
 | Piece | Where | Does |
 | --- | --- | --- |
-| Schema | `cloud/schema.sql` | One table, `public.records`, private per user through row-level security |
+| Schema | `cloud/schema.sql` | One table, `public.records`, open to the app's anon key |
 | Mac sync | `Sources/Pocket/CloudSync.swift` | Two-way sync of `board` and `schedule` with the table |
 | Web app | `web/` (`index.html`, `app.js`, `store.js`, `orario.js`, `pomodoro.js`, `util.js`, `themes.js`, `style.css`, `sw.js`) | Orario in full, Pomodoro sessions (view only), Settings and themes |
 | Hosting | `.github/workflows/pages.yml` | Publishes `web/` (without `web/dev`) to GitHub Pages on pushes to `main` |
-| Dev backend | `web/dev/server.mjs` | A local stand-in for Supabase auth and REST, code always `123456`, for testing without a cloud project |
+| Dev backend | `web/dev/server.mjs` | A local stand-in for the Supabase REST API, for testing without a cloud project |
 | Setup link | `web/dev/link.mjs` | Prints a link that fills in the database URL and key on a new device |
 
 ## Data model
 
-`records(user_id, kind, id, data jsonb, deleted, device, updated_at)`, primary key `(user_id, kind, id)`. `updated_at` is set by a trigger on every write. Deletes are tombstones (`deleted = true`) so other devices learn about them.
+`records(user_id, kind, id, data jsonb, deleted, device, updated_at)`, primary key `(user_id, kind, id)`; `user_id` is always the shared zero UUID. `updated_at` is set by a trigger on every write. Deletes are tombstones (`deleted = true`) so other devices learn about them.
 
 | kind | id | data | From |
 | --- | --- | --- | --- |
@@ -53,42 +53,37 @@ Built for an iPhone 14 screen first (390 pt wide, Home Screen app), with a sideb
 
 - **Orario** does everything the Mac Schedule app does: Day, Week and Month views; the routine filter; today's morning and night checklists with tips, routine tags, Mark all done / Undo all and the other slot folded; the week strip and month marks; the "since" tally; notes; and **Change the schedule** (add, rename and delete routines, add, edit, reorder and delete steps per weekday and slot, tips, notes). The night start hour is in Settings. Routines it writes carry every key the Mac decodes (`id, name, hue, starts, plan, notes`), and deleting a routine also removes its check-offs.
 - **Pomodoro** is view only by choice (Pranav, 2026-11-19): project filter, today / this week / all time in 25-minute sessions, the last 7 days, per-project totals, and sessions by day with start and end times. Timers are started on the Mac.
-- **Settings**: theme (shared with every device), night start hour, sync status, Download a copy, sign out.
+- **Settings**: theme (shared with every device), night start hour, sync status, Download a copy, Disconnect.
 
 ## Setting it up (owner, once)
 
-1. Create a free project at supabase.com. In **SQL Editor**, run `cloud/schema.sql`.
-2. **Authentication → Sign In / Providers → Email**: keep Email on. **Authentication → Emails → Magic Link**: make the body include `{{ .Token }}` so the email carries a 6-digit code (the web app and Mac sign in with the code, which works inside a Home Screen app where links don't).
-3. **Project Settings → API**: copy the Project URL and the anon public key. The anon key is safe to publish; row-level security keeps rows private.
-4. Turn on GitHub Pages for this repo with **Source: GitHub Actions**. After the branch is merged, the app is at `https://gaone1906.github.io/Pocket/`.
-5. Make a setup link: `node web/dev/link.mjs <url> <anon key>`. Open it on each device, sign in with the emailed code, and on iPhone/iPad use Share → Add to Home Screen.
-6. On the Mac:
-   ```bash
-   defaults write com.pranav.pocket pocket.cloud.url https://<project>.supabase.co
-   defaults write com.pranav.pocket pocket.cloud.key <anon key>
-   curl -X POST 127.0.0.1:8977/cloud/signin -H 'X-Pocket-Source: setup' -d '{"email":"<you>"}'
-   curl -X POST 127.0.0.1:8977/cloud/verify -H 'X-Pocket-Source: setup' -d '{"code":"<code>"}'
-   ```
-   The first sync uploads everything on the Mac. `grep "pocket cloud" ~/Library/Logs/pocket.log | tail` shows progress.
-7. Once every device is signed in, turn off **Allow new users to sign up** in Authentication settings.
+The owner's project is **Pocket** (ref `oisplnonpwyvekcbwmhv`, Mumbai). The other project in the same Supabase org belongs to a different app; never touch it.
 
-Supabase's built-in email sender allows only a few emails per hour, which is plenty for signing in a handful of devices. A free project pauses after a week without any requests; daily use keeps it awake, and a paused project resumes from the dashboard with nothing lost.
+There is no sign-in (Pranav's choice, 2026-11-19: he doesn't need the data kept private, and Supabase now needs a custom SMTP sender before its emails can carry a code). The table is open to the anon key and every row uses the fixed `user_id` `00000000-0000-0000-0000-000000000000`. Anyone who has the setup link can read and change the data, so the link stays private; the code repo never contains the key.
+
+1. Create a free project at supabase.com. In **SQL Editor**, run `cloud/schema.sql`.
+2. **Project Settings → API**: copy the Project URL and the anon public key.
+3. Turn on GitHub Pages for this repo with **Source: GitHub Actions**. The app is at `https://gaone1906.github.io/Pocket/`.
+4. Make a setup link: `node web/dev/link.mjs <url> <anon key>`. Open it on each device; it starts syncing straight away. On iPhone/iPad use Share → Add to Home Screen.
+5. On the Mac: `curl -X POST 127.0.0.1:8977/cloud/connect -H 'X-Pocket-Source: setup' -d '{"link":"<setup link>"}'`. It saves the URL and key in UserDefaults (`pocket.cloud.url`, `pocket.cloud.key`), and the first sync uploads everything on the Mac. `grep "pocket cloud" ~/Library/Logs/pocket.log | tail` shows progress.
+6. In **Authentication → Sign In / Providers**, turn off **Allow new users to sign up**; nothing uses accounts.
+
 
 ## Safety
 
 - Every device holds a full copy. Settings → **Download a copy** in the web app saves all data as JSON in the Mac's file shapes.
 - The Mac still writes daily snapshots and pushes to the private `pocket-data` repo, independent of Supabase.
-- Signing in needs only the email inbox, so losing any device (or all of them) doesn't lock you out.
+- There is nothing to sign in to, so losing any device (or all of them) doesn't lock you out. Keep a copy of the setup link somewhere safe.
 
 ## Testing without a cloud project
 
 ```bash
 POCKET_DEV_DB=/tmp/pocket-dev.json node web/dev/server.mjs
 ```
-It serves the web app at `http://127.0.0.1:8790` and fakes auth and REST; every sign-in code is `123456`. Point a scratch Mac run at it with `pocket.cloud.url = http://127.0.0.1:8790` and any key, and follow the scratch-run rules in [operations.md](operations.md) (those defaults are shared with the real app).
+It serves the web app at `http://127.0.0.1:8790` and fakes the REST API; any key works. Open `http://127.0.0.1:8790/` and enter that URL with any key. Point a scratch Mac run at it with `pocket.cloud.url = http://127.0.0.1:8790` and any key, and follow the scratch-run rules in [operations.md](operations.md) (those defaults are shared with the real app).
 
 ## Not built yet
 
-- A sign-in pane in the Mac app (today it's the two `curl` calls above); it belongs in the new Pocket settings window.
+- A pane in the Mac app to paste the setup link (today it's the `curl` call above); it belongs in the new Pocket settings window.
 - Syncing the Mac theme (`pomodoro.board.theme` in UserDefaults) with `settings.prefs`.
 - `CloudSync.swift` has not been compiled yet; it was written on Linux. Build it on the Mac before merging.
