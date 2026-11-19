@@ -411,6 +411,7 @@ private struct GeneralSettings: View {
     @ObservedObject var layout: Layout
     let theme: BoardTheme
     @StateObject private var login = LoginItem()
+    @ObservedObject private var updater = Updater.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
@@ -448,6 +449,7 @@ private struct GeneralSettings: View {
             .padding(.vertical, 14)
             .background(RoundedRectangle(cornerRadius: 16).fill(theme.card))
             .boardEdge(16)
+            UpdateCard(updater: updater, theme: theme)
         }
         .frame(maxWidth: 560, alignment: .leading)
     }
@@ -474,6 +476,82 @@ private struct GeneralSettings: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 13)
+    }
+}
+
+private struct UpdateCard: View {
+    @ObservedObject var updater: Updater
+    let theme: BoardTheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Update Pocket")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(theme.ink)
+                    Text(status)
+                        .font(.system(size: 11))
+                        .foregroundStyle(theme.muted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                if updater.running {
+                    ProgressView().controlSize(.small)
+                }
+                Button {
+                    updater.start()
+                } label: {
+                    Text(updater.running ? "Updating…" : "Update")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.accentInkStyle)
+                        .padding(.horizontal, 14)
+                        .frame(height: 28)
+                        .background(Capsule().fill(theme.accent.opacity(theme.isDark ? 0.2 : 0.16)))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(updater.running)
+                .opacity(updater.running ? 0.6 : 1)
+                .help("Pull the latest main, rebuild and relaunch Pocket")
+            }
+            if updater.running, !updater.lastLine.isEmpty {
+                Text(updater.lastLine)
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(theme.faint)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            if case let .failed(message, detail) = updater.phase {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(message, systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.red)
+                    Text(detail)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(theme.muted)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.red.opacity(theme.isDark ? 0.14 : 0.08)))
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 14)
+        .background(RoundedRectangle(cornerRadius: 16).fill(theme.card))
+        .boardEdge(16)
+    }
+
+    private var status: String {
+        let build = updater.installed.map { "Build \($0)" } ?? "Unknown build"
+        switch updater.phase {
+        case .idle: return "\(build). Pulls the latest main, rebuilds and relaunches."
+        case let .working(step): return step
+        case .upToDate: return "\(build) is the latest main. Nothing to do."
+        case .failed: return "\(build). Nothing was installed."
+        }
     }
 }
 
