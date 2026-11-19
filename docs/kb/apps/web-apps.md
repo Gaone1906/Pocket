@@ -18,7 +18,7 @@ So a new web or link app needs only a catalog entry. For the shared panel, statu
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `whatsapp` | WhatsApp | `https://web.whatsapp.com/` | ⌥W | yes | never | 0.8 | Safari | `…7A01` |
 | `slack` | Slack | `https://app.slack.com/client` | ⌥S | yes | never | 0.85 | Chrome + `chromeDisguise` | `…7A02` |
-| `spotify` | Spotify | `https://open.spotify.com/` | ⌥M | no | 1800 s | 0.85 | Safari | `…7A03` |
+| `spotify` | Spotify | `https://open.spotify.com/` | ⌥M | yes | 1800 s | 0.85 | Safari | `…7A03` |
 | `gmail` | Gmail | `https://mail.google.com/mail/` | ⌥G | no | never | 0.85 | Safari | `…7A04` |
 | `outlook` | Outlook | `https://outlook.office.com/mail/` | none | no | never | 0.85 | Safari | `…7A05` |
 | `preparo` | Preparo | `http://localhost:8960/` | none | n/a (LinkApp) | n/a | n/a | n/a | n/a |
@@ -33,6 +33,25 @@ So a new web or link app needs only a catalog entry. For the shared panel, statu
 - **Badges show only in the menu bar.** The dropdown grid (`TrayView.icon`) draws plain templated glyphs, so an app placed in the dropdown shows no unread state.
 - **Right-click menu** (`WebApp.menuItems`): "Reload <Name>", "Restart <Name> (if frozen)" and "Open <Name> in browser". The common items from `AppDelegate.appendCommonItems` follow.
 - **Preparo** opens `http://localhost:8960/` in Ardia (bundle id `com.ardia.browser`), or in the default browser when Ardia isn't installed. It never shows a panel.
+
+## Playback watch (Spotify)
+
+`WebSpec.watch` is an optional main-frame script; Spotify uses `playbackWatch` (`WebApp.swift`). It reports to the
+`pocketWatch` message handler, logged as `pocket web watch app=spotify kind=<kind> shown=<bool> detail=<...>`:
+
+- `http <status>` / `fetch failed` for player, Connect, licence and spclient requests;
+- `socket open|closed|error` for every WebSocket (the Connect dealer), with close code;
+- `drm granted|refused` from `requestMediaKeySystemAccess`;
+- `media error|stalled|abort|emptied` from audio and video elements;
+- `rejection`, `script error` and `console` (console.error) messages.
+
+The script also counts open Connect dealer sockets and exposes `window.__pocketConnected()` (null until one has
+opened). `WebApp.checkPlayer(reason:)` runs it when the panel opens and on every `checkHealth()` (every 300 s and on
+wake); if the dealer is down and nothing is playing it reloads the page and logs
+`pocket player disconnected app=spotify reason=<opened|health> playing=<bool> action=<reload|kept>`.
+
+Each kind is capped per page load (30, sockets 100, DRM 5/10). When song picks stop working, read
+`grep "app=spotify" ~/Library/Logs/pocket.log | tail -80` around that time.
 
 ## Files
 
@@ -101,12 +120,16 @@ No Pocket-owned files. Everything lives in WebKit's persistent stores.
    - starts `healthTimer`, every 300 s with 60 s tolerance.
 
 ### Keep-alive and background behaviour
-- **Realtime (WhatsApp, Slack):**
+- **Realtime (WhatsApp, Slack, Spotify):**
   - `inactiveSchedulingPolicy = .none`;
   - the private WKPreferences `pageVisibilityBasedProcessSuppressionEnabled`, `hiddenPageDOMTimerThrottlingEnabled` and `hiddenPageDOMTimerThrottlingAutoIncreases` are set false, each only if the `_set…:` selector exists;
   - the private `windowOcclusionDetectionEnabled` on the web view is set false.
 - **App Nap.** `AppDelegate.syncAwake()` holds `ProcessInfo.beginActivity(.userInitiatedAllowingIdleSystemSleep)` while any enabled `WebApp` is realtime, which blocks App Nap but still lets the Mac idle-sleep. It logs `pocket app nap blocked for realtime apps` or `allowed`.
-- **Non-realtime (Spotify, Gmail, Outlook):** WebKit throttles them while hidden (`.throttle`). They stay loaded, except Spotify.
+- **Non-realtime (Gmail, Outlook):** WebKit throttles them while hidden (`.throttle`). They stay loaded.
+- **Why Spotify is realtime.** Its web player kept playing while hidden but, after a while, stopped starting new tracks
+  even though browsing and search still worked. The likeliest cause is hidden-page throttling and process suppression
+  stalling the player's Spotify Connect socket and timers, so play commands went nowhere. Spotify is realtime since
+  19 Nov 2026; it still unloads after 1800 s hidden and not playing.
 - **Spotify idle unload.** `didHide()` calls `scheduleUnload()`, which is a no-op unless `unloadAfter` is set. After 1800 s hidden, the work item:
   - re-arms if the panel is shown again, if `inCall`, or if `playingProbe` returns true;
   - otherwise calls `unload(reason: "idle 1800s")`.
