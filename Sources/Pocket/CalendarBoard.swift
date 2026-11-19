@@ -605,6 +605,7 @@ private struct CalendarWeekView: View {
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
                     ZStack(alignment: .topLeading) {
+                        Color.clear.frame(height: 1).id("morning").padding(.top, 7 * hourHeight - 16)
                         grid
                         HStack(spacing: 6) {
                             Color.clear.frame(width: gutter - 6)
@@ -618,7 +619,7 @@ private struct CalendarWeekView: View {
                     .padding(.bottom, 12)
                 }
                 .scrollIndicators(.never)
-                .onAppear { proxy.scrollTo(7, anchor: .top) }
+                .onAppear { proxy.scrollTo("morning", anchor: .top) }
             }
         }
         .id(CalendarDays.weekStart(state.anchor))
@@ -664,7 +665,6 @@ private struct CalendarWeekView: View {
                     Rectangle().fill(Board.line.opacity(Board.theme.embroidery == nil ? 0.7 : 0.25)).frame(height: 1)
                 }
                 .frame(height: hourHeight, alignment: .top)
-                .background(alignment: .top) { Color.clear.frame(height: 1).offset(y: -14).id(hour) }
             }
         }
     }
@@ -744,6 +744,7 @@ private struct CalendarWeekView: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .background(occurrence.tint.opacity(Board.theme.isDark ? 0.3 : 0.26))
+        .background(Board.theme.isDark ? Board.backdrop : Color.white.opacity(0.92))
         .clipShape(RoundedRectangle(cornerRadius: 7))
         .contentShape(RoundedRectangle(cornerRadius: 7))
         .help("\(occurrence.event.displayTitle) · \(CalendarDays.span(occurrence))")

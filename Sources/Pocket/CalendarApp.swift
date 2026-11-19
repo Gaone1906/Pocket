@@ -227,8 +227,10 @@ private struct CalendarAgenda: View {
                             .buttonStyle(.plain)
                         }
                     }
+                    .padding(.bottom, 12)
                 }
                 .scrollIndicators(.never)
+                .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.86), .init(color: .clear, location: 1)], startPoint: .top, endPoint: .bottom))
             }
         }
         .padding(.horizontal, 16)
