@@ -424,7 +424,7 @@ final class CalendarStore: ObservableObject {
             index += 1
             if s >= end { break }
             if let lastDay, s >= lastDay { break }
-            if event.repeats == .weekdays, calendar.isDateInWeekend(s) { continue }
+            if event.repeats == .weekdays, [1, 7].contains(calendar.component(.weekday, from: s)) { continue }
             if overlaps(s) { results.append(CalendarOccurrence(event: event, start: s, end: s.addingTimeInterval(length))) }
         }
         return results

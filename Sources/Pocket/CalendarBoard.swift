@@ -433,15 +433,7 @@ private struct CalendarEventChip: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Board.ink)
                     .lineLimit(1)
-                Spacer(minLength: 2)
-                if CalendarDays.calendar.isDate(occurrence.start, inSameDayAs: day) {
-                    Text(CalendarDays.time(occurrence.start))
-                        .font(.system(size: 10))
-                        .monospacedDigit()
-                        .foregroundStyle(Board.faint)
-                        .lineLimit(1)
-                        .layoutPriority(-1)
-                }
+                Spacer(minLength: 0)
             }
         }
         .padding(.horizontal, 6)
@@ -535,20 +527,30 @@ private struct CalendarMonthView: View {
 }
 
 private struct CalendarLanes {
-    static func assign(_ occurrences: [CalendarOccurrence]) -> (lanes: [String: Int], count: Int) {
+    static func assign(_ occurrences: [CalendarOccurrence]) -> [String: (lane: Int, count: Int)] {
+        var result: [String: (lane: Int, count: Int)] = [:]
+        var cluster: [(String, Int)] = []
         var ends: [Date] = []
-        var lanes: [String: Int] = [:]
+        var clusterEnd = Date.distantPast
+        func flush() {
+            for (id, lane) in cluster { result[id] = (lane, max(1, ends.count)) }
+            cluster = []
+            ends = []
+        }
         for occurrence in occurrences.sorted(by: { $0.start < $1.start }) {
             let end = max(occurrence.end, occurrence.start.addingTimeInterval(1800))
+            if occurrence.start >= clusterEnd { flush() }
+            clusterEnd = max(clusterEnd, end)
             if let free = ends.firstIndex(where: { $0 <= occurrence.start }) {
-                lanes[occurrence.id] = free
+                cluster.append((occurrence.id, free))
                 ends[free] = end
             } else {
-                lanes[occurrence.id] = ends.count
+                cluster.append((occurrence.id, ends.count))
                 ends.append(end)
             }
         }
-        return (lanes, max(1, ends.count))
+        flush()
+        return result
     }
 }
 
@@ -662,7 +664,7 @@ private struct CalendarWeekView: View {
                     Rectangle().fill(Board.line.opacity(Board.theme.embroidery == nil ? 0.7 : 0.25)).frame(height: 1)
                 }
                 .frame(height: hourHeight, alignment: .top)
-                .id(hour)
+                .background(alignment: .top) { Color.clear.frame(height: 1).offset(y: -14).id(hour) }
             }
         }
     }
@@ -676,7 +678,6 @@ private struct CalendarWeekView: View {
         let layout = CalendarLanes.assign(occurrences)
         let today = day == store.today
         return GeometryReader { geo in
-            let laneWidth = geo.size.width / CGFloat(layout.count)
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: 10)
                     .fill(today ? Board.accent.opacity(0.06) : Color.clear)
@@ -685,19 +686,6 @@ private struct CalendarWeekView: View {
                         let hour = min(23, max(0, Int(point.y / hourHeight)))
                         state.create(on: day, hour: hour, store: store)
                     }
-                ForEach(occurrences) { occurrence in
-                    let top = offset(occurrence.start, on: day)
-                    let bottom = max(top + 22, offset(occurrence.end, on: day, clampEnd: true))
-                    let lane = CGFloat(layout.lanes[occurrence.id] ?? 0)
-                    Button {
-                        state.edit(occurrence.event)
-                    } label: {
-                        block(occurrence, height: bottom - top - 2)
-                    }
-                    .buttonStyle(.plain)
-                    .frame(width: max(20, laneWidth - 3), height: bottom - top - 2)
-                    .offset(x: lane * laneWidth, y: top + 1)
-                }
                 if today {
                     let y = offset(store.now, on: day)
                     HStack(spacing: 0) {
@@ -706,6 +694,21 @@ private struct CalendarWeekView: View {
                     }
                     .offset(x: -3.5, y: y - 3.5)
                     .allowsHitTesting(false)
+                }
+                ForEach(occurrences) { occurrence in
+                    let top = offset(occurrence.start, on: day)
+                    let bottom = max(top + 22, offset(occurrence.end, on: day, clampEnd: true))
+                    let slot = layout[occurrence.id] ?? (lane: 0, count: 1)
+                    let laneWidth = geo.size.width / CGFloat(slot.count)
+                    let lane = CGFloat(slot.lane)
+                    Button {
+                        state.edit(occurrence.event)
+                    } label: {
+                        block(occurrence, height: bottom - top - 2)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: max(20, laneWidth - 3), height: bottom - top - 2)
+                    .offset(x: lane * laneWidth, y: top + 1)
                 }
             }
         }
