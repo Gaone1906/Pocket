@@ -16,6 +16,26 @@ struct ScheduleStep: Codable, Identifiable, Equatable {
     var tip: String = ""
 }
 
+enum ScheduleStepText {
+    static func parts(_ title: String) -> (name: String, detail: String) {
+        guard let bar = title.firstIndex(of: "|") else { return (title.trimmingCharacters(in: .whitespaces), "") }
+        let name = title[..<bar].trimmingCharacters(in: .whitespaces)
+        let detail = title[title.index(after: bar)...].trimmingCharacters(in: .whitespaces)
+        return (name, detail)
+    }
+
+    static func make(_ title: String) -> Text {
+        let split = parts(title)
+        guard !split.detail.isEmpty else { return Text(split.name) }
+        return Text(split.name).fontWeight(.semibold) + Text(" " + split.detail).fontWeight(.regular).foregroundStyle(Board.muted)
+    }
+
+    static func plain(_ title: String) -> String {
+        let split = parts(title)
+        return split.detail.isEmpty ? split.name : "\(split.name) \(split.detail)"
+    }
+}
+
 struct ScheduleRoutine: Codable, Identifiable, Equatable {
     var id = UUID()
     var name: String
