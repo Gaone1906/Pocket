@@ -163,6 +163,16 @@ final class BoardThemeStore: ObservableObject {
     }
 }
 
+struct ReadableBackdrop: View {
+    let theme: BoardTheme
+    var dim = 0.5
+
+    var body: some View {
+        BoardBackdrop(theme: theme)
+            .overlay(theme.embroidery == nil ? Color.clear : Color.black.opacity(dim))
+    }
+}
+
 final class ThemedHostingView<Content: View>: NSHostingView<Content> {
     private var themeWatch: AnyCancellable?
 

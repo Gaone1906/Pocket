@@ -1199,11 +1199,12 @@ private struct ScheduleBackupSection: View {
                         }
                     }
                 } label: {
-                    Text("Restore…").font(.system(size: 12, weight: .medium))
+                    Text("Restore…").font(.system(size: 12, weight: .medium)).foregroundStyle(Board.ink)
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
                 .foregroundStyle(Board.ink)
+                .tint(Board.ink)
                 Spacer()
                 Button("Show backups") { vault.showInFinder() }
                     .buttonStyle(.plain)

@@ -554,8 +554,7 @@ private struct BoardColumn: View {
                         Image(systemName: "ellipsis")
                     }
                     .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
-                    .fixedSize()
+                        .fixedSize()
                     .foregroundStyle(Board.muted)
                 }
             }
@@ -788,11 +787,13 @@ private struct BoardBackupSection: View {
                         }
                     }
                 } label: {
-                    Text("Restore…").font(.system(size: 12, weight: .medium))
+                    Text("Restore…").font(.system(size: 12, weight: .medium)).foregroundStyle(Board.ink)
                 }
                 .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
                 .fixedSize()
                 .foregroundStyle(Board.ink)
+                .tint(Board.ink)
                 Spacer()
                 Button("Show backups") { vault.showInFinder() }
                     .buttonStyle(.plain)

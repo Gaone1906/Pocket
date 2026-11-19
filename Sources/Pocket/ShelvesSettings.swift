@@ -34,6 +34,13 @@ struct ShelvesSettings: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
+            .overlay {
+                if ids.isEmpty {
+                    Text("No apps here yet")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Board.faint)
+                }
+            }
             .background(RoundedRectangle(cornerRadius: 16).fill(Board.column.opacity(0.5)))
             .boardEdge(16)
         }

@@ -427,7 +427,7 @@ private struct StatsView: View {
         .padding(.bottom, 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .id(themes.theme.id)
-        .background(BoardBackdrop(theme: themes.theme).ignoresSafeArea())
+        .background(ReadableBackdrop(theme: themes.theme, dim: 0.6).ignoresSafeArea())
         .environment(\.colorScheme, themes.theme.colorScheme)
         .tint(themes.theme.accent)
     }

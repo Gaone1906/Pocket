@@ -115,24 +115,34 @@ struct PocketSettingsView: View {
         HStack(spacing: 0) {
             sidebar
             Rectangle().fill(Board.line.opacity(themes.theme.embroidery == nil ? 1 : 0.25)).frame(width: 1)
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 0) {
-                    header
-                    detail
+            ScrollViewReader { reader in
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        header
+                        detail
+                    }
+                    .padding(.horizontal, 36)
+                    .padding(.top, 44)
+                    .padding(.bottom, 32)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.horizontal, 36)
-                .padding(.top, 44)
-                .padding(.bottom, 32)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .scrollIndicators(.never)
+                .onAppear { reveal(reader) }
+                .onChange(of: focus.section) { _, _ in reveal(reader) }
             }
-            .scrollIndicators(.never)
         }
         .animation(Board.glide, value: focus.section)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(BoardBackdrop(theme: themes.theme))
+        .background(ReadableBackdrop(theme: themes.theme, dim: 0.5))
         .ignoresSafeArea()
         .environment(\.colorScheme, themes.theme.colorScheme)
         .tint(themes.theme.accent)
+    }
+
+    private func reveal(_ reader: ScrollViewProxy) {
+        guard focus.section == .appearance, themes.theme.family != "Pastel" else { return }
+        let id = themes.theme.id
+        DispatchQueue.main.async { reader.scrollTo(id, anchor: .center) }
     }
 
     private var sidebar: some View {
@@ -154,7 +164,8 @@ struct PocketSettingsView: View {
                 Text(themes.theme.name)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Board.muted)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 10)
         }
@@ -238,6 +249,7 @@ private struct ThemeGallery: View {
                             ThemeCard(theme: theme, current: themes.theme) {
                                 withAnimation(.easeInOut(duration: 0.15)) { themes.theme = theme }
                             }
+                            .id(theme.id)
                         }
                     }
                 }
@@ -309,9 +321,9 @@ private struct ThemePreview: View {
                         .foregroundStyle(theme.accentInkStyle)
                     Capsule().fill(theme.faint.opacity(0.6)).frame(width: 16, height: 3)
                 }
-                .padding(.horizontal, 9)
+                .padding(.horizontal, 8)
                 .padding(.top, 14)
-                .frame(width: 44, alignment: .leading)
+                .frame(width: 40, alignment: .leading)
                 .frame(maxHeight: .infinity, alignment: .top)
                 .background(theme.embroidery == nil ? theme.sidebar : Color.black.opacity(0.35))
                 HStack(alignment: .top, spacing: 6) {
@@ -319,7 +331,7 @@ private struct ThemePreview: View {
                     column(1, rows: 2)
                     column(2, rows: 1)
                 }
-                .padding(.leading, 8)
+                .padding(.horizontal, 8)
                 .padding(.top, 14)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
@@ -335,7 +347,7 @@ private struct ThemePreview: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 4) {
                 Circle().fill(theme.projectTint(index)).frame(width: 5, height: 5)
-                Capsule().fill(theme.ink.opacity(0.75)).frame(width: 18, height: 3)
+                Capsule().fill(theme.ink.opacity(0.75)).frame(maxWidth: 18).frame(height: 3)
             }
             ForEach(0..<rows, id: \.self) { _ in
                 RoundedRectangle(cornerRadius: 2.5)
@@ -344,7 +356,7 @@ private struct ThemePreview: View {
             }
         }
         .padding(6)
-        .frame(width: 38, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 6).fill(theme.card))
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(theme.line.opacity(0.8), lineWidth: 0.5))
     }
