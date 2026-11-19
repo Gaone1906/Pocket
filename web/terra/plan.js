@@ -94,9 +94,9 @@ export function model(plan, entries, weights, now = today()) {
     if (!plan) return null;
     const goal = dailyGoal(plan);
     const list = days.map(summary);
-    const elapsed = days.filter((k) => k <= now && k >= plan.startDay).length;
     const active = days.filter((k) => k >= plan.startDay && k <= plan.goalDay).length;
     const logged = list.filter((d) => d.logged);
+    const elapsed = logged.filter((d) => d.day <= now && d.day >= plan.startDay && d.day <= plan.goalDay).length;
     const deficit = list.reduce((s, d) => s + d.deficit, 0);
     return {
       days: list,
@@ -111,7 +111,8 @@ export function model(plan, entries, weights, now = today()) {
   const week = (k) => span(weekDays(k));
   const month = (k) => span(monthDays(k));
   const perDayLeft = (w) => {
-    const rest = w.days.filter((d) => d.day > now).length;
+    if (!plan) return 0;
+    const rest = w.days.filter((d) => d.day >= now && d.day >= plan.startDay && d.day <= plan.goalDay).length;
     return rest ? Math.max(0, Math.round((w.goal - w.deficit) / rest)) : 0;
   };
   const monthLoss = (k) => {
