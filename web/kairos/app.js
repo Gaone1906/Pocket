@@ -1,7 +1,7 @@
 import * as store from "./store.js";
 import { $, esc, ICONS, readLocal, writeLocal, dayTitle, fmtTime } from "./util.js";
 import * as R from "./routines.js";
-import { beatsForSteps, estimate, howLabel, clock, minutes, split, runOf, plainDetail } from "./plan.js";
+import { beatsForSteps, estimate, howLabel, clock, minutes, split, runOf, plainDetail, breath } from "./plan.js";
 
 const APP_NAME = "Kairos";
 const RUN_KEY = "runner.run.v1";
@@ -66,7 +66,7 @@ function session() {
   const routine = R.routine(run.routineId);
   if (!routine) return null;
   const steps = R.stepsOn(routine, run.day, run.slot);
-  const beats = beatsForSteps(steps);
+  const beats = beatsForSteps(steps, run.day);
   return { routine, steps, beats, beat: beats[run.i] };
 }
 
@@ -117,7 +117,7 @@ function startSession(routineId, day, slot) {
   const routine = R.routine(routineId);
   if (!routine) return;
   const steps = R.stepsOn(routine, day, slot);
-  const beats = beatsForSteps(steps);
+  const beats = beatsForSteps(steps, day);
   const first = steps.findIndex((s) => !R.isDone(routineId, day, slot, s.id));
   const i = Math.max(0, beats.findIndex((b) => b.step === (first < 0 ? 0 : first)));
   run = { routineId, day, slot, i, started: Date.now(), stepStarted: Date.now(), spent: {}, paused: false, waiting: false, left: null, endsAt: null, say: { line: 0, said: 0 } };
@@ -233,6 +233,51 @@ function sessionLeft(s) {
   });
   const here = s.beats.filter((b, i) => i > run.i && b.step === s.beat.step).reduce((n, b) => n + (b.seconds || 0) + (b.kind === "reps" ? 30 : 0), 0);
   return total + here + (run.left != null ? remaining() : 0);
+}
+
+const BOX_SIDE = 220;
+const BOX_CORNERS = [
+  [0, 1],
+  [0, 0],
+  [1, 0],
+  [1, 1],
+];
+
+function ballAt(b) {
+  const p = breath(b.box, b.seconds - remaining());
+  const a = BOX_CORNERS[p.index];
+  const z = BOX_CORNERS[(p.index + 1) % 4];
+  return { ...p, x: (a[0] + (z[0] - a[0]) * p.fraction) * BOX_SIDE, y: (a[1] + (z[1] - a[1]) * p.fraction) * BOX_SIDE };
+}
+
+function boxView(b) {
+  const at = ballAt(b);
+  const pad = 16;
+  const size = BOX_SIDE + pad * 2;
+  return `<div class="breathbox"><svg width="${size}" height="${size}" viewBox="${-pad} ${-pad} ${size} ${size}" aria-hidden="true"><rect x="0" y="0" width="${BOX_SIDE}" height="${BOX_SIDE}" rx="10" fill="none" stroke="var(--line)" stroke-width="4"/><circle data-ball cx="${at.x.toFixed(1)}" cy="${at.y.toFixed(1)}" r="12" fill="var(--accent)"/></svg><div class="breathtext"><b data-phase>${esc(at.label)}</b><span data-phasecount>${at.left}</span></div></div>`;
+}
+
+function readNow(b) {
+  if (!b.reads || !b.reads.length) return null;
+  const used = Math.max(0, b.seconds - remaining());
+  return b.reads[Math.floor(used / (b.every || 20)) % b.reads.length];
+}
+
+function tickBox() {
+  const s = run && ui.view === "run" && !ui.steps ? session() : null;
+  if (s && s.beat && s.beat.box && !run.waiting) {
+    const ball = document.querySelector("[data-ball]");
+    if (ball) {
+      const at = ballAt(s.beat);
+      ball.setAttribute("cx", at.x.toFixed(1));
+      ball.setAttribute("cy", at.y.toFixed(1));
+      const phase = document.querySelector("[data-phase]");
+      if (phase && phase.textContent !== at.label) phase.textContent = at.label;
+      const count = document.querySelector("[data-phasecount]");
+      if (count && count.textContent !== String(at.left)) count.textContent = String(at.left);
+    }
+  }
+  requestAnimationFrame(tickBox);
 }
 
 function ring(size, stroke, fraction, color, track) {
@@ -360,10 +405,24 @@ function viewCount(s) {
       <div class="grow"></div>
       ${controls(pauseButton())}`;
   }
+  const read = readNow(b);
+  if (b.box) {
+    return `
+    <div class="center grow">
+      <span class="kicker">${esc(b.label || runLabel(b))}</span>
+      <h1 class="title">${esc(b.name)}</h1>
+      ${boxView(b)}
+      <p class="sub"><span data-clock>${clock(left)}</span> left${run.paused ? " · paused" : ""}</p>
+      ${cue ? `<div class="card note" data-cue><small>Now</small>${esc(cue.text)}</div>` : ""}
+    </div>
+    ${upNext(s)}
+    ${controls(pauseButton())}`;
+  }
   return `
     <div class="center grow">
       <span class="kicker">${esc(b.label || runLabel(b))}</span>
       <h1 class="title">${esc(b.name)}</h1>
+      ${read ? `<div class="card readline" data-read><small>Hard to picture? Read this, then close your eyes</small><p>${esc(read)}</p></div>` : ""}
       <div class="ringbox">${ring(260, 10, fraction, "var(--accent)", "var(--line)")}<div class="ringtext"><span class="clock" data-clock>${clock(left)}</span><small>of ${clock(b.seconds)}</small></div></div>
       ${cue ? `<div class="card note" data-cue><small>Now</small>${esc(cue.text)}</div>` : b.tip ? `<details class="card note"><summary>How to</summary>${esc(b.tip)}</details>` : ""}
     </div>
@@ -738,6 +797,11 @@ function tickClock() {
       const cueEl = document.querySelector("[data-cue]");
       if (cue && cueEl && !cueEl.textContent.endsWith(cue.text)) render();
     }
+    if (b.reads && b.reads.length) {
+      const read = readNow(b);
+      const readEl = document.querySelector("[data-read] p");
+      if (readEl && read && readEl.textContent !== read) render();
+    }
     if (left <= 0) return advance();
   }
   const soft = softLeft(b);
@@ -985,6 +1049,7 @@ if (run && run.finished) {
 }
 render();
 setInterval(tickClock, 250);
+requestAnimationFrame(tickBox);
 setInterval(() => {
   if (ui.view === "today") render();
 }, 60000);

@@ -1,4 +1,5 @@
-const TIMED_TYPES = new Set(["timed", "moves", "intervals", "rounds", "log", "say", "write"]);
+const TIMED_TYPES = new Set(["timed", "box", "moves", "intervals", "rounds", "log", "say", "write"]);
+const BREATH = ["Breathe in", "Hold", "Breathe out", "Hold"];
 const REP_SECONDS = 3;
 
 export function split(title) {
@@ -23,6 +24,36 @@ export function isGuided(step) {
 const num = (v, d = 0) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.round(Number(v)) : d);
 const list = (v) => (Array.isArray(v) ? v : []);
 
+export function dayNumber(day) {
+  const m = String(day || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return 0;
+  return Math.floor(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86400000);
+}
+
+export function pick(pool, count, day) {
+  const lines = list(pool).map(String).filter(Boolean);
+  const take = Math.min(num(count), lines.length);
+  if (!take) return lines;
+  const start = (((dayNumber(day) * take) % lines.length) + lines.length) % lines.length;
+  return Array.from({ length: take }, (_, i) => lines[(start + i) % lines.length]);
+}
+
+export function pattern(run) {
+  const p = list(run.pattern).map((v) => Math.max(0, Math.round(Number(v) || 0)));
+  return p.length === 4 && p.some((v) => v > 0) ? p : [4, 4, 4, 4];
+}
+
+export function breath(box, elapsed) {
+  const cycle = box.reduce((a, b) => a + b, 0) || 16;
+  let t = ((elapsed % cycle) + cycle) % cycle;
+  for (let i = 0; i < 4; i++) {
+    if (!box[i]) continue;
+    if (t < box[i]) return { index: i, label: BREATH[i], fraction: t / box[i], left: Math.ceil(box[i] - t) };
+    t -= box[i];
+  }
+  return { index: 0, label: BREATH[0], fraction: 0, left: box[0] };
+}
+
 function moveBeat(base, move, extra = {}) {
   const seconds = num(move.seconds);
   return {
@@ -36,14 +67,15 @@ function moveBeat(base, move, extra = {}) {
   };
 }
 
-export function beatsFor(step, index) {
+export function beatsFor(step, index, day = "") {
   const run = runOf(step);
   const { name, detail } = split(step.title);
   const base = { step: index, name, detail: detail, tip: step.tip || "", type: run.type, guide: num(run.seconds), quiet: !!run.quiet };
   const moves = list(run.moves).filter((m) => m && m.name);
   switch (run.type) {
     case "timed":
-      return [{ ...base, kind: "count", seconds: num(run.seconds, 60), cues: list(run.cues).filter((c) => c && c.text).map((c) => ({ at: num(c.at), text: String(c.text) })).sort((a, b) => a.at - b.at) }];
+    case "box":
+      return [{ ...base, kind: "count", seconds: num(run.seconds, run.type === "box" ? 240 : 60), cues: list(run.cues).filter((c) => c && c.text).map((c) => ({ at: num(c.at), text: String(c.text) })).sort((a, b) => a.at - b.at), box: run.type === "box" ? pattern(run) : null, reads: pick(run.reads, run.pick, day), every: num(run.every, 20) }];
     case "moves":
       if (!moves.length) return [{ ...base, kind: "reps" }];
       return moves.map((m, i) => moveBeat(base, m, { list: moves, at: i, label: `${name} · move ${i + 1} of ${moves.length}` }));
@@ -73,7 +105,7 @@ export function beatsFor(step, index) {
     case "log":
       return [{ ...base, kind: "log", plan: String(run.plan || detail || name) }];
     case "say":
-      return [{ ...base, kind: "say", lines: list(run.lines).map(String), times: num(run.times, 1) }];
+      return [{ ...base, kind: "say", lines: list(run.lines).map(String).concat(list(run.pool).length ? pick(run.pool, run.pick, day) : []), times: num(run.times, 1) }];
     case "write":
       return [{ ...base, kind: "write", fields: num(run.fields, 0), prompt: String(run.prompt || ""), tag: String(run.tag || "note") }];
     default:
@@ -81,8 +113,8 @@ export function beatsFor(step, index) {
   }
 }
 
-export function beatsForSteps(steps) {
-  return steps.flatMap((s, i) => beatsFor(s, i));
+export function beatsForSteps(steps, day = "") {
+  return steps.flatMap((s, i) => beatsFor(s, i, day));
 }
 
 export function estimate(step) {
@@ -98,7 +130,9 @@ export function howLabel(step) {
   const moves = list(run.moves);
   switch (run.type) {
     case "timed":
-      return "Timer";
+      return list(run.reads).length ? "Timer · lines to read if it's hard to picture" : "Timer";
+    case "box":
+      return `Box breathing ${pattern(run).join("-")} · follow the ball`;
     case "moves":
       return moves.length ? `${moves.length} moves, each named` : "Tap Done when finished";
     case "intervals":
@@ -108,7 +142,7 @@ export function howLabel(step) {
     case "log":
       return "Do it, then enter time and distance";
     case "say":
-      return `Out loud · ${list(run.lines).length} lines, ${num(run.times, 1)} times each`;
+      return `Out loud · ${list(run.lines).length + (list(run.pool).length ? Math.min(num(run.pick, list(run.pool).length), list(run.pool).length) : 0)} lines${list(run.pool).length ? " (fresh daily)" : ""}, ${num(run.times, 1)} times each`;
     case "write":
       return num(run.fields) > 1 ? `Write ${num(run.fields)} lines` : "Write it down";
     default:
