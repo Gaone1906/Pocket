@@ -347,6 +347,19 @@ final class CalendarStore: ObservableObject {
         note("calendar merged added=\(added) newer=\(newer) events=\(book.events.count)")
     }
 
+    func adopt(_ data: Data) {
+        do {
+            let incoming = try CalendarVaultPersistence.decode(data)
+            guard incoming != book else { return }
+            book = incoming
+            persistence.save(book)
+            refreshAlerts(reason: "adopt")
+            note("calendar adopted events=\(book.events.count) bytes=\(data.count)")
+        } catch {
+            note("calendar adopt failed bytes=\(data.count) error=\(error.localizedDescription)")
+        }
+    }
+
     private func commit(_ action: String, _ event: CalendarEvent) {
         persistence.save(book)
         refreshAlerts(reason: action)
