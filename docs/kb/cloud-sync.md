@@ -10,7 +10,7 @@ Related: [data-and-backups.md](data-and-backups.md) (the vault files this syncs)
 | --- | --- | --- |
 | Schema | `cloud/schema.sql` | One table, `public.records`, open to the app's anon key |
 | Mac sync | `Sources/Pocket/CloudSync.swift` | Two-way sync of `board` and `schedule` with the table |
-| Web app | `web/` (`index.html`, `app.js`, `store.js`, `orario.js`, `pomodoro.js`, `util.js`, `themes.js`, `style.css`, `sw.js`) | Orario in full, Pomodoro sessions (view only), Settings and themes |
+| Web app | `web/` (`index.html`, `app.js`, `store.js`, `orario.js`, `util.js`, `themes.js`, `style.css`, `sw.js`) | Orario's Hair routine only, Settings and themes |
 | Orario (all routines) | `web/orario/` | A separate, self-contained web app with every routine: Day, Week and Month, the routine filter, Change the schedule, and Settings. Same table and setup link; its own local copy (`orario.cloud.v1`), service worker and Home Screen entry. In a browser that already holds the main app's link, it connects without asking |
 | Hosting | `.github/workflows/pages.yml` | Publishes `web/` (without `web/dev`) to GitHub Pages on pushes to `main`; `web/orario/` lands at `https://gaone1906.github.io/Pocket/orario/` |
 | Dev backend | `web/dev/server.mjs` | A local stand-in for the Supabase REST API, for testing without a cloud project |
@@ -52,8 +52,7 @@ Web (`store.js`): edits go to a local outbox in `localStorage` and are pushed wi
 
 Built for an iPhone 14 screen first (390 pt wide, Home Screen app), with a sidebar layout on laptops.
 
-- **Orario** does everything the Mac Schedule app does: Day, Week and Month views; the routine filter; today's morning and night checklists with tips, routine tags, Mark all done / Undo all and the other slot folded; the week strip and month marks; the "since" tally; notes; and **Change the schedule** (add, rename and delete routines, add, edit, reorder and delete steps per weekday and slot, tips, notes). The night start hour is in Settings. Routines it writes carry every key the Mac decodes (`id, name, hue, starts, plan, notes`), and deleting a routine also removes its check-offs.
-- **Pomodoro** is view only by choice (Pranav, 2026-11-19): project filter, today / this week / all time in 25-minute sessions, the last 7 days, per-project totals, and sessions by day with start and end times. Timers are started on the Mac.
+- **Hair only** (Pranav, 2026-11-19): this is the app shared with Pranav's parents, so it shows only the Orario routine whose name contains "hair". Day, Week and Month views, today's morning and night checklists with tips, Mark all done / Undo all, the week strip and month marks, and **Change the schedule** for that routine's steps (add, edit, reorder and delete per weekday and slot). It can't add, rename or delete routines, Pomodoro isn't shown, and no app or routine name appears (the tab, page title and Home Screen name read "Routine"). Every other record in the table, other routines and Pomodoro included, is synced and kept untouched. A separate Orario app with every routine and a separate Pomodoro web app are planned.
 - **Settings**: theme (shared with every device), night start hour, sync status, Download a copy, Disconnect.
 
 ## Setting it up (owner, once)

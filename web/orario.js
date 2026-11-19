@@ -10,9 +10,7 @@ export const ui = {
   month: null,
   tips: new Set(),
   fold: false,
-  filter: readLocal("orario.filter", null),
   editor: null,
-  confirm: null,
 };
 
 function settings() {
@@ -21,19 +19,16 @@ function settings() {
 }
 
 export function routines() {
-  return store.all("schedule.routine").sort((a, b) => (a._pos ?? 0) - (b._pos ?? 0));
+  return store
+    .all("schedule.routine")
+    .filter((r) => /hair/i.test(r.name || ""))
+    .sort((a, b) => (a._pos ?? 0) - (b._pos ?? 0));
 }
 
 function checks() {
   const map = new Map();
   for (const c of store.all("schedule.check")) map.set(c.id, c);
   return map;
-}
-
-function shown() {
-  const all = routines();
-  if (ui.filter && all.some((r) => r.id === ui.filter)) return all.filter((r) => r.id === ui.filter);
-  return all;
 }
 
 export function today() {
@@ -93,7 +88,7 @@ function tally(from, through, pool, done, now) {
 
 function context() {
   const done = checks();
-  return { done, pool: shown(), now: { today: today(), slot: slotNow() } };
+  return { done, pool: routines(), now: { today: today(), slot: slotNow() } };
 }
 
 function setCheck(item, on) {
@@ -104,24 +99,12 @@ function setCheck(item, on) {
   }
 }
 
-function putRoutine(r) {
-  store.put("schedule.routine", r.id, {
-    id: r.id,
-    name: r.name ?? "",
-    hue: r.hue ?? 0,
-    starts: r.starts || today(),
-    plan: r.plan || {},
-    notes: r.notes ?? "",
-    _pos: r._pos ?? 0,
-  });
-}
-
 function updateRoutine(id, change) {
   const r = store.get("schedule.routine", id);
   if (!r) return;
   const copy = JSON.parse(JSON.stringify(r));
   change(copy);
-  if (JSON.stringify(copy) !== JSON.stringify(r)) putRoutine(copy);
+  if (JSON.stringify(copy) !== JSON.stringify(r)) store.put("schedule.routine", copy.id, copy);
 }
 
 function statusDot(s) {
@@ -131,15 +114,6 @@ function statusDot(s) {
 function hourLabel(h) {
   const d = new Date(2000, 0, 1, h);
   return d.toLocaleTimeString([], { hour: "numeric" });
-}
-
-function filterControl() {
-  const all = routines();
-  if (all.length < 2) return "";
-  return `<label class="select"><span class="sr">Routine</span><select data-orario-filter>
-    <option value="">All routines</option>
-    ${all.map((r) => `<option value="${r.id}" ${ui.filter === r.id ? "selected" : ""}>${esc(r.name || "Untitled")}</option>`).join("")}
-  </select>${ICONS.down}</label>`;
 }
 
 function weekLimits() {
@@ -170,7 +144,7 @@ function slotCard(ctx, day, slot, folded) {
   const isToday = day === ctx.now.today;
   const future = day > ctx.now.today;
   const heading = isToday ? (slot === "morning" ? "This morning" : "Tonight") : slot === "morning" ? "Morning" : "Night";
-  const tags = !ui.filter && routines().length > 1;
+  const tags = routines().length > 1;
   if (folded) {
     return `<button class="card fold" data-orario-fold>
       ${slot === "morning" ? ICONS.sun : ICONS.moon}<span class="grow">${heading}</span>
@@ -327,7 +301,7 @@ export function view() {
   const ctx = context();
   const all = routines();
   const body = !all.length
-    ? `<div class="card empty big">No routines yet.<br><button class="primary" data-orario-edit>Make your first routine</button></div>`
+    ? `<div class="card empty big">The routine hasn't synced yet.</div>`
     : ui.mode === "week"
     ? weekView(ctx)
     : ui.mode === "month"
@@ -338,9 +312,8 @@ export function view() {
       <div class="seg three">
         ${[["day", "Day"], ["week", "Week"], ["month", "Month"]].map(([k, l]) => `<button class="${ui.mode === k ? "on" : ""}" data-orario-mode="${k}">${l}</button>`).join("")}
       </div>
-      <button class="icon pill-btn" data-orario-edit aria-label="Change the schedule">${ICONS.pencil}</button>
+      ${all.length ? `<button class="icon pill-btn" data-orario-edit aria-label="Change the schedule">${ICONS.pencil}</button>` : ""}
     </div>
-    ${filterControl()}
     ${body}
   </section>
   ${ui.editor ? editorView() : ""}`;
@@ -349,7 +322,7 @@ export function view() {
 function editorRoutine() {
   const all = routines();
   if (!all.length) return null;
-  const id = ui.editor.routine && all.some((r) => r.id === ui.editor.routine) ? ui.editor.routine : ui.filter && all.some((r) => r.id === ui.filter) ? ui.filter : all[0].id;
+  const id = ui.editor.routine && all.some((r) => r.id === ui.editor.routine) ? ui.editor.routine : all[0].id;
   ui.editor.routine = id;
   return all.find((r) => r.id === id);
 }
@@ -360,17 +333,9 @@ function editorView() {
   const r = editorRoutine();
   const wd = ed.weekday;
   const todayWd = weekday(today());
-  const pills = all
-    .map((x) =>
-      ed.renaming === x.id
-        ? `<form class="pill-form" data-form="rename"><input name="name" value="${esc(x.name)}" aria-label="Routine name" autocomplete="off" enterkeyhint="done"></form>`
-        : `<button class="rpill ${x.id === r?.id ? "on" : ""}" data-ed-routine="${x.id}"><i style="background:var(--tint-${(x.hue ?? 0) % 8})"></i>${esc(x.name || "Untitled")}</button>`
-    )
-    .join("");
-  const adding = ed.newRoutine ? `<form class="pill-form" data-form="new-routine"><input name="name" placeholder="Routine name" autocomplete="off" enterkeyhint="done"></form>` : `<button class="rpill add" data-ed-new-routine aria-label="New routine">${ICONS.plus}</button>`;
+  const pills = all.length > 1 ? all.map((x) => `<button class="rpill ${x.id === r?.id ? "on" : ""}" data-ed-routine="${x.id}"><i style="background:var(--tint-${(x.hue ?? 0) % 8})"></i>${esc(x.name || "Untitled")}</button>`).join("") : "";
   let body = "";
   if (r) {
-    const checkCount = store.all("schedule.check").filter((c) => c.routine === r.id).length;
     const slotBlock = (slot) => {
       const steps = (r.plan && r.plan[`${wd}-${slot}`]) || [];
       return `<div class="card list ed-slot">
@@ -384,27 +349,18 @@ function editorView() {
       </div>`;
     };
     body = `
-      <div class="ed-actions">
-        <button class="link" data-ed-rename="${r.id}">Rename</button>
-        <button class="link danger" data-ed-delete="${r.id}">Delete…</button>
-      </div>
-      ${
-        ui.confirm === r.id
-          ? `<div class="card confirm"><p>Delete <b>${esc(r.name || "Untitled")}</b>${checkCount ? ` and its ${checkCount} check-off${checkCount === 1 ? "" : "s"}` : ""}? Other devices lose it too.</p><div class="controls left"><button class="ghost danger" data-ed-delete-yes="${r.id}">Delete</button><button class="ghost" data-ed-delete-no>Cancel</button></div></div>`
-          : ""
-      }
       <div class="wdays">${WEEK.map((w) => `<button class="wd ${w === wd ? "on" : ""} ${w === todayWd ? "today" : ""}" data-ed-weekday="${w}"><span>${SHORT[w]}</span><i>${["morning", "night"].reduce((a, s) => a + (((r.plan && r.plan[`${w}-${s}`]) || []).length), 0) || ""}</i></button>`).join("")}</div>
       <div class="ed-day">${LONG[wd]}</div>
       ${slotBlock("morning")}
       ${slotBlock("night")}
       <p class="hint">Weeks repeat; put a step on each day you want it.</p>`;
   } else {
-    body = `<div class="card empty big">Add a routine with + above.</div>`;
+    body = `<div class="card empty big">The routine hasn't synced yet.</div>`;
   }
   return `<div class="overlay" role="dialog" aria-label="Change the schedule">
     <div class="overlay-bar"><h2>Change the schedule</h2><button class="primary small" data-ed-close>Done</button></div>
     <div class="overlay-body" data-keep-scroll="editor">
-      <div class="pills">${pills}${adding}</div>
+      ${pills ? `<div class="pills">${pills}</div>` : ""}
       ${body}
     </div>
     ${ed.step ? stepSheet(r) : ""}
@@ -449,12 +405,6 @@ function saveStepForm(form) {
 }
 
 export function onChange(e) {
-  const t = e.target;
-  if (t.matches("[data-orario-filter]")) {
-    ui.filter = t.value || null;
-    writeLocal("orario.filter", ui.filter);
-    return "render";
-  }
   return false;
 }
 
@@ -462,34 +412,10 @@ export function onFocusOut(e) {
   const form = e.target.closest && e.target.closest("form");
   if (!form) return;
   const kind = form.dataset.form;
-  if (kind === "rename" && !form.contains(e.relatedTarget)) submitRename(form);
-  if (kind === "new-routine" && !form.contains(e.relatedTarget)) submitNewRoutine(form);
   if ((kind === "add-morning" || kind === "add-night") && !form.contains(e.relatedTarget)) {
     const input = form.querySelector("input");
     if (input.value.trim()) submitStep(form, kind.slice(4), false);
   }
-}
-
-function submitRename(form) {
-  if (!ui.editor || !ui.editor.renaming) return;
-  const id = ui.editor.renaming;
-  const name = String(new FormData(form).get("name") || "").trim();
-  ui.editor.renaming = null;
-  if (name) updateRoutine(id, (r) => (r.name = name));
-  return "render";
-}
-
-function submitNewRoutine(form) {
-  if (!ui.editor || !ui.editor.newRoutine) return;
-  ui.editor.newRoutine = false;
-  const name = String(new FormData(form).get("name") || "").trim();
-  if (!name) return "render";
-  const all = routines();
-  const id = store.uuid();
-  const hue = all.reduce((m, r) => Math.max(m, r.hue ?? 0), -1) + 1;
-  putRoutine({ id, name, hue, starts: today(), plan: {}, notes: "", _pos: all.reduce((m, r) => Math.max(m, r._pos ?? 0), 0) + 1 });
-  ui.editor.routine = id;
-  return "render";
 }
 
 function submitStep(form, slot, keepFocus) {
@@ -506,8 +432,6 @@ function submitStep(form, slot, keepFocus) {
 }
 
 export function onSubmit(kind, form) {
-  if (kind === "rename") return submitRename(form) || true;
-  if (kind === "new-routine") return submitNewRoutine(form) || true;
   if (kind === "add-morning" || kind === "add-night") {
     submitStep(form, kind.slice(4), true);
     return true;
@@ -525,13 +449,6 @@ export function afterRender() {
     const el = document.querySelector(`form[data-form="${ui.editor.refocus}"] input`);
     ui.editor.refocus = null;
     if (el) el.focus();
-  }
-  if (ui.editor && (ui.editor.renaming || ui.editor.newRoutine) && !document.activeElement?.closest?.(".pill-form")) {
-    const el = document.querySelector(".pill-form input");
-    if (el) {
-      el.focus();
-      el.select();
-    }
   }
 }
 
@@ -592,47 +509,16 @@ export function onClick(d) {
     return true;
   }
   if (d.orarioEdit !== undefined) {
-    ui.editor = { routine: null, weekday: weekday(ui.day || today()), step: null, renaming: null, newRoutine: !routines().length };
-    ui.confirm = null;
+    if (!routines().length) return false;
+    ui.editor = { routine: null, weekday: weekday(ui.day || today()), step: null };
     return "render";
   }
   if (d.edClose !== undefined) {
     ui.editor = null;
-    ui.confirm = null;
     return "render";
   }
   if (d.edRoutine) {
-    if (ui.editor.routine === d.edRoutine && !ui.editor.renaming) ui.editor.renaming = d.edRoutine;
-    else ui.editor.routine = d.edRoutine;
-    ui.confirm = null;
-    return "render";
-  }
-  if (d.edNewRoutine !== undefined) {
-    ui.editor.newRoutine = true;
-    return "render";
-  }
-  if (d.edRename) {
-    ui.editor.renaming = d.edRename;
-    return "render";
-  }
-  if (d.edDelete) {
-    ui.confirm = d.edDelete;
-    return "render";
-  }
-  if (d.edDeleteNo !== undefined) {
-    ui.confirm = null;
-    return "render";
-  }
-  if (d.edDeleteYes) {
-    const id = d.edDeleteYes;
-    for (const c of store.all("schedule.check")) if (c.routine === id) store.remove("schedule.check", c.id);
-    store.remove("schedule.routine", id);
-    if (ui.filter === id) {
-      ui.filter = null;
-      writeLocal("orario.filter", null);
-    }
-    ui.confirm = null;
-    ui.editor.routine = null;
+    ui.editor.routine = d.edRoutine;
     return "render";
   }
   if (d.edWeekday) {

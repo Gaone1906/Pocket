@@ -1,12 +1,10 @@
 import * as store from "./store.js";
 import { THEMES, apply } from "./themes.js";
 import { $, esc, ICONS, readLocal, writeLocal } from "./util.js";
-import * as pomodoro from "./pomodoro.js";
 import * as orario from "./orario.js";
 
 const TABS = [
-  ["orario", "Orario"],
-  ["pomodoro", "Pomodoro"],
+  ["orario", "Routine"],
   ["settings", "Settings"],
 ];
 
@@ -37,7 +35,7 @@ function viewSettings() {
       <div class="themes">${swatches(dark)}</div>
     </div>
     <div class="card list">
-      <h3>Orario</h3>
+      <h3>Routine</h3>
       <div class="row"><span class="grow">Night routine from<span class="tip">The day rolls over at 4 AM, so a late night still counts for the day before.</span></span>
         <div class="stepper"><button data-night="-1" aria-label="Earlier">−</button><b>${orario.hourLabel(night)}</b><button data-night="1" aria-label="Later">+</button></div>
       </div>
@@ -57,10 +55,9 @@ function viewSetup() {
   return `
   <div class="setup">
     <div class="card setup-card">
-      <div class="brand"><span class="logo"></span><h1>Pocket</h1></div>
-      <p>Paste your Pocket setup link.</p>
+      <p>Paste your setup link.</p>
       <form data-form="server">
-        <input name="link" placeholder="https://gaone1906.github.io/Pocket/#connect=…" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Setup link">
+        <input name="link" placeholder="Setup link" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Setup link">
         <details class="manual"><summary>Or enter the Supabase values</summary>
           <input name="url" placeholder="Project URL (https://xxxx.supabase.co)" autocomplete="off" autocapitalize="off" aria-label="Project URL">
           <input name="key" placeholder="Anon public key" autocomplete="off" autocapitalize="off" aria-label="Anon public key">
@@ -89,12 +86,11 @@ function render() {
       : null;
   const scrolls = {};
   document.querySelectorAll("[data-keep-scroll]").forEach((el) => (scrolls[el.dataset.keepScroll] = el.scrollTop));
-  const views = { orario: orario.view, pomodoro: pomodoro.view, settings: viewSettings };
+  const views = { orario: orario.view, settings: viewSettings };
   const syncState = st.problem ? "warn" : store.pendingCount() ? "pending" : "ok";
   const tabTitle = TABS.find(([k]) => k === ui.tab)[1];
   app.innerHTML = `
     <nav class="tabs">
-      <div class="brand side"><span class="logo"></span><b>Pocket</b></div>
       ${TABS.map(([k, l]) => `<button class="tab ${ui.tab === k ? "on" : ""} ${k === "settings" ? "end" : ""}" data-tab="${k}">${ICONS[k]}<span>${l}</span></button>`).join("")}
     </nav>
     <main>
@@ -140,7 +136,7 @@ document.addEventListener("click", async (e) => {
     window.scrollTo(0, 0);
     return;
   }
-  const handler = ui.tab === "orario" ? orario.onClick : ui.tab === "pomodoro" ? pomodoro.onClick : null;
+  const handler = ui.tab === "orario" ? orario.onClick : null;
   if (handler) {
     const r = handler(d);
     if (r === "render") render();
