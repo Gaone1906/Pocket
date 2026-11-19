@@ -55,8 +55,9 @@ const addMonths = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, 1);
 const dayKey = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 const minutesOf = (list) => list.reduce((a, s) => a + s.minutes, 0);
 
-function prefs() {
-  return { theme: "sage", ...(store.get("settings.prefs", "prefs") || {}) };
+function theme() {
+  const id = readLocal("pomodoro.web.theme", "rose");
+  return THEMES.some((t) => t.id === id) ? id : "rose";
 }
 
 function projects() {
@@ -375,10 +376,10 @@ function viewTabs() {
 
 function viewSettings() {
   const st = store.snapshot();
-  const p = prefs();
+  const current = theme();
   const last = st.lastSync ? new Date(st.lastSync) : null;
   const swatches = (list) =>
-    list.map((t) => `<button class="swatch ${p.theme === t.id ? "on" : ""}" data-theme="${t.id}" style="--sw:${t.dark ? t.accent : t.swatch};--ring:${t.swatchRing};--bg:${t.backdrop}" aria-label="${esc(t.name)}"><i></i><span>${esc(t.name)}</span></button>`).join("");
+    list.map((t) => `<button class="swatch ${current === t.id ? "on" : ""}" data-theme="${t.id}" style="--sw:${t.dark ? t.accent : t.swatch};--ring:${t.swatchRing};--bg:${t.backdrop}" aria-label="${esc(t.name)}"><i></i><span>${esc(t.name)}</span></button>`).join("");
   return `<div class="sheet-wrap" data-close-settings>
     <section class="sheet" role="dialog" aria-label="Settings">
       <div class="sheet-head"><h2>Settings</h2><button class="gear" data-close-settings aria-label="Close settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
@@ -418,7 +419,7 @@ function viewSetup() {
 
 function render() {
   const app = $("#app");
-  apply(prefs().theme);
+  apply(theme());
   if (!store.signedIn()) {
     app.innerHTML = viewSetup();
     return;
@@ -491,7 +492,8 @@ document.addEventListener("click", async (e) => {
     ui.settings = true;
     render();
   } else if (d.theme) {
-    store.put("settings.prefs", "prefs", { ...prefs(), theme: d.theme });
+    writeLocal("pomodoro.web.theme", d.theme);
+    render();
   } else if (d.sync !== undefined) {
     await store.syncNow();
     toast(store.snapshot().problem || "Synced");
