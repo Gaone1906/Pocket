@@ -88,8 +88,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 
     func syncOtp() {
-        guard layout.otp != otpRunning else { return }
-        otpRunning = layout.otp
+        let wanted = layout.otp || RollinStore.shared.wants("otp")
+        guard wanted != otpRunning else { return }
+        otpRunning = wanted
         if otpRunning {
             otp.start()
             mail.start()
@@ -97,7 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             mail.stop()
             otp.stop()
         }
-        note("pocket otp watching=\(otpRunning)")
+        note("pocket otp watching=\(otpRunning) codes=\(layout.otp) rollin=\(RollinStore.shared.wants("otp"))")
     }
 
     func app(_ id: String) -> PocketApp? { apps[id] }
@@ -132,7 +133,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         menu.addItem(withTitle: "Organize shelves…", action: #selector(presentShelves), keyEquivalent: "").target = self
         menu.addItem(withTitle: "Set up Pocket…", action: #selector(presentSetup), keyEquivalent: "").target = self
         menu.addItem(.separator())
-        if layout.otp && mail.available {
+        if otpRunning && mail.available {
             menu.addItem(withTitle: "Add Gmail account for codes…", action: #selector(MailWatcher.addAccount), keyEquivalent: "").target = mail
             menu.addItem(.separator())
         }

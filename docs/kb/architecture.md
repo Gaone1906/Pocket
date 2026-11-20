@@ -118,6 +118,7 @@ fakes `navigator.userAgentData`/`vendor`/`window.chrome` for Slack), `realtime` 
 | `browser` | Bundle id for `link` (falls back to default browser if missing). |
 | `claimsHotKey` | When first offered, takes its default key away from any app already holding it (else it gets none). |
 | `pinnedByDefault` | When first offered to an existing setup, lands in the menu bar instead of the dropdown. |
+| `shelf` | When first offered to an existing setup, lands on the custom shelf with this name (any case), if there is one. |
 
 The catalog (order = setup order):
 
@@ -137,6 +138,7 @@ The catalog (order = setup order):
 | `calculator` | Calculator | `plusminus.circle` | – | ⌥C | native | no | no |
 | `scratchpad` | Scratchpad | `note.text` | – | ⌥N | native | no | no |
 | `stats` | System Stats | `gauge.with.dots.needle.33percent` | – | none | native | no | no |
+| `rollin` | Rollin | `chart.line.uptrend.xyaxis` | – | none | native, `shelf: "Experimental"` | no | no |
 | `preparo` | Preparo | `graduationcap.fill` | `Glyphs.preparo` | ⌥9 | link `http://localhost:8960/` in `com.ardia.browser` | no | no |
 | `matinee` | Matinee | `ticket.fill` | `Glyphs.matinee` | none | web `http://127.0.0.1:47811/` (`MatineeApp`) | no | no |
 
@@ -146,7 +148,7 @@ outlook, matinee. The tray uses a separate `traySpec` (id `pocket`, `square.grid
 ### `Factory.swift` — `makeApp(_ spec:) -> PocketApp?`
 `web != nil` → `MatineeApp` if id is `matinee`, else `WebApp`; `link != nil` → `LinkApp`; else a `switch` on id:
 `calendar`→`CalendarApp`, `todo`→`TodoApp`, `pomodoro`→`PomodoroApp`, `schedule`→`ScheduleApp`,
-`calculator`→`CalculatorApp`, `stats`→`StatsApp`, `scratchpad`→`ScratchpadApp`; unknown → nil (logged by `sync` as
+`calculator`→`CalculatorApp`, `stats`→`StatsApp`, `scratchpad`→`ScratchpadApp`, `rollin`→`RollinApp`; unknown → nil (logged by `sync` as
 `pocket app unavailable`).
 
 ### `LinkApp.swift` (shell-level, tiny)

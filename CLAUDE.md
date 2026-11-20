@@ -223,6 +223,13 @@ Calorie tracker (`⌥4`); its app id, data file and record kinds say `calorie`. 
 - Keep `MisuraMath` (`MisuraModel.swift`) and `web/terra/plan.js` giving the same numbers.
 - Over the daily limit is red, under is green; eaten is orange, workout and BMR are green.
 
+## Rollin app
+
+A hidden menu-bar ticker on the Experimental shelf; details in [docs/kb/apps/rollin.md](docs/kb/apps/rollin.md). Rules to keep true:
+- New feeds get a `RollinFeed.all` row and a `RollinStore.shared.push` call where the event arrives; the dropdown lists them on its own.
+- Never log message text; log the feed, lengths and queue only.
+- The strip stays click-free and goes away once it is empty.
+
 ## Changing Pocket itself
 
 - Routes live in `Sources/Pocket/PocketServer.swift`, `route(_:)`. Add new routes to the `routes` table, which `GET /` serves,

@@ -508,5 +508,6 @@ class WebApp: PocketApp, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHand
             if let error { note("pocket notification failed app=\(id) cause=\(error.localizedDescription)") }
         }
         note("pocket notification posted app=\(spec.id) bodyChars=\(content.body.count)")
+        RollinStore.shared.push(spec.id, title: content.title, body: content.body)
     }
 }
