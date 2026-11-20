@@ -1,4 +1,4 @@
-const CACHE = "sol-web-v1";
+const CACHE = "sol-web-v2";
 const SHELL = ["./", "index.html", "style.css", "app.js", "store.js", "cards.js", "manifest.webmanifest", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
