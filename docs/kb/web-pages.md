@@ -16,7 +16,7 @@ Related: [cloud-sync.md](cloud-sync.md) (the table, sync rules, setup link, dev 
 | Shows | The Hair routine only | Every Aqua routine | Ignis focus sessions | Today's timed routines, one step at a time, and the journal | Calories eaten and burned against the day, week and month goals |
 | Writes | Never | Step check-offs, night start hour, its theme | Never | Step check-offs and `runner.entry` journal entries | `calorie.entry`, `calorie.weight` and the plan (`calorie.settings`) |
 | Default theme | Sage, from the synced `settings.prefs`/`prefs` record | Sky, synced as `settings.prefs`/`orario` (field `aquaTheme`; the old `theme` field, Butter by default, is ignored) | Ember, kept per device in `localStorage` (`ignis.web.theme`) | Flint, fixed | Sage, fixed |
-| Icon | Shared Pocket icon | Koi whose fins flow into ripples, blue on pale blue | Lion whose mane turns to flame, red on pale red | Eagle dissolving into wind, stone on pale stone | Mantis built from leaves, green on pale green |
+| Icon | Shared Pocket icon | Koi whose fins flow into ripples, blue on pale blue | Lion whose mane turns to flame, red on pale red | Eagle dissolving into wind, cool grey on pale cool grey | Mantis built from leaves, green on pale green |
 | Title and Home Screen name | Routine | Aqua | Ignis | Ventus | Terra |
 | Local state key | `pocket.cloud.v1` | `orario.cloud.v1` | `aurelius.cloud.v1` | `runner.cloud.v1` | `misura.cloud.v1` |
 | Cache prefix (`sw.js`) | `pocket-` (`pocket-v10`) | `aqua-web-` (`aqua-web-v2`, also clears `orario-master-`) | `ignis-web-` (`ignis-web-v2`, also clears `aurelius-web-`) | `runner-` (`runner-v4`) | `terra-web-` (`terra-web-v3`, also clears `misura-`) |

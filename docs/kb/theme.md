@@ -52,7 +52,7 @@ Derived members:
 
 ## Theme list (`BoardTheme.all`, in picker order)
 
-Light, from `pastel(id, name, hue:, saturation:)`: `sage` (default), `rose`, `butter`, `apricot`, `sky`, `lavender`, `blush`, `stone`, `ember` (hue 354 × 1.55, Ignis's default), `flint` (hue 30 × 0.62, Ventus's default).
+Light, from `pastel(id, name, hue:, saturation:)`: `sage` (default), `rose`, `butter`, `apricot`, `sky`, `lavender`, `blush`, `stone`, `ember` (hue 354 × 1.55, Ignis's default), `flint` (hue 212 × 0.15, a cool stone grey, Ventus's default).
 
 Dark, from `dusk(id, name, ground:, glow:, depth:)`: a deep background tinted with the `ground` hue and pastel text, accents and project tints from the `glow` hue.
 

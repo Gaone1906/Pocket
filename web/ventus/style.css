@@ -1,12 +1,12 @@
 :root {
-  --backdrop: #f1ece7;
-  --card: #f9f5f1;
-  --line: #d8d0c7;
-  --ink: #312820;
-  --muted: #63594f;
-  --faint: #a89e94;
-  --accent: #846547;
-  --accent-soft: #e2d6cb;
+  --backdrop: #ebeced;
+  --card: #f5f6f7;
+  --line: #ced0d2;
+  --ink: #27292b;
+  --muted: #57595c;
+  --faint: #9c9ea0;
+  --accent: #5c6065;
+  --accent-soft: #dcdee1;
   --on-accent: #ffffff;
   --rest: #6f97b3;
   --radius: 20px;
@@ -25,10 +25,10 @@ body[data-mood="rest"] {
 }
 
 body[data-mood="hot"] {
-  --backdrop: #e7d5c4;
-  --card: #efe4d9;
-  --line: #d3c0ac;
-  --muted: #503e2c;
+  --backdrop: #d9dcdf;
+  --card: #e6e8ea;
+  --line: #c2c6ca;
+  --muted: #45494e;
 }
 
 * {
@@ -242,7 +242,7 @@ small {
 .kicker.hot {
   font-size: 15px;
   letter-spacing: 2px;
-  color: #6c5237;
+  color: #4b5158;
 }
 
 body[data-mood="rest"] .kicker {
@@ -736,7 +736,7 @@ body[data-mood="hot"] .round.big {
   height: 34px;
   border-radius: 10px;
   background: var(--card);
-  color: #6c5237;
+  color: #4b5158;
   font-size: 13px;
   font-weight: 650;
   display: flex;
