@@ -230,6 +230,12 @@ A hidden menu-bar ticker on the Experimental shelf; details in [docs/kb/apps/rol
 - Never log message text; log the feed, lengths and queue only.
 - The strip stays click-free and goes away once it is empty.
 
+## Sol formula cards (web only)
+
+A swipe deck for revising exam formulas at `web/sol/`; details in [docs/kb/apps/sol.md](docs/kb/apps/sol.md). Rules to keep true:
+- Cards are `sol.card` records in the shared table; `web/sol/cards.js` is a bundled fallback that table rows override by id. Never hard-code card text elsewhere.
+- Progress is one `sol.mark` record per card (`box`, `due`, `mastered`). Swipe left = confident, right = not yet, hold = Mastered.
+
 ## Changing Pocket itself
 
 - Routes live in `Sources/Pocket/PocketServer.swift`, `route(_:)`. Add new routes to the `routes` table, which `GET /` serves,
