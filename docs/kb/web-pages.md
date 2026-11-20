@@ -4,6 +4,8 @@ Pocket's data reaches phones, iPads and other laptops through five small install
 
 Not to be confused with [apps/web-apps.md](apps/web-apps.md), which covers the websites (WhatsApp, Slack and so on) wrapped inside the Mac menu bar.
 
+Sol's formula cards (`web/sol/`, https://gaone1906.github.io/Pocket/sol/) are a sixth web app with no Mac counterpart yet; see [apps/sol.md](apps/sol.md).
+
 Related: [cloud-sync.md](cloud-sync.md) (the table, sync rules, setup link, dev server), [apps/schedule.md](apps/schedule.md) (Aqua on the Mac), [apps/pomodoro.md](apps/pomodoro.md) (Ignis on the Mac), [apps/kairos.md](apps/kairos.md) (Ventus on both), [apps/misura.md](apps/misura.md) (Terra on both).
 
 ## At a glance
