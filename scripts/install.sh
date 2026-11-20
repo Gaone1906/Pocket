@@ -17,4 +17,14 @@ mkdir -p "$app/Contents/Resources"
 cp -R "$root/Resources/Embroidery" "$app/Contents/Resources/Embroidery"
 codesign --force --sign "$identity" "$app"
 echo "installed $app (signed with ${identity/-/ad-hoc signature})"
-[[ "${POCKET_NO_OPEN:-0}" == 1 ]] || open "$app"
+[[ "${POCKET_NO_OPEN:-0}" == 1 ]] && exit 0
+open "$app"
+for _ in {1..20}; do
+  sleep 0.5
+  for pid in $(pgrep -x Pocket || true); do
+    if [[ "$(ps -o stat= -p $pid | tr -d ' ')" == T* ]]; then
+      kill -CONT $pid
+      echo "resumed pocket pid $pid, which launched stopped"
+    fi
+  done
+done
