@@ -104,9 +104,9 @@ final class RollinStore: ObservableObject {
 }
 
 final class RollinTicker {
-    let width: CGFloat = 240
-    let speed: CGFloat = 46
-    let gap: CGFloat = 44
+    let width: CGFloat = 320
+    let speed: CGFloat = 70
+    let gap: CGFloat = 64
     var item: NSStatusItem?
     var strip: NSView?
     var runs: [Run] = []
@@ -152,7 +152,7 @@ final class RollinTicker {
         piece.contentsScale = scale
         piece.anchorPoint = .zero
         piece.bounds = CGRect(origin: .zero, size: size)
-        let y = ((tall - size.height) / 2).rounded()
+        let y: CGFloat = 0
         let end = CGPoint(x: -size.width, y: y)
         let duration = CFTimeInterval((x + size.width) / speed)
         CATransaction.begin()
@@ -264,19 +264,23 @@ final class RollinTicker {
             ink = NSColor.labelColor.usingColorSpace(.sRGB) ?? .black
             soft = NSColor.secondaryLabelColor.usingColorSpace(.sRGB) ?? .darkGray
         }
-        let size = NSFont.menuBarFont(ofSize: 0).pointSize
+        let tall = max(height, 18)
+        let probe = NSFont.systemFont(ofSize: 100, weight: .heavy, width: .condensed)
+        let size = (tall * 0.64 / (probe.capHeight / 100)).rounded(.down)
         let code = entry.feed.id == "otp"
-        let titleFont = NSFont.systemFont(ofSize: size, weight: .semibold)
-        let bodyFont = code ? NSFont.monospacedDigitSystemFont(ofSize: size, weight: .bold) : NSFont.systemFont(ofSize: size, weight: .regular)
-        let line = NSMutableAttributedString(string: entry.title, attributes: [.font: titleFont, .foregroundColor: ink])
+        let titleFont = NSFont.systemFont(ofSize: size, weight: .heavy, width: .condensed)
+        let bodyFont = code ? NSFont.monospacedDigitSystemFont(ofSize: size, weight: .heavy) : NSFont.systemFont(ofSize: size, weight: .semibold, width: .condensed)
+        let locale = Locale(identifier: "en_US")
+        let line = NSMutableAttributedString(string: entry.title.uppercased(with: locale), attributes: [.font: titleFont, .foregroundColor: ink, .kern: size * 0.02])
         if !entry.body.isEmpty {
-            if !entry.title.isEmpty { line.append(NSAttributedString(string: "  ", attributes: [.font: bodyFont])) }
-            line.append(NSAttributedString(string: entry.body, attributes: [.font: bodyFont, .foregroundColor: code ? ink : soft]))
+            if !entry.title.isEmpty { line.append(NSAttributedString(string: "   ", attributes: [.font: bodyFont])) }
+            line.append(NSAttributedString(string: entry.body.uppercased(with: locale), attributes: [.font: bodyFont, .foregroundColor: code ? ink : soft, .kern: size * 0.02]))
         }
-        let dot: CGFloat = 6
-        let lead = dot + 7
+        let dot = (titleFont.capHeight * 0.55).rounded()
+        let lead = dot + (size * 0.4).rounded()
         let text = line.size()
-        let box = CGSize(width: ceil(lead + text.width + 2), height: max(ceil(text.height), height > 0 ? min(height, ceil(text.height) + 4) : ceil(text.height)))
+        let box = CGSize(width: ceil(lead + text.width + 2), height: ceil(tall))
+        let baseline = ((box.height - titleFont.capHeight) / 2).rounded()
         let pixelsWide = Int(ceil(box.width * scale)), pixelsHigh = Int(ceil(box.height * scale))
         guard pixelsWide > 0, pixelsHigh > 0,
               let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixelsWide, pixelsHigh: pixelsHigh, bitsPerSample: 8, samplesPerPixel: 4,
@@ -286,8 +290,8 @@ final class RollinTicker {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = context
         entry.feed.tint.setFill()
-        NSBezierPath(ovalIn: NSRect(x: 1, y: (box.height - dot) / 2, width: dot, height: dot)).fill()
-        line.draw(at: NSPoint(x: lead, y: (box.height - text.height) / 2))
+        NSBezierPath(ovalIn: NSRect(x: 1, y: baseline + (titleFont.capHeight - dot) / 2, width: dot, height: dot)).fill()
+        line.draw(at: NSPoint(x: lead, y: baseline + titleFont.descender))
         NSGraphicsContext.restoreGraphicsState()
         guard let image = rep.cgImage else { return nil }
         return Picture(image: image, size: box)

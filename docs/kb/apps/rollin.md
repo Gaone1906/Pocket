@@ -9,10 +9,11 @@ and the strip disappears once the last one has rolled off. The strip can't be cl
   Unorganized; without that shelf it stays in Unorganized.
 - **Dropdown:** open it from its shelf. Fixed 340×330, Pocket theme. A master **Rollin** switch, then an **Apps** card
   with one switch per feed (WhatsApp, One-time codes), and **Roll a sample**, which rolls a test message and code.
-- **Ticker:** its own `NSStatusItem`, 240 pt wide, made on the first item and removed 1.5 s after the strip empties.
-  Each item is a coloured dot, the sender in semibold and the text in the secondary colour (a code in bold monospaced
-  digits). Items move at 46 pt/s with a 44 pt gap, each passes twice (once for the sample), and a pass is not repeated
-  while 4 or more are queued. The edges fade over 14 pt. Each item is drawn once to a bitmap in the menu bar's
+- **Ticker:** its own `NSStatusItem`, 320 pt wide, made on the first item and removed 1.5 s after the strip empties.
+  Everything is upper case, in heavy condensed SF sized so capitals fill 64% of the menu bar's height: a coloured
+  dot, the sender, then the text in the secondary colour (a code in heavy monospaced digits). Items move at 70 pt/s
+  with a 64 pt gap, each passes twice (once for the sample), and a pass is not repeated while 4 or more are queued. The
+  edges fade over 14 pt. Each item is drawn once to a bitmap the height of the menu bar in its
   appearance and moved by a Core Animation slide, so a rolling strip costs no CPU per frame.
 
 ## Feeds
