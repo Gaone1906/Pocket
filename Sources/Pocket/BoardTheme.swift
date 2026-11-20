@@ -100,7 +100,7 @@ struct BoardTheme: Identifiable, Equatable {
         pastel("blush", "Blush", hue: 328, saturation: 0.9),
         pastel("stone", "Stone", hue: 32, saturation: 0.28),
         pastel("ember", "Ember", hue: 354, saturation: 1.55),
-        pastel("flint", "Flint", hue: 30, saturation: 0.62),
+        pastel("flint", "Flint", hue: 212, saturation: 0.15),
         dusk("moonlit-sage", "Moonlit Sage", ground: 160, glow: 140),
         dusk("harbour", "Harbour", ground: 218, glow: 24),
         dusk("aurora", "Aurora", ground: 268, glow: 158),
