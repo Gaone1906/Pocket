@@ -25,6 +25,7 @@ struct AppSpec {
     var browser: String? = nil
     var claimsHotKey = false
     var pinnedByDefault = false
+    var shelf: String? = nil
 }
 
 let safariAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15"
@@ -88,6 +89,8 @@ let catalog: [AppSpec] = [
             glyph: nil, hotKey: UInt32(kVK_ANSI_N), web: nil),
     AppSpec(id: "stats", name: "System Stats", summary: "CPU, memory, disk, network and battery at a glance", symbol: "gauge.with.dots.needle.33percent",
             glyph: nil, hotKey: nil, web: nil),
+    AppSpec(id: "rollin", name: "Rollin", summary: "Rolls new WhatsApp messages and one-time codes across the menu bar like a stock ticker", symbol: "chart.line.uptrend.xyaxis",
+            glyph: nil, hotKey: nil, web: nil, shelf: "Experimental"),
     AppSpec(id: "preparo", name: "Preparo", summary: "Opens Preparo, your exam practice app, in Ardia", symbol: "graduationcap.fill",
             glyph: Glyphs.preparo, hotKey: UInt32(kVK_ANSI_9), web: nil, link: URL(string: "http://localhost:8960/")!, browser: "com.ardia.browser"),
     AppSpec(id: "matinee", name: "Matinee", summary: "Hunts District movie tickets and holds seats for you", symbol: "ticket.fill",

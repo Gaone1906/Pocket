@@ -213,6 +213,8 @@ final class OtpWatcher {
     }
 
     func show(_ found: String, source: String) {
+        RollinStore.shared.push("otp", title: "Code", body: found)
+        guard Layout.shared.otp else { return note("pocket otp rolled only \(source) digits=\(found.count)") }
         code = found
         let item = self.item ?? NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.item = item

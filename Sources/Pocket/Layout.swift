@@ -40,6 +40,7 @@ final class Layout: ObservableObject {
         let store = UserDefaults.standard
         let listed = Set(store.stringArray(forKey: "layout.offered") ?? catalog.filter { $0.link == nil }.map(\.id))
         let fresh = catalog.map(\.id).filter { !listed.contains($0) && !barIds.contains($0) && !trayIds.contains($0) }
+        var homed: [String] = []
         if done && !fresh.isEmpty {
             let pinned = fresh.filter { id in catalog.contains { $0.id == id && $0.pinnedByDefault } }
             let dropped = fresh.filter { !pinned.contains($0) }
@@ -51,12 +52,13 @@ final class Layout: ObservableObject {
             if !dropped.isEmpty {
                 trayIds += dropped
                 store.set(trayIds, forKey: "layout.tray")
+                homed = dropped
                 note("pocket new apps added to unorganized shelf apps=\(dropped.joined(separator: ","))")
             }
         }
         store.set(catalog.map(\.id), forKey: "layout.offered")
         bar = barIds
-        shelves = Layout.loadShelves(defaults, known: known, bar: barIds, tray: trayIds)
+        shelves = Layout.home(homed, in: Layout.loadShelves(defaults, known: known, bar: barIds, tray: trayIds))
         collapsed = Set(defaults.stringArray(forKey: "layout.collapsed") ?? [])
         setupDone = done
         hotKeys = defaults.object(forKey: "hotkeys.enabled") as? Bool ?? true
@@ -119,6 +121,19 @@ final class Layout: ObservableObject {
         case .bar: return "Menu bar"
         case .shelf(let id): return shelves.first { $0.id == id }?.name ?? Shelf.unorganizedName
         }
+    }
+
+    static func home(_ ids: [String], in shelves: [Shelf]) -> [Shelf] {
+        var next = shelves
+        for id in ids {
+            guard let wanted = spec(id)?.shelf?.lowercased(),
+                  let target = next.firstIndex(where: { !$0.isUnorganized && $0.name.lowercased() == wanted }),
+                  let loose = next.firstIndex(where: \.isUnorganized), next[loose].apps.contains(id) else { continue }
+            next[loose].apps.removeAll { $0 == id }
+            next[target].apps.append(id)
+            note("pocket new app placed app=\(id) shelf=\(next[target].name)")
+        }
+        return next
     }
 
     static func loadShelves(_ defaults: UserDefaults, known: Set<String>, bar: [String], tray: [String]) -> [Shelf] {

@@ -28,6 +28,7 @@ This knowledge base is the full context for agents working on Pocket, a macOS me
 | Calculator | ⌥C | [apps/calculator.md](apps/calculator.md) |
 | Scratchpad | ⌥N | [apps/scratchpad.md](apps/scratchpad.md) |
 | System Stats | none | [apps/stats.md](apps/stats.md) |
+| Rollin (hidden menu-bar ticker for WhatsApp messages and codes) | none | [apps/rollin.md](apps/rollin.md) |
 | Matinee (District ticket hunter) | none | [apps/matinee.md](apps/matinee.md) |
 
 Shortcuts are the defaults from `Catalog.swift`. The user can rebind them, or add more per app, in Pocket Settings → Shortcuts (or in setup).
