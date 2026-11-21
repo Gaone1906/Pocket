@@ -34,7 +34,10 @@ struct CloudDocument {
                        metaKind: "calorie.settings"),
          CloudDocument(name: "sleep", file: PocketData.sleep,
                        collections: [CloudCollection(kind: "sleep.sample", key: "samples", sortKey: nil, detachedId: true)],
-                       metaKind: "sleep.settings", metaKey: "settings")]
+                       metaKind: "sleep.settings", metaKey: "settings"),
+         CloudDocument(name: "zenda", file: PocketData.zenda,
+                       collections: [CloudCollection(kind: "zenda.project", key: "projects", sortKey: nil)],
+                       metaKind: nil)]
     }
 }
 

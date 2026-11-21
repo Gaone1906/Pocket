@@ -1,6 +1,6 @@
 import * as store from "./store.js";
 import { dayKey, weekday, isoNow } from "./util.js";
-import { isGuided } from "./plan.js";
+import { isGuided, isMindful } from "./plan.js";
 
 export function settings() {
   const s = store.get("schedule.settings", "book") || {};
@@ -59,7 +59,7 @@ export function sessions(day) {
   const out = [];
   for (const slot of ["morning", "night"]) {
     for (const r of routines()) {
-      if (!runsOn(r, day)) continue;
+      if (!runsOn(r, day) || isMindful(r)) continue;
       const steps = stepsOn(r, day, slot);
       if (!steps.length || !steps.some(isGuided)) continue;
       const done = steps.filter((s) => isDone(r.id, day, slot, s.id)).length;

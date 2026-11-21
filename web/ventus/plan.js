@@ -162,3 +162,14 @@ export function clock(seconds) {
 export function minutes(seconds) {
   return Math.max(1, Math.round(seconds / 60));
 }
+
+const FITNESS_TYPES = new Set(["moves", "intervals", "rounds", "log"]);
+
+export function isMindful(routine) {
+  const steps = [];
+  for (const key in (routine && routine.plan) || {}) steps.push(...list(routine.plan[key]));
+  for (const key in (routine && routine.dated) || {}) steps.push(...list(routine.dated[key]));
+  const runs = steps.map(runOf);
+  if (runs.some((r) => FITNESS_TYPES.has(r.type))) return false;
+  return runs.some((r) => r.type === "box" || r.type === "say" || r.type === "write" || (r.type === "timed" && (list(r.reads).length || r.quiet)));
+}

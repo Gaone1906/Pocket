@@ -232,6 +232,19 @@ Sleep tracker (`⌥5`); its app id, data file and record kinds say `sleep`. Deta
 - Keep `LunaMath` (`LunaModel.swift`) and `web/luna/sleep.js` giving the same nights, scores and comments.
 - `$ROOT/sleep.json` (`{"samples", "settings"}`, `DataVault` name `sleep`); samples carry their cloud id only locally (`detachedId`).
 
+## Zenda app
+
+The mindfulness side of Ventus (`⌥6`, app id `zenda`): box breathing, visualize, affirm, journal and body scan, plus
+projects. Details in [docs/kb/apps/zenda.md](docs/kb/apps/zenda.md). Rules to keep true:
+- A routine is Zenda's when its guided steps are mindfulness types (`box`, `say`, `write`, or `timed` with `reads` or
+  `quiet`) and it has no fitness types (`moves`, `intervals`, `rounds`, `log`). `ZendaRoutines.owns` (Swift) and
+  `isMindful` (`web/ventus/plan.js`) must agree; Ventus hides those routines. Never hard-code routine names.
+- Sessions run on the Ventus engine (`KairosPlan`, `KairosRunner.zenda` with its own state key `zenda.run`,
+  `web/ventus/plan.js`), tick Aqua the same way and journal into `runner.entry`. Zenda's books ignore the tags `project`,
+  `workout` and `run`.
+- Projects are data: `$ROOT/zenda.json` (`{"projects": [...]}`, `DataVault` name `zenda`), synced as `zenda.project`.
+  Never seed them in code.
+
 ## Rollin app
 
 A hidden menu-bar ticker on the Experimental shelf; details in [docs/kb/apps/rollin.md](docs/kb/apps/rollin.md). Rules to keep true:
