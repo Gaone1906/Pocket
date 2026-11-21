@@ -40,7 +40,7 @@ All times are in the device's local time zone.
 2. **Minutes.** For every whole minute from the cluster's first start to its last end, the stage is the highest-priority sample covering it: `Deep` > `REM` > `Core` = `Asleep` > `Awake` > `InBed`. `Asleep` counts as Core, and a minute covered only by `InBed` (or nothing) counts as Awake. Consecutive minutes of the same stage merge into segments, giving the hypnogram.
 3. **Night** values: `bed` is the cluster's first start, `wake` is its last end, and `deep`, `core`, `rem` and `awake` are minute counts. `asleep = deep + core + rem` and `inBed = wake − bed` in minutes.
 4. A cluster with `asleep` under 60 is dropped. A night's **key** is the local date of `wake` (`yyyy-MM-dd`), so last night is today's date. When two clusters share a key, the one with more `asleep` wins.
-5. `hr` is the mean `q` of `HR` samples that start inside `[bed, wake]`, rounded; `hrv` is the same for `HRV`. Either is null when there are no samples.
+5. `hr` is the mean `q` of `HR` samples that start inside `[bed, wake]`, rounded; `hrv` is the same for `HRV`. Either is null when there are no samples. Neither is shown anywhere (Pranav, 2026-11-21: the Shortcut sends sleep only, so heart and HRV stay hidden until they are synced).
 
 **Clock deltas.** `bedDelta` is the minutes from the target bed time to `bed`, wrapped into −720…720, so 11:18 pm against 23:00 is +18 and 10:40 pm is −20. `wakeDelta` is the same for `wake` against the target wake.
 
@@ -70,7 +70,6 @@ Week (Monday to Sunday, nights keyed by wake date):
 1. `n` nights of `m` have asleep ≥ (hours − 1) × 60. With n / m ≥ 0.7 it is ok `"{n} of {m} nights over {hours−1}h"`; otherwise fix with the same text.
 2. The night with the largest bedDelta, when it is over 60, gives fix `"{Wed} bed {1:36 am}"`.
 3. The average asleep against the previous week's: +10 or more gives ok `"{N}m more than last week"`; −10 or less gives fix `"{N}m less than last week"`.
-4. The average hr against the previous week's: down by 1 or more gives ok `"Resting heart down {n}"`; up by 2 or more gives fix `"Resting heart up {n}"`.
 
 Month:
 1. The average deep minutes against the previous month's: +5 or more gives ok `"Deep up {n} min vs {October}"`; −5 or less gives fix `"Deep down {n} min vs {October}"`.
@@ -87,7 +86,7 @@ Month:
 
 Web (`web/luna/`, Terra's shell: icon tile, "Luna", round sync and gear buttons, a Night / Week / Month segmented control):
 - **Connect**: the icon, "Luna", a setup-link field and Connect. It connects without asking when the browser already holds a link under `pocket.cloud.v1`, `orario.cloud.v1`, `runner.cloud.v1`, `misura.cloud.v1` or `aurelius.cloud.v1`.
-- **Night**: a week strip with a dot coloured by score per night, a ring with the score and asleep time, Bed, Wake, Heart and HRV, the hypnogram (lanes Awake, REM, Core, Deep, and hour ticks), a stage bar with the four totals, and comments. A night with no data shows a dashed moon and a Sync button.
+- **Night**: a week strip with a dot coloured by score per night, a ring with the score and asleep time, Bed and Wake, the hypnogram (lanes Awake, REM, Core, Deep, and hour ticks), a stage bar with the four totals, and comments. A night with no data shows a dashed moon and a Sync button.
 - **Back from the Shortcut**: a dark toast at the bottom, `✓ 2 nights` (nights that are new since the button was pressed), or `✓ Up to date`.
 - **Week**: the range with arrows, the average and chip, the sleep-window chart (a capsule per night from bed to wake, coloured by score, with dashed lines at the target times, and a dashed outline for nights to come), the stage bar and comments.
 - **Month**: the month with arrows, the calendar, three stats, the line and comments.
@@ -95,7 +94,11 @@ Web (`web/luna/`, Terra's shell: icon tile, "Luna", round sync and gear buttons,
 
 Mac:
 - **Menu bar**: the wolf head (`Glyphs.luna`).
-- **Dropdown**: Luna with refresh and open-window buttons, the ring card (score, asleep, Bed, Wake, Heart, HRV), the mini hypnogram with its stage bar, the week's nights as bars, and two comments.
-- **Window**: a sidebar with Night, Week and Month, a This week card (avg, score, bedtime, over 7h), the targets, and the last sync time; round refresh and gear buttons at the top right. Night has pills for the last six nights, the ring card, the hypnogram with the heart-rate line, the stage bar, and comments in a row. Week and Month follow the web screens with Stages and Heart cards on the right.
+- **Dropdown**: Luna with refresh and open-window buttons, the ring card (score, asleep, Bed, Wake), the mini hypnogram with its stage bar, the week's nights as bars, and two comments.
+- **Window**: a sidebar with Night, Week and Month, a This week card (avg, score, bedtime, over 7h), the targets, and the last sync time; round refresh and gear buttons at the top right. Night has pills for the last six nights, the ring card, the hypnogram, the stage bar, and comments in a row. Week and Month follow the web screens with a Stages card on the right.
 - **Settings panel** (gear): Targets (editable), Sync (last sync, sample count, Refresh) and Backup.
 - **Pocket Settings**: Luna has a row in App colours (default Lavender) and in Shortcuts (⌥5).
+
+## Hover details
+
+Every chart item shows its numbers in a small dark label on hover (Mac and desktop browsers) or tap (phone): a hypnogram block shows `1h 30m · Core` and `11:30 pm – 1:00 am`; a stage bar segment or legend item `1h 26m · Deep · 18%`; a week capsule `Wed 18`, `12:47 am – 6:31 am`, `5h 41m · 82`; a week bar or strip day its asleep time and score; a month cell `Fri 20`, `6h 50m · 79`; a month line point `Fri 20 · 6h 50m`.
