@@ -266,7 +266,7 @@ A swipe deck for revising exam formulas at `web/sol/`; details in [docs/kb/apps/
 - Build with `swift build`. Install and relaunch with `scripts/install.sh`. Then check routes with `curl`.
 - Themes live in `Sources/Pocket/BoardTheme.swift`: `pastel(...)` for light themes and `dusk(..., ground:, glow:)` for
   dark ones (a deep tinted ground with a pastel glow). The Pocket theme covers the dropdown, Settings and most native
-  apps; Aqua, Ignis, Ventus and Terra have their own colour (`AppThemeStore`, defaults Sky, Ember, Flint and Sage like their
+  apps; Aqua, Ignis, Ventus and Terra have their own colour (`AppThemeStore`, defaults Sky, Ember, Flint and Bark like their
   web apps) that tints their windows. Menu-bar icons and shelf tiles are not tinted: every app's glyph uses the normal
   label colour, and the six element glyphs (Ignis fire, Ventus wind, Aqua water, Terra leaf, Luna moon, Sol sun) are
   bold rounded strokes on a 24-unit grid. Both are picked only in Pocket Settings → Appearance

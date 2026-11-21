@@ -1,21 +1,22 @@
 :root {
-  --backdrop: hsl(145 45% 92.5%);
-  --side: hsl(145 42% 89%);
-  --card: hsl(145 55% 97%);
-  --line: hsl(145 30% 81.5%);
-  --track: hsl(145 35% 85%);
-  --ink: hsl(145 34% 16%);
-  --muted: hsl(145 18% 35%);
-  --faint: hsl(145 25% 68%);
-  --accent: hsl(145 40% 40%);
-  --accent-ink: hsl(145 40% 34%);
-  --accent-soft: hsl(145 46% 84%);
+  --backdrop: hsl(28 40.5% 92.5%);
+  --side: hsl(28 37.8% 89%);
+  --card: hsl(28 49.5% 97%);
+  --line: hsl(28 27% 81.5%);
+  --track: hsl(28 31.5% 85%);
+  --ink: hsl(26 40% 15%);
+  --muted: hsl(28 16.2% 35%);
+  --faint: hsl(28 22.5% 68%);
+  --accent: hsl(28 42% 38%);
+  --accent-ink: hsl(28 47% 32%);
+  --accent-soft: hsl(28 41.4% 84%);
   --good: hsl(145 45% 30%);
+  --under: hsl(145 45% 32%);
   --over: hsl(8 62% 50%);
   --over-ink: hsl(8 60% 42%);
-  --food: hsl(28 80% 38%);
-  --burn: hsl(145 38% 64%);
-  --burn-soft: hsl(145 46% 87%);
+  --food: hsl(22 85% 46%);
+  --burn: hsl(145 38% 58%);
+  --burn-soft: hsl(145 40% 88%);
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   color-scheme: light;
@@ -117,7 +118,7 @@ main.setup {
 .seg {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  background: hsl(145 40% 86%);
+  background: hsl(28 36% 86%);
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 3px;
@@ -132,10 +133,10 @@ main.setup {
 }
 
 .seg .on {
-  background: hsl(145 55% 98%);
+  background: hsl(28 49.5% 98%);
   color: var(--ink);
   font-weight: 700;
-  box-shadow: 0 1px 3px hsl(145 30% 30% / 0.15);
+  box-shadow: 0 1px 3px hsl(28 27% 30% / 0.15);
 }
 
 .seg.mini {
@@ -242,7 +243,7 @@ main.setup {
   top: 0;
   bottom: 0;
   border-radius: 6px;
-  background: var(--accent-ink);
+  background: var(--under);
 }
 
 .bar .mk {
@@ -381,7 +382,7 @@ main.setup {
   justify-content: space-between;
   align-items: center;
   padding: 11px 0;
-  border-top: 1px solid hsl(145 30% 88%);
+  border-top: 1px solid hsl(28 27% 88%);
   text-align: left;
   width: 100%;
 }
@@ -407,7 +408,7 @@ main.setup {
 .fab-dim {
   position: absolute;
   inset: 0;
-  background: hsl(145 40% 12% / 0.34);
+  background: hsl(28 36% 12% / 0.34);
   -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   opacity: 0;
@@ -430,7 +431,7 @@ main.setup {
   place-items: center;
   background: var(--accent-ink);
   color: #fff;
-  box-shadow: 0 10px 24px hsl(145 40% 18% / 0.32);
+  box-shadow: 0 10px 24px hsl(28 36% 18% / 0.32);
   transition: transform 0.22s ease, background 0.22s ease;
 }
 
@@ -456,7 +457,7 @@ main.setup {
   font-size: 17px;
   background: var(--card);
   color: var(--ink);
-  box-shadow: 0 8px 20px hsl(145 40% 15% / 0.2);
+  box-shadow: 0 8px 20px hsl(28 36% 15% / 0.2);
   opacity: 0;
   transform: translateY(14px) scale(0.92);
   transform-origin: right center;
@@ -561,7 +562,7 @@ main.setup {
   font-weight: 700;
   padding: 3px 10px;
   border-radius: 999px;
-  background: var(--accent-ink);
+  background: var(--under);
   color: #fff;
 }
 
@@ -612,7 +613,7 @@ main.setup {
 
 .stack .eat {
   width: 20px;
-  background: var(--accent-ink);
+  background: var(--under);
 }
 
 .stack .eat.over {
@@ -656,7 +657,7 @@ main.setup {
   grid-template-columns: 1.1fr 0.9fr 0.9fr 1.6fr;
   align-items: center;
   padding: 8px 0;
-  border-top: 1px solid hsl(145 30% 88%);
+  border-top: 1px solid hsl(28 27% 88%);
   text-align: right;
   width: 100%;
   font-size: 14px;
@@ -684,7 +685,7 @@ main.setup {
   font-style: normal;
   font-weight: 800;
   padding: 1px 7px;
-  border: 1.5px solid hsl(145 30% 70%);
+  border: 1.5px solid hsl(28 27% 70%);
   border-radius: 7px;
   background: #fff;
 }
@@ -705,7 +706,7 @@ main.setup {
 .c {
   aspect-ratio: 1;
   border-radius: 10px;
-  background: var(--accent-ink);
+  background: var(--under);
   color: #fff;
   font-weight: 700;
   font-size: 13px;
@@ -716,7 +717,7 @@ main.setup {
 }
 
 .c.f {
-  background: hsl(145 35% 88%);
+  background: hsl(28 31.5% 88%);
   color: var(--muted);
 }
 
@@ -812,7 +813,7 @@ details input {
   width: 46px;
   height: 28px;
   border-radius: 14px;
-  background: hsl(145 30% 78%);
+  background: hsl(28 27% 78%);
   position: relative;
   transition: background 0.2s;
   flex: none;
@@ -846,7 +847,7 @@ details input {
 .dim {
   position: fixed;
   inset: 0;
-  background: hsl(145 40% 12% / 0.32);
+  background: hsl(28 36% 12% / 0.32);
   z-index: 10;
 }
 
@@ -864,7 +865,7 @@ details input {
   flex-direction: column;
   gap: 14px;
   z-index: 11;
-  box-shadow: 0 -12px 30px hsl(145 40% 15% / 0.18);
+  box-shadow: 0 -12px 30px hsl(28 36% 15% / 0.18);
 }
 
 .grab {

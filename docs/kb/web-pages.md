@@ -19,8 +19,8 @@ Related: [cloud-sync.md](cloud-sync.md) (the table, sync rules, setup link, dev 
 | Who uses it | Pranav's parents | Pranav | Pranav | Pranav | Pranav | Pranav |
 | Shows | The Hair routine only | Every Aqua routine | Ignis focus sessions | Today's timed routines, one step at a time, and the journal | Calories eaten and burned against the day, week and month goals | Each night's sleep from Apple Health (score, hypnogram, comments), the week and the month |
 | Writes | Never | Step check-offs, night start hour, its theme | Never | Step check-offs and `runner.entry` journal entries | `calorie.entry`, `calorie.weight` and the plan (`calorie.settings`) | Only the targets (`sleep.settings`); samples come from the Luna Sync Shortcut |
-| Default theme | Sage, from the synced `settings.prefs`/`prefs` record | Sky, synced as `settings.prefs`/`orario` (field `aquaTheme`; the old `theme` field, Butter by default, is ignored) | Ember, kept per device in `localStorage` (`ignis.web.theme`) | Flint, fixed | Sage, fixed | Lavender, fixed |
-| Icon | Shared Pocket icon | Koi whose fins flow into ripples, blue on pale blue | Lion whose mane turns to flame, red on pale red | Eagle dissolving into wind, cool grey on pale cool grey | Mantis built from leaves, green on pale green | Wolf howling at the moon, lavender on pale lavender |
+| Default theme | Sage, from the synced `settings.prefs`/`prefs` record | Sky, synced as `settings.prefs`/`orario` (field `aquaTheme`; the old `theme` field, Butter by default, is ignored) | Ember, kept per device in `localStorage` (`ignis.web.theme`) | Flint, fixed | Bark, fixed | Lavender, fixed |
+| Icon | Shared Pocket icon | Koi whose fins flow into ripples, blue on pale blue | Lion whose mane turns to flame, red on pale red | Eagle dissolving into wind, cool grey on pale cool grey | Stag whose antlers grow into leafy branches, brown on beige | Wolf howling at the moon, lavender on pale lavender |
 | Title and Home Screen name | Routine | Aqua | Ignis | Ventus | Terra | Luna |
 | Local state key | `pocket.cloud.v1` | `orario.cloud.v1` | `aurelius.cloud.v1` | `runner.cloud.v1` | `misura.cloud.v1` | `luna.cloud.v1` |
 | Cache prefix (`sw.js`) | `pocket-` (`pocket-v10`) | `aqua-web-` (`aqua-web-v2`, also clears `orario-master-`) | `ignis-web-` (`ignis-web-v2`, also clears `aurelius-web-`) | `runner-` (`runner-v4`) | `terra-web-` (`terra-web-v3`, also clears `misura-`) | `luna-web-` (`luna-web-v1`) |
@@ -80,7 +80,7 @@ The calorie tracker (built 2026-11-19), the web half of [apps/misura.md](apps/mi
 - Settings: the plan, Watch share, Eat back, Show kcal left, export and sync.
 - Connects without asking in a browser that already holds a link under `orario.cloud.v1`, `runner.cloud.v1` or `pocket.cloud.v1`.
 
-Files: `index.html`, `app.js` (views and sheets), `plan.js` (the math, mirroring `MisuraMath`), `store.js`, `util.js`, `style.css` (Sage tokens, Nunito), `sw.js`, `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png`.
+Files: `index.html`, `app.js` (views and sheets), `plan.js` (the math, mirroring `MisuraMath`), `store.js`, `util.js`, `style.css` (Bark tokens, green kept for under the limit, Nunito), `sw.js`, `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png`.
 
 ## Luna (`web/luna/`)
 
