@@ -4,6 +4,7 @@ struct CloudCollection {
     let kind: String
     let key: String?
     let sortKey: String?
+    var detachedId = false
 }
 
 struct CloudDocument {
@@ -11,6 +12,7 @@ struct CloudDocument {
     let file: URL
     let collections: [CloudCollection]
     let metaKind: String?
+    var metaKey: String? = nil
 
     var isArray: Bool { collections.count == 1 && collections[0].key == nil }
 
@@ -29,7 +31,10 @@ struct CloudDocument {
          CloudDocument(name: "calorie", file: PocketData.calorie,
                        collections: [CloudCollection(kind: "calorie.entry", key: "entries", sortKey: nil),
                                      CloudCollection(kind: "calorie.weight", key: "weights", sortKey: nil)],
-                       metaKind: "calorie.settings")]
+                       metaKind: "calorie.settings"),
+         CloudDocument(name: "sleep", file: PocketData.sleep,
+                       collections: [CloudCollection(kind: "sleep.sample", key: "samples", sortKey: nil, detachedId: true)],
+                       metaKind: "sleep.settings", metaKey: "settings")]
     }
 }
 
@@ -219,13 +224,18 @@ final class CloudSync: ObservableObject {
             for (index, element) in items.enumerated() {
                 guard var item = element as? [String: Any], let id = identifier(item["id"]) else { continue }
                 if collection.sortKey == "_pos" { item["_pos"] = index + 1 }
+                if collection.detachedId { item.removeValue(forKey: "id") }
                 out[collection.kind + "|" + id] = (collection.kind, id, item)
             }
         }
         if let meta = doc.metaKind, let object = json as? [String: Any] {
-            let keys = Set(doc.collections.compactMap(\.key))
-            let rest = object.filter { !keys.contains($0.key) }
-            if !rest.isEmpty { out[meta + "|" + metaId] = (meta, metaId, rest) }
+            if let metaKey = doc.metaKey {
+                if let rest = object[metaKey] as? [String: Any], !rest.isEmpty { out[meta + "|" + metaId] = (meta, metaId, rest) }
+            } else {
+                let keys = Set(doc.collections.compactMap(\.key))
+                let rest = object.filter { !keys.contains($0.key) }
+                if !rest.isEmpty { out[meta + "|" + metaId] = (meta, metaId, rest) }
+            }
         }
         return out
     }
@@ -249,17 +259,25 @@ final class CloudSync: ObservableObject {
         for row in rows {
             if row.kind == doc.metaKind {
                 guard !row.deleted else { continue }
-                for (key, value) in row.data where !doc.collections.contains(where: { $0.key == key }) { object[key] = value }
+                if let metaKey = doc.metaKey {
+                    var settings = object[metaKey] as? [String: Any] ?? [:]
+                    for (key, value) in row.data { settings[key] = value }
+                    object[metaKey] = settings
+                } else {
+                    for (key, value) in row.data where !doc.collections.contains(where: { $0.key == key }) { object[key] = value }
+                }
                 continue
             }
             guard var list = lists[row.kind] else { continue }
             let index = list.firstIndex { identifier($0["id"]) == row.id }
+            var data = row.data
+            if doc.collections.contains(where: { $0.kind == row.kind && $0.detachedId }) { data["id"] = row.id }
             if row.deleted {
                 if let index { list.remove(at: index) }
             } else if let index {
-                list[index] = row.data
+                list[index] = data
             } else {
-                list.append(row.data)
+                list.append(data)
             }
             lists[row.kind] = list
         }
