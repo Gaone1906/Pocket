@@ -1,10 +1,10 @@
 # Terra
 
-Terra (internal id `calorie`) is the calorie tracker, built on 2026-11-19. It works out Pranav's BMR and the daily deficit his weight goal needs, takes meal calories and Apple Watch workout calories, and shows how each day, week and month stands against that goal. It is brown on beige (Bark, hue 28, since 2026-11-21; Sage before) with rounded type: SF Rounded on the Mac (`design: .rounded`), Nunito on the web. Its web icon is a stag whose antlers grow into leafy branches (the mantis until 2026-11-21); the menu bar shows `Glyphs.terra`, a leaf and its Mac shortcut is ⌥4 (⌥E until 2026-11-19).
+Terra (internal id `calorie`) is the calorie tracker, built on 2026-11-19. It works out Pranav's BMR and the daily deficit his weight goal needs, takes meal calories and Apple Watch workout calories, and shows how each day, week and month stands against that goal. It is pastel green (Sage, hue 145) with rounded type: SF Rounded on the Mac (`design: .rounded`), Nunito on the web. Its web icon is a stag whose antlers grow into leafy branches (the mantis until 2026-11-21); the menu bar shows `Glyphs.terra`, a leaf and its Mac shortcut is ⌥4 (⌥E until 2026-11-19).
 
 It exists twice: on the Mac (`MisuraModel.swift`, `MisuraApp.swift`) and as the web app at `/Pocket/terra/` (`web/terra/`). Both read and write the same records.
 
-Related: [../cloud-sync.md](../cloud-sync.md) (record kinds), [../web-pages.md](../web-pages.md) (the web app), [../theme.md](../theme.md) (app colours; Terra defaults to Bark), [../data-and-backups.md](../data-and-backups.md) (the vault).
+Related: [../cloud-sync.md](../cloud-sync.md) (record kinds), [../web-pages.md](../web-pages.md) (the web app), [../theme.md](../theme.md) (app colours; Terra defaults to Sage), [../data-and-backups.md](../data-and-backups.md) (the vault).
 
 ## Data
 
@@ -40,7 +40,7 @@ Related: [../cloud-sync.md](../cloud-sync.md) (record kinds), [../web-pages.md](
 
 ## Design rules (Pranav, from the canvas critique)
 
-- Anything over the daily limit is red; under is green. The theme is brown, so under-the-limit bars, dots, rings, month cells and the week badge use the fixed green (`MisuraBoard.under`, `--under`), never the theme accent.
+- Anything over the daily limit is red; under is green.
 - The week badge reads "Under the limit" (green) or "Over the limit" (red).
 - Eaten numbers are orange; workout and BMR numbers are green, because they count against what was eaten.
 - Week table columns, in order: Day, kg in a box, Eaten, Workout, BMR, Deficit / goal (green when met, red when not). The phone shows Day, kg, Eaten, Deficit / goal.
