@@ -139,7 +139,7 @@ The catalog (order = setup order):
 | `scratchpad` | Scratchpad | `note.text` | – | ⌥N | native | no | no |
 | `stats` | System Stats | `gauge.with.dots.needle.33percent` | – | none | native | no | no |
 | `rollin` | Rollin | `chart.line.uptrend.xyaxis` | – | none | native, `shelf: "Experimental"` | no | no |
-| `preparo` | Preparo | `graduationcap.fill` | `Glyphs.preparo` | ⌥9 | link `http://localhost:8960/` in `com.ardia.browser` | no | no |
+| `preparo` | Sol (formerly Preparo) | `graduationcap.fill` | `Glyphs.sol` | ⌥9 | link `http://localhost:8960/` in `com.ardia.browser` | no | no |
 | `matinee` | Matinee | `ticket.fill` | `Glyphs.matinee` | none | web `http://127.0.0.1:47811/` (`MatineeApp`) | no | no |
 
 Web store UUIDs are `6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A0n`, n = 1..6 in the order whatsapp, slack, spotify, gmail,
@@ -291,7 +291,7 @@ can't be opened). Rotation happens once, at first use per launch: if the file is
 `reason=`, `project=`) and the values that decided the outcome. How to read: [operations.md](operations.md#reading-logs).
 
 ### `Glyphs.swift` — `enum Glyphs`
-Static SVG strings: `preparo`, `whatsapp`, `slack`, `spotify`, `gmail`, `matinee`. Drawn by `AppIcon` as tinted
+Static SVG strings: `sol` (the sun horse, traced from the Sol web icon), `whatsapp`, `slack`, `spotify`, `gmail`, `matinee`. Drawn by `AppIcon` as tinted
 images, so only the shape matters (fill/stroke colour is replaced). Use a square `viewBox`; raw strings use `#"…"#`
 or `##"…"##` when the SVG contains `"#`.
 

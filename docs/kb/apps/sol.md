@@ -18,7 +18,7 @@ Sol is the swipe deck for revising exam formulas, at `https://gaone1906.github.i
 
 ## Card source
 
-The CAT Quant cards (200) were rewritten from Pranav's "CAT Quant formula book" PDF, one fact per card. To change or add cards, edit the `sol.card` rows (and `cards.js` if the bundled copy should follow).
+The CAT Quant cards (211) were rewritten from Pranav's "CAT Quant formula book" PDF, one fact per card. The Basics section (sums of series and algebraic identities) comes first in the menu, at Pranav's request. To change or add cards, edit the `sol.card` rows (and `cards.js` if the bundled copy should follow).
 
 ## Look
 

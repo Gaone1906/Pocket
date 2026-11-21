@@ -21,12 +21,12 @@ So a new web or link app needs only a catalog entry. For the shared panel, statu
 | `spotify` | Spotify | `https://open.spotify.com/` | ⌥M | yes | 1800 s | 0.85 | Safari | `…7A03` |
 | `gmail` | Gmail | `https://mail.google.com/mail/` | ⌥G | no | never | 0.85 | Safari | `…7A04` |
 | `outlook` | Outlook | `https://outlook.office.com/mail/` | none | no | never | 0.85 | Safari | `…7A05` |
-| `preparo` | Preparo | `http://localhost:8960/` | none | n/a (LinkApp) | n/a | n/a | n/a | n/a |
+| `preparo` | Sol (formerly Preparo) | `http://localhost:8960/` | none | n/a (LinkApp) | n/a | n/a | n/a | n/a |
 
 - **Store UUIDs.** Each is the full `6B1F2C1E-0A57-4C3B-9E4B-0E5C4A0F7A0N`; Matinee uses `…7A06`.
 - **Shortcuts.** The `hotKey` values are option + key, assigned once per app by `Layout.init` (see [../architecture.md](../architecture.md)).
 - **Panel.** It uses the `PocketApp` defaults: 460×680, resizable, minimum 360×420. A resized size is remembered in UserDefaults `size.<id>`.
-- **Menu-bar icon.** WhatsApp, Slack, Spotify, Gmail and Preparo use SVG glyphs from `Glyphs.swift`. Outlook has no glyph and uses the SF Symbol `tray.full.fill`.
+- **Menu-bar icon.** WhatsApp, Slack, Spotify, Gmail and Sol use SVG glyphs from `Glyphs.swift`. Outlook has no glyph and uses the SF Symbol `tray.full.fill`.
 - **Unread badge.** `WebApp.barImage()` overrides `AppIcon.render(spec, unread:)`:
   - a positive count draws a red pill with the number, capped at `99+`;
   - `-1` draws a 7 pt red dot.
