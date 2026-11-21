@@ -101,6 +101,7 @@ struct BoardTheme: Identifiable, Equatable {
         pastel("stone", "Stone", hue: 32, saturation: 0.28),
         pastel("ember", "Ember", hue: 354, saturation: 1.55),
         pastel("flint", "Flint", hue: 212, saturation: 0.15),
+        pastel("umber", "Umber", hue: 30, saturation: 0.85),
         dusk("moonlit-sage", "Moonlit Sage", ground: 160, glow: 140),
         dusk("harbour", "Harbour", ground: 218, glow: 24),
         dusk("aurora", "Aurora", ground: 268, glow: 158),
@@ -159,7 +160,7 @@ final class AppThemeStore: ObservableObject {
     static let apps = [
         ThemedApp(id: "schedule", name: "Aqua", fallback: "sky"),
         ThemedApp(id: "pomodoro", name: "Ignis", fallback: "ember"),
-        ThemedApp(id: "runner", name: "Ventus", fallback: "flint"),
+        ThemedApp(id: "runner", name: "Ventus", fallback: "umber"),
         ThemedApp(id: "calorie", name: "Terra", fallback: "sage"),
         ThemedApp(id: "sleep", name: "Luna", fallback: "lavender"),
     ]

@@ -18,7 +18,7 @@ export function slotNow() {
 }
 
 export function routines() {
-  return store.all("schedule.routine").sort((a, b) => (a._pos ?? 0) - (b._pos ?? 0));
+  return store.all("schedule.routine").filter((r) => r && typeof r === "object").sort((a, b) => (a._pos ?? 0) - (b._pos ?? 0));
 }
 
 export function routine(id) {
@@ -26,12 +26,14 @@ export function routine(id) {
 }
 
 export function runsOn(r, day) {
-  return r.starts <= day && (!r.ends || day <= r.ends);
+  return !!r && typeof r.starts === "string" && r.starts <= day && (!r.ends || day <= r.ends);
 }
 
 export function stepsOn(r, day, slot) {
   const dated = r.dated && r.dated[`${day}-${slot}`];
-  return dated || (r.plan && r.plan[`${weekday(day)}-${slot}`]) || [];
+  if (Array.isArray(dated)) return dated;
+  const weekly = r.plan && r.plan[`${weekday(day)}-${slot}`];
+  return Array.isArray(weekly) ? weekly : [];
 }
 
 export function checkId(routineId, day, slot, stepId) {
@@ -83,5 +85,8 @@ export function saveEntry(base, patch) {
 }
 
 export function entries() {
-  return store.all("runner.entry").sort((a, b) => (a.day === b.day ? (a.slot === b.slot ? String(b.updated).localeCompare(String(a.updated)) : a.slot === "night" ? -1 : 1) : b.day.localeCompare(a.day)));
+  return store
+    .all("runner.entry")
+    .filter((e) => e && typeof e === "object")
+    .sort((a, b) => (a.day === b.day ? (a.slot === b.slot ? String(b.updated).localeCompare(String(a.updated)) : a.slot === "night" ? -1 : 1) : String(b.day || "").localeCompare(String(a.day || ""))));
 }

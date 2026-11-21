@@ -79,7 +79,7 @@ let catalog: [AppSpec] = [
             glyph: Glyphs.ignis, hotKey: UInt32(kVK_ANSI_1), web: nil),
     AppSpec(id: "schedule", name: "Aqua", summary: "Today's routine as a checklist, with a month of done and missed days", symbol: "sun.horizon",
             glyph: Glyphs.aqua, hotKey: UInt32(kVK_ANSI_3), web: nil, claimsHotKey: true, pinnedByDefault: true),
-    AppSpec(id: "runner", name: "Ventus", summary: "Runs today's Fitness and Mindfulness step by step, and ticks Aqua as you go", symbol: "figure.mind.and.body",
+    AppSpec(id: "runner", name: "Ventus", summary: "Runs today's Fitness step by step, and ticks Aqua as you go", symbol: "figure.mind.and.body",
             glyph: Glyphs.ventus, hotKey: UInt32(kVK_ANSI_2), web: nil),
     AppSpec(id: "calorie", name: "Terra", summary: "Calories eaten and burned against your daily, weekly and monthly goals", symbol: "scalemass.fill",
             glyph: Glyphs.terra, hotKey: UInt32(kVK_ANSI_4), web: nil),

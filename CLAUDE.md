@@ -202,15 +202,22 @@ shared `Board` theme tokens; there is no theme picker inside Calendar.
 
 ## Ventus app
 
-Runs today's timed routines step by step (`⌥2`); its code, app id, data file and record kind say `runner`. Details in
+Runs today's Fitness step by step (`⌥2`); its code, app id, data file and record kind say `runner`. Details in
 [docs/kb/apps/kairos.md](docs/kb/apps/kairos.md). Rules to keep true:
-- Code holds only templates. Every workout number, move name, timer, cue, affirmation line and writing prompt lives in the
-  `run` object on each Aqua step in the database, so a routine change is a data change. Never hard-code them.
+- Code holds only templates. Every workout number, move name, timer, cue and line lives in the `run` object on each Aqua
+  step in the database, so a routine change is a data change. Never hard-code them.
+- Only Fitness routines show (a step with `run.type` moves, intervals, rounds or log). Mindfulness and the journal pages
+  belong to Zenda.
+- No dropdown: the menu-bar icon opens the window (`KairosApp` overrides `toggle`/`show`); the right-click menu and the
+  countdown title stay. The window has a rail with Today, Scheduled, Start and Review.
 - `ScheduleStep.run` is loose JSON (`Loose`) and must round-trip untouched; the Aqua editor never touches it.
-- Finishing a step ticks Aqua through `ScheduleStore.shared.set(_:done:)` on the Mac and a `schedule.check` record on the
-  web, never anything Ventus-specific.
-- The journal is `$ROOT/runner.json` (`{"entries": [...]}`) through `DataVault` as `runner`, synced as `runner.entry`.
-- The web app is `web/ventus/`; keep `web/ventus/plan.js` and `KairosPlan` (`KairosModel.swift`) producing the same beats.
+- Finishing a step of a scheduled session ticks Aqua through `ScheduleStore.shared.set(_:done:)` on the Mac and a
+  `schedule.check` record on the web, never anything Ventus-specific. Ad-hoc runs (another day, one step) never tick.
+- `$ROOT/runner.json` (`{"entries": [...]}`) through `DataVault` as `runner`, synced as `runner.entry`, holds runs, feel,
+  projects (`project|<routineId>`, tag `project`) and workouts (`workout|<uuid>`, tag `workout`). Never list `project`
+  or `workout` entries as writing.
+- The web app is `web/ventus/`; keep `web/ventus/plan.js` and `KairosPlan`, and `web/ventus/projects.js` and
+  `KairosFit`/`VentusProject` (`KairosModel.swift`), giving the same beats, day status and streaks.
 
 ## Terra app
 
@@ -279,7 +286,7 @@ A swipe deck for revising exam formulas at `web/sol/`; details in [docs/kb/apps/
 - Build with `swift build`. Install and relaunch with `scripts/install.sh`. Then check routes with `curl`.
 - Themes live in `Sources/Pocket/BoardTheme.swift`: `pastel(...)` for light themes and `dusk(..., ground:, glow:)` for
   dark ones (a deep tinted ground with a pastel glow). The Pocket theme covers the dropdown, Settings and most native
-  apps; Aqua, Ignis, Ventus and Terra have their own colour (`AppThemeStore`, defaults Sky, Ember, Flint and Sage like their
+  apps; Aqua, Ignis, Ventus and Terra have their own colour (`AppThemeStore`, defaults Sky, Ember, Umber and Sage like their
   web apps) that tints their windows. Menu-bar icons and shelf tiles are not tinted: every app's glyph uses the normal
   label colour, and the six element glyphs (Ignis fire, Ventus wind, Aqua water, Terra leaf, Luna moon, Sol sun) are
   bold rounded strokes on a 24-unit grid. Both are picked only in Pocket Settings → Appearance

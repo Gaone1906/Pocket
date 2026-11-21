@@ -1,5 +1,5 @@
-const CACHE = "runner-v5";
-const SHELL = ["./", "index.html", "style.css", "app.js", "store.js", "plan.js", "routines.js", "util.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
+const CACHE = "runner-v6";
+const SHELL = ["./", "index.html", "style.css", "app.js", "store.js", "plan.js", "routines.js", "projects.js", "util.js", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
