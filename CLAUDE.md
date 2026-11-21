@@ -252,6 +252,16 @@ projects. Details in [docs/kb/apps/zenda.md](docs/kb/apps/zenda.md). Rules to ke
 - Projects are data: `$ROOT/zenda.json` (`{"projects": [...]}`, `DataVault` name `zenda`), synced as `zenda.project`.
   Never seed them in code.
 
+## Ortus app
+
+Motivation (`⌥7`, app id `ortus`): quotes, reels, videos and stories, purely to read or watch. Details in
+[docs/kb/apps/ortus.md](docs/kb/apps/ortus.md). Rules to keep true:
+- Every quote, story, reel and video is an `ortus.quote`, `ortus.story`, `ortus.reel` or `ortus.video` record. Never hard-code content in either app; adding content is a db insert.
+- Keep `OrtusPick` (`OrtusModel.swift`) and `web/ortus/pick.js` giving the same day key (4am rollover), FNV-1a hash and
+  daily picks, so the Mac and the phone show the same quote, story and reel of the day.
+- `$ROOT/ortus.json` (`{"quotes", "stories", "reels", "videos"}`, `DataVault` name `ortus`). The Mac only reads
+  the library: `OrtusStore` writes adopted cloud data verbatim and never edits it, so sync never pushes back.
+
 ## Rollin app
 
 A hidden menu-bar ticker on the Experimental shelf; details in [docs/kb/apps/rollin.md](docs/kb/apps/rollin.md). Rules to keep true:

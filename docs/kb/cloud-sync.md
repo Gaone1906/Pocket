@@ -34,6 +34,10 @@ Related: [web-pages.md](web-pages.md) (the three web apps side by side), [data-a
 | `calorie.weight` | `yyyy-MM-dd` | a weigh-in | `calorie.json` `weights` |
 | `sleep.sample` | `<v>\|<s>\|<source>` (opaque) | `{s, e, v, q?}`, one Health sample written by the Luna Sync Shortcut ([apps/luna.md](apps/luna.md)); no `id` inside `data` | `sleep.json` `samples` |
 | `sleep.settings` | `book` | `{bed, wake, hours, deep, rem, tolerance, updated}` | `sleep.json` `settings` |
+| `ortus.quote` | `q001`… | `{text, author, who, source?, theme, sure?}`, `sure: "moderate"` when the attribution is uncertain ([apps/ortus.md](apps/ortus.md)) | `ortus.json` `quotes` |
+| `ortus.story` | slug | `{name, kind, who, title, paras, line, source}` | `ortus.json` `stories` |
+| `ortus.reel` | slug | `{source, url, category, views, channel, title, start, end}`, a YouTube Short | `ortus.json` `reels` |
+| `ortus.video` | slug | `{url, title, channel, category, start, end}`, a long YouTube video | `ortus.json` `videos` |
 | `settings.prefs` | `prefs` | `{theme}` | web only (main app) |
 | `settings.prefs` | `orario` | `{theme}` | web only (`web/aqua/`, default Sky, stored in `aquaTheme`) |
 

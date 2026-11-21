@@ -17,6 +17,7 @@ enum PocketData {
     static var calorie: URL { root.appendingPathComponent("calorie.json") }
     static var sleep: URL { root.appendingPathComponent("sleep.json") }
     static var zenda: URL { root.appendingPathComponent("zenda.json") }
+    static var ortus: URL { root.appendingPathComponent("ortus.json") }
     static var backups: URL { root.appendingPathComponent("Backups", isDirectory: true) }
     static var repo: URL { root.appendingPathComponent("DataRepo", isDirectory: true) }
     static var syncState: URL { root.appendingPathComponent("sync-state.json") }
@@ -35,7 +36,8 @@ private struct VaultFile {
          VaultFile(name: "runner", source: PocketData.runner, noun: "journal note"),
          VaultFile(name: "calorie", source: PocketData.calorie, noun: "log"),
          VaultFile(name: "sleep", source: PocketData.sleep, noun: "sample"),
-         VaultFile(name: "zenda", source: PocketData.zenda, noun: "project")]
+         VaultFile(name: "zenda", source: PocketData.zenda, noun: "project"),
+         VaultFile(name: "ortus", source: PocketData.ortus, noun: "library item")]
     }
 
     static func noun(_ name: String) -> String { all.first { $0.name == name }?.noun ?? "item" }
@@ -354,6 +356,7 @@ final class DataVault: ObservableObject {
         case "calorie": list = (object?["entries"] as? [Any] ?? []) + (object?["weights"] as? [Any] ?? [])
         case "sleep": list = object?["samples"] as? [Any] ?? []
         case "zenda": list = object?["projects"] as? [Any] ?? []
+        case "ortus": list = OrtusStore.collections.flatMap { object?[$0] as? [Any] ?? [] }
         default: list = json as? [Any] ?? []
         }
         return Set(list.compactMap { ($0 as? [String: Any])?["id"] as? String })

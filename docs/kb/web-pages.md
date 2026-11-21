@@ -10,6 +10,8 @@ Sol's formula cards (`web/sol/`, https://gaone1906.github.io/Pocket/sol/) are a 
 
 Zenda (`web/zenda/`, https://gaone1906.github.io/Pocket/zenda/), the mindfulness app split out of Ventus, is an eighth, with its Mac half and records in [apps/zenda.md](apps/zenda.md). It reads `schedule.routine`, `schedule.check`, `schedule.settings`, `runner.entry` and `zenda.project`; writes `schedule.check`, `runner.entry` and `zenda.project`. Local key `zenda.cloud.v1`, cache prefix `zenda-web-` (`zenda-web-v2`), ink-swirl panda icon, rice-paper theme. It imports `../ventus/plan.js`, so a change to that file must keep Zenda working too. Ventus hides Zenda's routines (`isMindful`).
 
+Ortus (`web/ortus/`, https://gaone1906.github.io/Pocket/ortus/), the motivation app, is a ninth, with its Mac half in [apps/ortus.md](apps/ortus.md). It only reads: `ortus.quote`, `ortus.story`, `ortus.reel` and `ortus.video`. Local key `ortus.cloud.v1` (borrows the setup link from the other apps), cache prefix `ortus-web-` (`ortus-web-v1`), rooster icon, peach theme with a dark Reels and Videos mode.
+
 Related: [cloud-sync.md](cloud-sync.md) (the table, sync rules, setup link, dev server), [apps/schedule.md](apps/schedule.md) (Aqua on the Mac), [apps/pomodoro.md](apps/pomodoro.md) (Ignis on the Mac), [apps/kairos.md](apps/kairos.md) (Ventus on both), [apps/misura.md](apps/misura.md) (Terra on both).
 
 ## At a glance

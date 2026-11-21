@@ -37,6 +37,12 @@ struct CloudDocument {
                        metaKind: "sleep.settings", metaKey: "settings"),
          CloudDocument(name: "zenda", file: PocketData.zenda,
                        collections: [CloudCollection(kind: "zenda.project", key: "projects", sortKey: nil)],
+                       metaKind: nil),
+         CloudDocument(name: "ortus", file: PocketData.ortus,
+                       collections: [CloudCollection(kind: "ortus.quote", key: "quotes", sortKey: nil),
+                                     CloudCollection(kind: "ortus.story", key: "stories", sortKey: nil),
+                                     CloudCollection(kind: "ortus.reel", key: "reels", sortKey: nil),
+                                     CloudCollection(kind: "ortus.video", key: "videos", sortKey: nil)],
                        metaKind: nil)]
     }
 }
