@@ -607,7 +607,7 @@ enum LunaText {
     static func duration(_ minutes: Double) -> String {
         let m = LunaMath.jsRound(minutes)
         if m < 60 { return "\(m)m" }
-        return "\(m / 60)h "+ String(format: "%02d", m % 60) + "m"
+        return "\(m / 60)h " + String(format: "%02d", m % 60) + "m"
     }
 
     static func clock(_ ms: Int64) -> String {
