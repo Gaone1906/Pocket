@@ -161,6 +161,7 @@ final class AppThemeStore: ObservableObject {
         ThemedApp(id: "pomodoro", name: "Ignis", fallback: "ember"),
         ThemedApp(id: "runner", name: "Ventus", fallback: "flint"),
         ThemedApp(id: "calorie", name: "Terra", fallback: "sage"),
+        ThemedApp(id: "sleep", name: "Luna", fallback: "lavender"),
     ]
 
     @Published private(set) var picks: [String: String]

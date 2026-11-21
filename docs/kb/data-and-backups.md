@@ -14,6 +14,7 @@ Related: [architecture.md](architecture.md), [operations.md](operations.md), [ap
 | `todos` | `todos.json` | To-do list (`TodoStore`) |
 | `schedule` | `schedule.json` | Schedule routines and check-offs (`ScheduleStore`) |
 | `calendar` | `calendar.json` | Calendar events (`CalendarStore`, through `CalendarVaultPersistence`) |
+| `sleep` | `sleep.json` | Luna's Health samples and sleep targets (`LunaStore`) |
 | `backups` | `Backups/` | Daily snapshots and keep-aside copies, one subfolder per vault name |
 | `repo` | `DataRepo/` | Local clone of the sync repo |
 | `syncState` | `sync-state.json` | Ids this Mac has pushed, per vault name: `{"board": [...], ...}` |
@@ -27,6 +28,7 @@ Related: [architecture.md](architecture.md), [operations.md](operations.md), [ap
 | `board` | `PocketData.board` | session | `sessions[].id` (projects are not counted) |
 | `todos` | `PocketData.todos` | to-do | top-level array `[].id` |
 | `schedule` | `PocketData.schedule` | check-off | `checks[].id` and `routines[].id` |
+| `sleep` | `PocketData.sleep` | sample | `samples[].id` |
 
 The repo holds these files as `<name>.json` at its root. `VaultFile.noun(_:)` falls back to `"item"`.
 
@@ -189,6 +191,7 @@ The defaults domain is `com.pranav.pocket` for the installed app bundle. An unbu
 | `TodoStore` (`TodoApp.swift`) | `$ROOT/todos.json` | JSON array, ISO 8601 | yes (`todos`) | yes |
 | `ScheduleStore` (`ScheduleModel.swift`) | `$ROOT/schedule.json` | JSON `ScheduleBook`, ISO 8601 | yes (`schedule`) | yes |
 | `CalendarStore` (`CalendarModel.swift`) | `$ROOT/calendar.json` | JSON `CalendarBook` (`{"events": [...]}`), ISO 8601 | yes (`calendar`, noun "event") | yes |
+| `LunaStore` (`LunaModel.swift`) | `$ROOT/sleep.json` | JSON `{samples, settings}`; samples kept as loose JSON so they round-trip untouched | yes (`sleep`, noun "sample") | yes |
 | `DataVault` | `$ROOT/Backups/<name>/…`, `$ROOT/DataRepo/`, `$ROOT/sync-state.json` | JSON / git | n/a | yes |
 | `ScratchStore` (`ScratchpadApp.swift`) | `~/Library/Application Support/Pocket/Scratchpad/pages.json` plus `<page-uuid>.rtf` | JSON index plus RTF | **no** | **no** (hardcoded to `NSHomeDirectory()`) |
 | `GoogleAuth.load` (`Mail.swift`) | `~/Library/Application Support/Pocket/google-client.json` | `{"id","secret"}` OAuth desktop client, user-provided | no | no (hardcoded) |

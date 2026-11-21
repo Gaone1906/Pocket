@@ -227,7 +227,7 @@ struct PocketSettingsView: View {
 
     private var caption: String {
         switch focus.section {
-        case .appearance: "One theme for Pocket and its apps. Aqua, Ignis, Ventus and Terra keep their own colour, and Gmail, WhatsApp, Slack and Spotify their own look."
+        case .appearance: "One theme for Pocket and its apps. Aqua, Ignis, Ventus, Terra and Luna keep their own colour, and Gmail, WhatsApp, Slack and Spotify their own look."
         case .shelves: "Arrange where each app lives."
         case .shortcuts: "Open any app from anywhere. Click a shortcut to change it, or + to add another."
         case .general: "Apps, codes and startup."

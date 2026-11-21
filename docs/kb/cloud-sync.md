@@ -32,10 +32,14 @@ Related: [web-pages.md](web-pages.md) (the three web apps side by side), [data-a
 | `calorie.settings` | `book` | `{plan}`, Terra's plan ([apps/misura.md](apps/misura.md)) | `calorie.json` `plan` |
 | `calorie.entry` | UUID | a meal or workout | `calorie.json` `entries` |
 | `calorie.weight` | `yyyy-MM-dd` | a weigh-in | `calorie.json` `weights` |
+| `sleep.sample` | `<v>\|<s>\|<source>` (opaque) | `{s, e, v, q?}`, one Health sample written by the Luna Sync Shortcut ([apps/luna.md](apps/luna.md)); no `id` inside `data` | `sleep.json` `samples` |
+| `sleep.settings` | `book` | `{bed, wake, hours, deep, rem, tolerance, updated}` | `sleep.json` `settings` |
 | `settings.prefs` | `prefs` | `{theme}` | web only (main app) |
 | `settings.prefs` | `orario` | `{theme}` | web only (`web/aqua/`, default Sky, stored in `aquaTheme`) |
 
 Ignis on the web keeps its theme per device in `localStorage` and has no `settings.prefs` record.
+
+Two `CloudDocument` options exist for Luna: a `CloudCollection` with `detachedId: true` keeps the row id out of `data` (the Mac adds it as `id` in the file and strips it again before comparing or pushing, so samples written by the Shortcut round-trip unchanged), and `metaKey: "settings"` maps the settings record to one nested object (`sleep.json` `settings`) instead of the file's top-level scalars. The Mac never creates or deletes samples: Luna's Restore keeps every current sample.
 
 `_pos` keeps list order (projects, routines). It exists only in the cloud; the Mac strips it when it writes a file and puts its own index back when it reads one. `CloudDocument.all` in `CloudSync.swift` is the mapping; a new vault file gets one row there.
 
