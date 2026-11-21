@@ -93,7 +93,7 @@ Web (`web/luna/`, Terra's shell: icon tile, "Luna", round sync and gear buttons,
 - **Settings**: Bed, Wake, Sleep, Deep and REM (written to `sleep.settings`), Luna Sync (opens the Shortcut), Synced (last pull time), Download a copy and Disconnect.
 
 Mac:
-- **Menu bar**: the wolf head (`Glyphs.luna`).
+- **Menu bar**: a crescent moon (`Glyphs.luna`).
 - **Dropdown**: Luna with refresh and open-window buttons, the ring card (score, asleep, Bed, Wake), the mini hypnogram with its stage bar, the week's nights as bars, and two comments.
 - **Window**: a sidebar with Night, Week and Month, a This week card (avg, score, bedtime, over 7h), the targets, and the last sync time; round refresh and gear buttons at the top right. Night has pills for the last six nights, the ring card, the hypnogram, the stage bar, and comments in a row. Week and Month follow the web screens with a Stages card on the right.
 - **Settings panel** (gear): Targets (editable), Sync (last sync, sample count, Refresh) and Backup.

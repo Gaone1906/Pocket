@@ -48,7 +48,7 @@ final class KairosApp: PocketApp {
         }
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .semibold),
-            .foregroundColor: AppThemeStore.shared.iconTint(for: spec.id) ?? NSColor.labelColor
+            .foregroundColor: NSColor.labelColor
         ]
         return NSAttributedString(string: text, attributes: attributes)
     }

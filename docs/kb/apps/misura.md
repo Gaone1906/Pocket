@@ -1,6 +1,6 @@
 # Terra
 
-Terra (internal id `calorie`) is the calorie tracker, built on 2026-11-19. It works out Pranav's BMR and the daily deficit his weight goal needs, takes meal calories and Apple Watch workout calories, and shows how each day, week and month stands against that goal. It is pastel green (Sage, hue 145) with rounded type: SF Rounded on the Mac (`design: .rounded`), Nunito on the web. Its icon is a mantis built from leaves (`Glyphs.terra`, the mantis face, in the menu bar) and its Mac shortcut is ⌥4 (⌥E until 2026-11-19).
+Terra (internal id `calorie`) is the calorie tracker, built on 2026-11-19. It works out Pranav's BMR and the daily deficit his weight goal needs, takes meal calories and Apple Watch workout calories, and shows how each day, week and month stands against that goal. It is pastel green (Sage, hue 145) with rounded type: SF Rounded on the Mac (`design: .rounded`), Nunito on the web. Its icon is a mantis built from leaves (`Glyphs.terra`, a leaf, in the menu bar) and its Mac shortcut is ⌥4 (⌥E until 2026-11-19).
 
 It exists twice: on the Mac (`MisuraModel.swift`, `MisuraApp.swift`) and as the web app at `/Pocket/terra/` (`web/terra/`). Both read and write the same records.
 
@@ -51,7 +51,7 @@ Design canvas: https://claude.ai/artifact/G4JvGyFuyzKR5jwCZbdbRS
 
 ## Mac
 
-- **Menu bar**: the mantis face, plus "260 left" (or "+120" in red when over) when "Show kcal left" is on (`menuLeft`).
+- **Menu bar**: the leaf, plus "260 left" (or "+120" in red when over) when "Show kcal left" is on (`menuLeft`).
 - **Dropdown** (`MisuraGlance`, 380×560): kcal left against budget, a quick-add field ("Poha 380" is a meal, "Gym -300" a workout), today's entries, and week and month bars. Open Terra opens the window.
 - **Window** (`MisuraWindow`, 1120×720, autosave `calorie.board`): a sidebar with Today, Week, Month and Goal cards; Day, Week and Month views; a settings panel (⌘,) with the plan, Watch share, Eat back, Show kcal left, the weigh-in reminder and Backup (Restore…, Show backups). ⌘N adds a meal, ⌘⇧N a workout. Without a plan it shows the setup form.
 - **Weigh-in reminder**: `MisuraReminder` schedules a local notification at `weighAt` for the next 7 days (ids prefixed `pocket.misura.`), skipping today once weighed.

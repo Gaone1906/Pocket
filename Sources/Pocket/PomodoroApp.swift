@@ -29,7 +29,7 @@ enum PomodoroPalette {
     }
 
     static func color(for phase: PomodoroPhase) -> NSColor {
-        phase == .focus ? AppThemeStore.shared.iconTint(for: "pomodoro") ?? .labelColor : silver
+        phase == .focus ? .labelColor : silver
     }
 }
 

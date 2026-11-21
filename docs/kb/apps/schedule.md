@@ -12,7 +12,7 @@ Related files: [../architecture.md](../architecture.md) (PocketApp, catalog, hot
 | --- | --- |
 | Catalog entry | `AppSpec(id: "schedule", name: "Aqua", symbol: "sun.horizon", glyph: Glyphs.aqua, hotKey: kVK_ANSI_3, claimsHotKey: true, pinnedByDefault: true)` in `Catalog.swift` |
 | Default shortcut | **⌥3** since 2026-11-19 (before that ⌥O, taken from Outlook, which still has `hotKey: nil`). See [Shortcut migration](#shortcut-migration). |
-| Menu-bar icon | `Glyphs.aqua`, a koi face rising through ripples, tinted with the app colour, with a red badge counting the **unchecked steps in the current slot** of today, for the routines the filter shows (`ScheduleApp.remaining`). There is no badge at 0. |
+| Menu-bar icon | `Glyphs.aqua`, a water drop in the label colour, with a red badge counting the **unchecked steps in the current slot** of today, for the routines the filter shows (`ScheduleApp.remaining`). There is no badge at 0. |
 | Placement | The app is pinned to the menu bar, not the dropdown tray, on existing installs too (`pinnedByDefault`). |
 | Dropdown | 380×560, fixed (`defaultSize` = `minSize`, `resizable` false). |
 | Right-click menu | "Open schedule", which opens the board window. |

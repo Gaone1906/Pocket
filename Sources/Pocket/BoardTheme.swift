@@ -217,14 +217,6 @@ final class AppThemeStore: ObservableObject {
         if onDark { return theme.isDark ? theme.accent : theme.swatchEdge }
         return theme.isDark ? theme.swatchEdge : theme.swatchRing
     }
-
-    func iconTint(for app: String) -> NSColor? {
-        guard let light = iconColor(for: app, onDark: false), let dark = iconColor(for: app, onDark: true) else { return nil }
-        let lightTint = NSColor(light), darkTint = NSColor(dark)
-        return NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? darkTint : lightTint
-        }
-    }
 }
 
 protocol BoardScope {
