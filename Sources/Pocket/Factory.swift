@@ -13,6 +13,7 @@ func makeApp(_ spec: AppSpec) -> PocketApp? {
     case "calorie": return MisuraApp(spec: spec)
     case "sleep": return LunaApp(spec: spec)
     case "zenda": return ZendaApp(spec: spec)
+    case "ortus": return OrtusApp(spec: spec)
     case "calculator": return CalculatorApp(spec: spec)
     case "stats": return StatsApp(spec: spec)
     case "scratchpad": return ScratchpadApp(spec: spec)
