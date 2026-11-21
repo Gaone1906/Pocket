@@ -56,6 +56,73 @@ enum LunaLook {
     static var onTone: Color { LunaBoard.theme.isDark ? LunaBoard.backdrop : .white }
 }
 
+struct LunaTip: Equatable {
+    let title: String
+    var lines: [String] = []
+}
+
+struct LunaTipLabel: View {
+    let tip: LunaTip
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(tip.title).font(LunaLook.font(12, .semibold)).foregroundStyle(Color.white)
+            ForEach(Array(tip.lines.enumerated()), id: \.offset) { _, line in
+                Text(line).font(LunaLook.font(11)).foregroundStyle(Color.white.opacity(0.72))
+            }
+        }
+        .monospacedDigit()
+        .lineLimit(1)
+        .fixedSize()
+        .padding(.horizontal, 9)
+        .padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.black.opacity(0.84)))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.white.opacity(0.1), lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 2)
+    }
+}
+
+struct LunaTipped: ViewModifier {
+    let make: (CGPoint, CGSize) -> LunaTip?
+    @State private var point: CGPoint?
+
+    static func left(_ x: CGFloat, _ width: CGFloat, _ room: CGFloat) -> CGFloat {
+        let centered = x - width / 2
+        guard room > width else { return centered }
+        return min(max(0, centered), room - width)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .onContinuousHover { phase in
+                switch phase {
+                case .active(let location): point = location
+                case .ended: point = nil
+                }
+            }
+            .overlay {
+                GeometryReader { geo in
+                    if let point, let tip = make(point, geo.size) {
+                        Color.clear.overlay(alignment: .topLeading) {
+                            LunaTipLabel(tip: tip)
+                                .alignmentGuide(.leading) { d in -LunaTipped.left(point.x, d.width, geo.size.width) }
+                                .alignmentGuide(.top) { d in -(point.y - d.height - 12) }
+                        }
+                    }
+                }
+                .allowsHitTesting(false)
+            }
+            .zIndex(point == nil ? 0 : 1)
+    }
+}
+
+extension View {
+    func lunaTip(_ make: @escaping (CGPoint, CGSize) -> LunaTip?) -> some View {
+        modifier(LunaTipped(make: make))
+    }
+}
+
 struct LunaCard<Content: View>: View {
     var padding: CGFloat = 14
     @ViewBuilder let content: Content
@@ -89,12 +156,12 @@ struct LunaRing: View {
             .monospacedDigit()
         }
         .frame(width: size, height: size)
+        .lunaTip { _, _ in LunaTip(title: "Score \(score)", lines: ["\(LunaText.duration(Double(asleep))) asleep"]) }
     }
 }
 
 struct LunaFacts: View {
     let night: LunaNight
-    var units = false
     var rule = true
 
     var body: some View {
@@ -102,8 +169,8 @@ struct LunaFacts: View {
             row("Bed", LunaText.clock(night.bed))
             row("Wake", LunaText.clock(night.wake))
             if rule { Rectangle().fill(LunaBoard.line).frame(height: 1).padding(.vertical, 6) }
-            row("Heart", night.hr.map { units ? "\($0) bpm" : "\($0)" } ?? "–")
-            row("HRV", night.hrv.map { units ? "\($0) ms" : "\($0)" } ?? "–")
+            row("In bed", LunaText.duration(Double(night.inBed)))
+            row("Awake", LunaText.duration(Double(night.awake)))
         }
     }
 
@@ -121,7 +188,6 @@ struct LunaFacts: View {
 
 struct LunaHypnogram: View {
     let night: LunaNight
-    var heart: [LunaPoint] = []
     var labels = false
     var ticks = false
     var height: CGFloat = 64
@@ -146,11 +212,18 @@ struct LunaHypnogram: View {
         }
     }
 
+    static func tip(_ night: LunaNight, at point: CGPoint, in size: CGSize) -> LunaTip? {
+        guard size.width > 0, point.x >= 0, point.x <= size.width else { return nil }
+        let total = Double(max(1, night.wake - night.bed))
+        let at = night.bed + Int64(Double(point.x / size.width) * total)
+        guard let segment = night.segments.first(where: { at >= $0.start && at < $0.end }) ?? night.segments.last(where: { at >= $0.start }) else { return nil }
+        let minutes = Double(segment.end - segment.start) / Double(LunaMath.minute)
+        return LunaTip(title: "\(LunaText.duration(minutes)) · \(segment.stage.label)", lines: [LunaText.span(segment.start, segment.end)])
+    }
+
     private var chart: some View {
         let night = self.night
-        let heart = self.heart
         let lineColor = LunaBoard.line
-        let heartColor = LunaBoard.heart
         let colors = Dictionary(uniqueKeysWithValues: LunaStage.allCases.map { ($0, LunaBoard.stage($0)) })
         return Canvas { context, size in
             let total = Double(max(1, night.wake - night.bed))
@@ -170,19 +243,8 @@ struct LunaHypnogram: View {
                 context.fill(Path(roundedRect: rect, cornerRadius: min(4, lh * 0.2, w / 2)), with: .color(colors[segment.stage] ?? lineColor))
                 previous = segment.stage
             }
-            if heart.count > 1 {
-                let values = heart.map(\.value)
-                let lo = (values.min() ?? 0) - 3
-                let hi = (values.max() ?? 1) + 3
-                var path = Path()
-                for (index, point) in heart.enumerated() {
-                    let px = CGFloat(Double(point.at - night.bed) / total) * size.width
-                    let py = size.height * 0.04 + CGFloat((hi - point.value) / max(1, hi - lo)) * size.height * 0.36
-                    if index == 0 { path.move(to: CGPoint(x: px, y: py)) } else { path.addLine(to: CGPoint(x: px, y: py)) }
-                }
-                context.stroke(path, with: .color(heartColor.opacity(0.85)), style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
-            }
         }
+        .lunaTip { point, size in LunaHypnogram.tip(night, at: point, in: size) }
     }
 
     private var marks: [(at: Int64, text: String)] {
@@ -221,6 +283,7 @@ struct LunaHypnogram: View {
 struct LunaStageBar: View {
     let stages: LunaStages
     var height: CGFloat = 12
+    @State private var hovered: LunaStage?
 
     var body: some View {
         GeometryReader { geo in
@@ -230,18 +293,26 @@ struct LunaStageBar: View {
             HStack(spacing: 2) {
                 ForEach(LunaStage.allCases) { stage in
                     if stages.value(stage) > 0 {
-                        Rectangle().fill(LunaBoard.stage(stage)).frame(width: width * CGFloat(stages.value(stage) / total))
+                        Rectangle()
+                            .fill(LunaBoard.stage(stage))
+                            .frame(width: width * CGFloat(stages.value(stage) / total))
+                            .contentShape(Rectangle())
+                            .onHover { inside in
+                                if inside { hovered = stage } else if hovered == stage { hovered = nil }
+                            }
                     }
                 }
             }
             .clipShape(Capsule())
         }
         .frame(height: height)
+        .lunaTip { _, _ in hovered.map { LunaTip(title: stages.tip($0)) } }
     }
 }
 
 struct LunaLegend: View {
     let stages: LunaStages
+    @State private var hovered: LunaStage?
 
     var body: some View {
         HStack(alignment: .top) {
@@ -254,15 +325,29 @@ struct LunaLegend: View {
                     }
                     Text(LunaText.duration(stages.value(stage))).font(LunaLook.font(14, .bold)).foregroundStyle(LunaBoard.ink).monospacedDigit()
                 }
+                .contentShape(Rectangle())
+                .onHover { inside in
+                    if inside { hovered = stage } else if hovered == stage { hovered = nil }
+                }
             }
         }
         .padding(.top, 10)
+        .lunaTip { _, _ in hovered.map { LunaTip(title: stages.tip($0)) } }
     }
 }
 
 extension LunaStages {
     init(_ night: LunaNight) {
         self.init(deep: Double(night.deep), core: Double(night.core), rem: Double(night.rem), awake: Double(night.awake))
+    }
+
+    func share(_ stage: LunaStage) -> Double {
+        let base = stage == .awake ? total : deep + core + rem
+        return base > 0 ? value(stage) / base * 100 : 0
+    }
+
+    func tip(_ stage: LunaStage) -> String {
+        "\(LunaText.duration(value(stage))) · \(stage.label) · \(LunaMath.jsRound(share(stage)))%"
     }
 }
 
@@ -378,6 +463,7 @@ private struct LunaGlance: View {
     @ObservedObject var store: LunaStore
     @ObservedObject var themes = AppThemeStore.shared
     let open: () -> Void
+    @State private var hoveredBar: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -426,9 +512,8 @@ private struct LunaGlance: View {
 
     private func weekBars(_ night: LunaNight) -> some View {
         let keys = LunaDays.week(night.key)
-        return HStack(alignment: .bottom) {
-            ForEach(Array(keys.enumerated()), id: \.element) { index, key in
-                if index > 0 { Spacer(minLength: 2) }
+        return HStack(alignment: .bottom, spacing: 0) {
+            ForEach(keys, id: \.self) { key in
                 let found = store.night(key)
                 VStack(spacing: 5) {
                     RoundedRectangle(cornerRadius: 6)
@@ -436,14 +521,25 @@ private struct LunaGlance: View {
                         .frame(width: 16, height: found.map { CGFloat(min(600, max(60, $0.inBed))) / 600 * 56 } ?? 6)
                     Text(String(LunaDays.dayName(key).prefix(1))).font(LunaLook.font(10.5)).foregroundStyle(LunaBoard.muted)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .contentShape(Rectangle())
+                .onHover { inside in
+                    if inside { hoveredBar = key } else if hoveredBar == key { hoveredBar = nil }
+                }
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 8)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity)
         .frame(height: 96, alignment: .bottom)
         .background(RoundedRectangle(cornerRadius: 16).fill(LunaBoard.column))
         .boardEdge(16)
+        .lunaTip { _, _ in barTip }
+    }
+
+    private var barTip: LunaTip? {
+        guard let hoveredBar, let found = store.night(hoveredBar) else { return nil }
+        return LunaTip(title: "\(LunaText.day(hoveredBar)) · \(LunaText.duration(Double(found.asleep))) · \(found.score)")
     }
 
     private func two(_ lines: [LunaLine]) -> [LunaLine] {
@@ -727,7 +823,7 @@ private struct LunaNightView: View {
         HStack(alignment: .top, spacing: 14) {
             VStack(spacing: 14) {
                 LunaRing(score: night.score, asleep: night.asleep, size: 150, line: 13)
-                LunaFacts(night: night, units: true)
+                LunaFacts(night: night)
             }
             .padding(20)
             .frame(width: 300)
@@ -735,7 +831,7 @@ private struct LunaNightView: View {
             .background(RoundedRectangle(cornerRadius: 16).fill(LunaBoard.column))
             .boardEdge(16)
             VStack(alignment: .leading, spacing: 0) {
-                LunaHypnogram(night: night, heart: store.heart(night), labels: true, ticks: true, height: 230)
+                LunaHypnogram(night: night, labels: true, ticks: true, height: 230)
                 LunaStageBar(stages: LunaStages(night), height: 12).padding(.top, 18)
                 LunaLegend(stages: LunaStages(night))
             }
@@ -841,8 +937,8 @@ private struct LunaWeekView: View {
             VStack(spacing: 14) {
                 LunaStagesCard(stages: week.stages)
                 LunaCard(padding: 18) {
-                    LunaLook.kicker("Heart").padding(.bottom, 2)
-                    LunaHeartBars(keys: week.keys, values: week.hr)
+                    LunaLook.kicker("Each night").padding(.bottom, 2)
+                    LunaNightStacks(keys: week.keys, nights: week.nights, today: store.today)
                 }
                 if week.comments.isEmpty {
                     Spacer(minLength: 0)
@@ -870,28 +966,60 @@ private struct LunaChip: View {
     }
 }
 
-private struct LunaHeartBars: View {
+private struct LunaPick: Equatable {
+    let key: String
+    let stage: LunaStage
+}
+
+private struct LunaNightStacks: View {
     let keys: [String]
-    let values: [Int?]
+    let nights: [LunaNight]
+    let today: String
+    @State private var hovered: LunaPick?
+
+    private static let order: [LunaStage] = [.awake, .rem, .core, .deep]
+    private static let tall: CGFloat = 84
 
     var body: some View {
-        let known = values.compactMap { $0 }
-        let low = Double((known.min() ?? 50) - 8)
-        let high = Double(max((known.max() ?? 60), Int(low) + 10))
-        HStack(alignment: .bottom) {
-            ForEach(Array(keys.enumerated()), id: \.element) { index, key in
-                if index > 0 { Spacer(minLength: 2) }
-                let value = index < values.count ? values[index] : nil
-                VStack(spacing: 4) {
-                    Text(value.map { "\($0)" } ?? " ").font(LunaLook.font(11)).foregroundStyle(LunaBoard.muted).monospacedDigit()
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(value == nil ? LunaBoard.line : LunaBoard.heartSoft)
-                        .frame(width: 22, height: value.map { CGFloat(max(6, (Double($0) - low) / max(1, high - low) * 56)) } ?? 4)
-                    Text(String(LunaDays.dayName(key).prefix(1))).font(LunaLook.font(11)).foregroundStyle(LunaBoard.faint)
+        let scale = Double(max(480, nights.map(\.inBed).max() ?? 480))
+        HStack(alignment: .bottom, spacing: 0) {
+            ForEach(keys, id: \.self) { key in
+                VStack(spacing: 5) {
+                    if let night = nights.first(where: { $0.key == key }) {
+                        VStack(spacing: 1.5) {
+                            ForEach(Self.order) { stage in
+                                if night.minutes(stage) > 0 {
+                                    RoundedRectangle(cornerRadius: 3)
+                                        .fill(LunaBoard.stage(stage))
+                                        .frame(width: 22, height: max(2, CGFloat(Double(night.minutes(stage)) / scale) * Self.tall))
+                                        .contentShape(Rectangle())
+                                        .onHover { inside in hover(LunaPick(key: key, stage: stage), inside) }
+                                }
+                            }
+                        }
+                    } else {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(key > today ? Color.clear : LunaBoard.line)
+                            .frame(width: 22, height: 4)
+                    }
+                    Text(String(LunaDays.dayName(key).prefix(1)))
+                        .font(LunaLook.font(11))
+                        .foregroundStyle(key == today ? LunaBoard.tone : LunaBoard.faint)
                 }
+                .frame(maxWidth: .infinity)
             }
         }
-        .frame(height: 96, alignment: .bottom)
+        .frame(height: 122, alignment: .bottom)
+        .lunaTip { _, _ in tip }
+    }
+
+    private func hover(_ pick: LunaPick, _ inside: Bool) {
+        if inside { hovered = pick } else if hovered == pick { hovered = nil }
+    }
+
+    private var tip: LunaTip? {
+        guard let hovered, let night = nights.first(where: { $0.key == hovered.key }) else { return nil }
+        return LunaTip(title: LunaStages(night).tip(hovered.stage), lines: [LunaText.day(hovered.key)])
     }
 }
 
@@ -982,6 +1110,13 @@ private struct LunaWindowChart: View {
                 }
             }
         }
+        .lunaTip { point, size in
+            guard !keys.isEmpty, size.width > 0, point.x >= 0 else { return nil }
+            let index = Int(point.x / (size.width / CGFloat(keys.count)))
+            guard index >= 0, index < keys.count, let night = nights.first(where: { $0.key == keys[index] }) else { return nil }
+            return LunaTip(title: LunaText.day(night.key),
+                           lines: [LunaText.span(night.bed, night.wake), "\(LunaText.duration(Double(night.asleep))) · \(night.score)"])
+        }
     }
 }
 
@@ -989,6 +1124,7 @@ private struct LunaMonthView: View {
     @ObservedObject var store: LunaStore
     @Binding var key: String
     let open: (String) -> Void
+    @State private var hoveredDay: String?
 
     var body: some View {
         let month = store.month(key)
@@ -997,6 +1133,10 @@ private struct LunaMonthView: View {
                     next: { key = LunaDays.monthShift(key, by: 1) })
         HStack(alignment: .top, spacing: 14) {
             grid(month)
+                .lunaTip { _, _ in
+                    guard let hoveredDay, let night = month.nights.first(where: { $0.key == hoveredDay }) else { return nil }
+                    return LunaTip(title: LunaText.day(hoveredDay), lines: ["\(LunaText.duration(Double(night.asleep))) · \(night.score)"])
+                }
                 .padding(18)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .background(RoundedRectangle(cornerRadius: 16).fill(LunaBoard.column))
@@ -1084,7 +1224,9 @@ private struct LunaMonthView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .help(night.map { "\(LunaText.duration(Double($0.asleep))) · \($0.score)" } ?? "")
+            .onHover { inside in
+                if inside { hoveredDay = day } else if hoveredDay == day { hoveredDay = nil }
+            }
         }
     }
 }
@@ -1124,6 +1266,13 @@ private struct LunaLineChart: View {
                 context.fill(dot, with: .color(card))
                 context.stroke(dot, with: .color(tone), lineWidth: 1.6)
             }
+        }
+        .lunaTip { point, size in
+            guard values.count > 0, size.width > 0 else { return nil }
+            let step = size.width / CGFloat(max(1, values.count - 1))
+            let index = Int((point.x / step).rounded())
+            guard index >= 0, index < values.count, let value = values[index] else { return nil }
+            return LunaTip(title: "\(LunaText.day(keys[index])) · \(LunaText.duration(value * 60))")
         }
     }
 }

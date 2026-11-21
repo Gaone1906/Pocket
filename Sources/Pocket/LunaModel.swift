@@ -16,8 +16,6 @@ enum LunaBoard: BoardScope {
     static let goodSoft = Color(hue: 152, saturation: 40, lightness: 90)
     static let fix = Color(hue: 26, saturation: 72, lightness: 46)
     static let fixSoft = Color(hue: 28, saturation: 80, lightness: 91)
-    static let heart = Color(hue: 350, saturation: 60, lightness: 62)
-    static let heartSoft = Color(hue: 350, saturation: 60, lightness: 80)
 
     static func stage(_ stage: LunaStage) -> Color {
         switch stage {
@@ -124,11 +122,6 @@ struct LunaSettings: Equatable {
     var wakeMinutes: Int { Self.minutes(wake) }
 }
 
-struct LunaPoint: Equatable {
-    let at: Int64
-    let value: Double
-}
-
 struct LunaSegment: Equatable {
     let stage: LunaStage
     let start: Int64
@@ -200,7 +193,6 @@ struct LunaWeek: Equatable {
     let count: Int
     let change: Int?
     let stages: LunaStages
-    let hr: [Int?]
     let comments: [LunaLine]
 }
 
@@ -503,12 +495,6 @@ enum LunaMath {
         }
     }
 
-    static func heart(_ all: [Reading], in night: LunaNight) -> [LunaPoint] {
-        all.filter { $0.v == "HR" && $0.q != nil && $0.s >= night.bed && $0.s <= night.wake }
-            .sorted { $0.s < $1.s }
-            .map { LunaPoint(at: $0.s, value: $0.q ?? 0) }
-    }
-
     private static func pick(_ lines: [LunaLine], _ most: Int) -> [LunaLine] {
         let fixes = Array(lines.filter { !$0.ok }.prefix(min(2, most)))
         let oks = Array(lines.filter(\.ok).prefix(max(0, most - fixes.count)))
@@ -559,8 +545,6 @@ enum LunaMath {
         let previous = inKeys(all, LunaDays.week(LunaDays.shift(keys[0], by: -7)))
         let avgAsleep = mean(list.map { Double($0.asleep) })
         let prevAsleep = mean(previous.map { Double($0.asleep) })
-        let avgHr = mean(list.compactMap(\.hr).map(Double.init))
-        let prevHr = mean(previous.compactMap(\.hr).map(Double.init))
         let goal = (st.hours - 1) * 60
         let over = list.filter { Double($0.asleep) >= goal }.count
         let bedSpread = spread(list.map { Double($0.bedDelta) })
@@ -576,11 +560,6 @@ enum LunaMath {
                 if d >= 10 { lines.append(LunaLine(ok: true, text: "\(jsRound(d))m more than last week")) }
                 else if d <= -10 { lines.append(LunaLine(ok: false, text: "\(jsRound(-d))m less than last week")) }
             }
-            if let avgHr, let prevHr {
-                let d = avgHr - prevHr
-                if d <= -1 { lines.append(LunaLine(ok: true, text: "Resting heart down \(jsRound(-d))")) }
-                else if d >= 2 { lines.append(LunaLine(ok: false, text: "Resting heart up \(jsRound(d))")) }
-            }
         }
         var change: Int?
         if let avgAsleep, let prevAsleep { change = jsRound(avgAsleep - prevAsleep) }
@@ -588,7 +567,6 @@ enum LunaMath {
                         avgScore: list.isEmpty ? nil : mean(list.map { Double($0.score) }).map(jsRound),
                         spread: bedSpread.map(jsRound), over: over, count: list.count, change: change,
                         stages: stageAverages(list),
-                        hr: keys.map { key in list.first { $0.key == key }?.hr },
                         comments: pick(lines, 3))
     }
 
@@ -628,6 +606,7 @@ enum LunaMath {
 enum LunaText {
     static func duration(_ minutes: Double) -> String {
         let m = LunaMath.jsRound(minutes)
+        if m < 60 { return "\(m)m" }
         return "\(m / 60)h " + String(format: "%02d", m % 60) + "m"
     }
 
@@ -654,6 +633,10 @@ enum LunaText {
         if value == value.rounded(), abs(value) < 1e15 { return String(Int64(value)) }
         return number(Double(LunaMath.jsRound(value * 10)) / 10)
     }
+
+    static func span(_ start: Int64, _ end: Int64) -> String { "\(clock(start)) – \(clock(end))" }
+
+    static func day(_ key: String) -> String { "\(LunaDays.dayName(key)) \(LunaDays.dayNumber(key))" }
 
     static func hourTick(_ ms: Int64, suffix: Bool) -> String {
         let h = LunaDays.calendar.component(.hour, from: LunaMath.date(ms))
@@ -743,8 +726,6 @@ final class LunaStore: ObservableObject {
     func night(_ key: String) -> LunaNight? { nights.last { $0.key == key } }
 
     func recent(_ count: Int) -> [LunaNight] { Array(nights.suffix(count).reversed()) }
-
-    func heart(_ night: LunaNight) -> [LunaPoint] { LunaMath.heart(readings, in: night) }
 
     func comments(_ night: LunaNight) -> [LunaLine] { LunaMath.nightComments(night, settings) }
 
