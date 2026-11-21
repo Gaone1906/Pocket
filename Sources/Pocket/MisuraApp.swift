@@ -33,7 +33,7 @@ final class MisuraApp: PocketApp {
         let left = day.left
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .semibold),
-            .foregroundColor: left < 0 ? NSColor.systemRed : (AppThemeStore.shared.iconTint(for: spec.id) ?? NSColor.labelColor)
+            .foregroundColor: left < 0 ? NSColor.systemRed : NSColor.labelColor
         ]
         return NSAttributedString(string: left < 0 ? " +\(MisuraText.kcal(-left))" : " \(MisuraText.kcal(left)) left", attributes: attributes)
     }

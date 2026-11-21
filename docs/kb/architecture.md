@@ -90,9 +90,9 @@ osascript -l JavaScript -e 'ObjC.import("Foundation"); $.NSDistributedNotificati
     (returns focus to the previous app) → log `pocket hidden app= reason=` → `didHide()`.
   - `windowDidResignKey`: hides with `focus lost` unless `shouldStayOpen()` (WebApp keeps open while e.g. a popup or
     file dialog is up).
-- `enum AppIcon`: `side = 18`. `glyph(spec)`: SVG string from `spec.glyph` via `NSImage(data:)`, else SF Symbol
-  `spec.symbol`. `render(spec, unread:, tint:)`: 21×18 non-template image, glyph tinted with `tint`
-  (`.labelColor`); `unread > 0` draws a red pill with the number (`99+` cap), `unread < 0` a 7 pt red dot. Logs
+- `enum AppIcon`: `side = 21`. `glyph(spec)`: SVG string from `spec.glyph` via `NSImage(data:)`, else SF Symbol
+  `spec.symbol`. `render(spec, unread:, tint:)`: 24×21 non-template image, glyph drawn in an 18 pt box and tinted with `tint`
+  (default `.labelColor`, never the app colour); `unread > 0` draws a red pill with the number (`99+` cap), `unread < 0` a 7 pt red dot. Logs
   `pocket menu glyph missing` if neither source works.
 
 ### `Catalog.swift` — `WebSpec`, `AppSpec`, `catalog`, `spec(_:)`
@@ -232,7 +232,7 @@ tokens, `BoardBackdrop`, `colorScheme`, hosting `appearance`).
 
 Layout: no header or footer. `ShelfList` starts at the top of the panel (the hosting view has no safe area), with a small
 gear over the right end of the first shelf's title row. `ShelfList` renders the Menu bar shelf, the custom shelves, and
-Unorganized (only while it has apps, or in organize mode) as `ShelfSection`s: a small-caps title and a fold chevron, over a card with an adaptive grid of `AppTile`s (42pt glyph chip + name). Tap opens the
+Unorganized (only while it has apps, or in organize mode) as `ShelfSection`s: a small-caps title and a fold chevron, over a card with an adaptive grid of `AppTile`s (42pt chip with a 25pt glyph in the ink colour + name). Tap opens the
 app (`open(id, source: "dropdown")`); right-click offers "Move to" and "New shelf with …". Drag-and-drop uses the app id
 `String` as payload (on a tile inserts before it, on a shelf appends); a shelf's grip drags `shelf:<id>` to reorder.
 Organize mode (name field, up/down, delete, "New shelf") exists only in Pocket Settings → Shelves; "Set up…" is in
@@ -291,7 +291,7 @@ can't be opened). Rotation happens once, at first use per launch: if the file is
 `reason=`, `project=`) and the values that decided the outcome. How to read: [operations.md](operations.md#reading-logs).
 
 ### `Glyphs.swift` — `enum Glyphs`
-Static SVG strings: `sol` (the sun horse, traced from the Sol web icon), `whatsapp`, `slack`, `spotify`, `gmail`, `matinee`. Drawn by `AppIcon` as tinted
+Static SVG strings: the element glyphs `ignis` (fire), `ventus` (wind), `aqua` (water drop), `terra` (leaf), `luna` (crescent moon) and `sol` (sun), bold rounded strokes on a 24-unit grid with stroke width 2.2; `whatsapp`, `slack`, `spotify`, `gmail`, `matinee`. Drawn by `AppIcon` as tinted
 images, so only the shape matters (fill/stroke colour is replaced). Use a square `viewBox`; raw strings use `#"…"#`
 or `##"…"##` when the SVG contains `"#`.
 

@@ -19,7 +19,7 @@ Related: [architecture](../architecture.md), [theme](../theme.md) (`BoardTheme`,
 | Catalog entry | `Catalog.swift`: `AppSpec(id: "pomodoro", name: "Ignis", symbol: "timer", glyph: Glyphs.ignis, hotKey: kVK_ANSI_1)`. Built by `Factory.swift` `case "pomodoro": PomodoroApp(spec:)` |
 | Default shortcut | ⌥1 (⌥P until 2026-11-19) |
 | Dropdown | 340 × 330, fixed (`defaultSize` = `minSize`, `resizable = false`) |
-| Menu-bar item | Idle: the lion face (`Glyphs.ignis`) in the app colour. Active (running or paused): the face tinted, followed by ` MM:SS` in semibold monospaced digits. The tint is **gold** in focus and **silver** in rest/long (`PomodoroPalette`, with light and dark variants). A paused phase shows a frozen countdown in the same colour |
+| Menu-bar item | Idle: the flame (`Glyphs.ignis`) in the label colour. Active (running or paused): the flame tinted, followed by ` MM:SS` in semibold monospaced digits. The tint is the **label colour** in focus and **silver** in rest/long (`PomodoroPalette`, with light and dark variants). A paused phase shows a frozen countdown in the same colour |
 | Right-click menu item | **Open Ignis board** (`menuItems()`) |
 | Board window | 980 × 620 to start (min 640 × 420), resizable, frame autosaved as `pomodoro.board` |
 

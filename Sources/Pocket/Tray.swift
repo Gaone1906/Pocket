@@ -354,7 +354,6 @@ struct ShelfNameField: View {
 
 struct AppTile: View {
     @ObservedObject var layout: Layout
-    @ObservedObject private var appThemes = AppThemeStore.shared
     let id: String
     let open: (String) -> Void
     @State private var hovering = false
@@ -367,8 +366,8 @@ struct AppTile: View {
                 RoundedRectangle(cornerRadius: 12)
                     .strokeBorder(hovering ? Board.accent.opacity(0.6) : Board.line.opacity(0.6), lineWidth: 1)
                 AppGlyph(id: id)
-                    .foregroundStyle(appThemes.iconColor(for: id, onDark: Board.theme.isDark) ?? (hovering ? Board.accentInk : Board.ink))
-                    .frame(width: 19, height: 19)
+                    .foregroundStyle(hovering ? Board.accentInk : Board.ink)
+                    .frame(width: 25, height: 25)
             }
             .frame(width: 42, height: 42)
             .scaleEffect(hovering ? 1.06 : 1)

@@ -98,10 +98,10 @@ The Hair web app (`/Pocket/`) defaults to Sage, but it has no Mac app of its own
 - **Shared views.** `.appTheme(theme)` sets `\.boardTheme`, `\.colorScheme` and `.fontDesign(.rounded)` at an app's root, so Aqua, Ignis, Ventus and Terra all use SF Rounded like Terra (explicit `design: .serif` in Ventus's journal books stays); `.boardEdge` without a
   colour reads `\.boardTheme`, falling back to the Pocket theme. Panels use `ThemedHostingView(rootView:app:)`, and the
   board windows subscribe to `AppThemeStore.shared.publisher(for:)`.
-- **Icons.** `AppIcon.render` tints a themed app's menu-bar glyph with `iconTint(for:)`, a dynamic colour: the theme's
-  `swatchRing` on a light menu bar and `swatchEdge` on a dark one (for dark themes, `swatchEdge` and `accent`). Dropdown
-  tiles use `iconColor(for:onDark:)` against the Pocket theme. Ignis's running timer uses the same colour in focus
-  and silver on breaks. `set(_:for:)` calls the app's `changed()` so the menu bar redraws at once.
+- **Icons.** App colours never reach the menu bar or the dropdown tiles (Pranav, 2026-11-21): glyphs and menu-bar text
+  use `.labelColor`, tiles use the Pocket theme's ink. Ignis's running timer is label colour in focus and silver on breaks.
+  `iconColor(for:onDark:)` only colours the glyph in the APP COLOURS rows of Settings. `set(_:for:)` calls the app's
+  `changed()` so its windows recolour at once.
 - **Settings.** Pocket Settings → Appearance → APP COLOURS has one row per app with every theme as a swatch and a "Use
   <default>" button once changed. The THEME row in the Aqua and Ignis settings panels shows the app's colour and
   opens that section.

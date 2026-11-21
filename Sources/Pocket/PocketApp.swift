@@ -108,7 +108,7 @@ class PocketApp: NSObject, NSWindowDelegate {
 }
 
 enum AppIcon {
-    static let side: CGFloat = 18
+    static let side: CGFloat = 21
 
     static func glyph(_ spec: AppSpec) -> NSImage? {
         spec.glyph.flatMap { NSImage(data: Data($0.utf8)) }
@@ -116,7 +116,7 @@ enum AppIcon {
     }
 
     static func render(_ spec: AppSpec, unread: Int = 0, tint: NSColor? = nil) -> NSImage? {
-        let tint = tint ?? AppThemeStore.shared.iconTint(for: spec.id) ?? .labelColor
+        let tint = tint ?? .labelColor
         guard let glyph = glyph(spec) else {
             note("pocket menu glyph missing app=\(spec.id) symbol=\(spec.symbol)")
             return nil
