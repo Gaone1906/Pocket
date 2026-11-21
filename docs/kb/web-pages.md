@@ -8,6 +8,8 @@ Luna (`web/luna/`, https://gaone1906.github.io/Pocket/luna/), the sleep app, is 
 
 Sol's formula cards (`web/sol/`, https://gaone1906.github.io/Pocket/sol/) are a seventh web app with no Mac counterpart yet; see [apps/sol.md](apps/sol.md).
 
+Zenda (`web/zenda/`, https://gaone1906.github.io/Pocket/zenda/), the mindfulness app split out of Ventus, is an eighth, with its Mac half and records in [apps/zenda.md](apps/zenda.md). It reads `schedule.routine`, `schedule.check`, `schedule.settings`, `runner.entry` and `zenda.project`; writes `schedule.check`, `runner.entry` and `zenda.project`. Local key `zenda.cloud.v1`, cache prefix `zenda-web-` (`zenda-web-v1`), ink-swirl panda icon, rice-paper theme. It imports `../ventus/plan.js`, so a change to that file must keep Zenda working too. Ventus hides Zenda's routines (`isMindful`).
+
 Related: [cloud-sync.md](cloud-sync.md) (the table, sync rules, setup link, dev server), [apps/schedule.md](apps/schedule.md) (Aqua on the Mac), [apps/pomodoro.md](apps/pomodoro.md) (Ignis on the Mac), [apps/kairos.md](apps/kairos.md) (Ventus on both), [apps/misura.md](apps/misura.md) (Terra on both).
 
 ## At a glance

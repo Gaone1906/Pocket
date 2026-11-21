@@ -1,6 +1,6 @@
 # Ventus
 
-Ventus (internal id `runner`) runs today's timed routines step by step: press Start and it shows only what to do now, counts down, names each move and its reps, rests between rounds, and moves on by itself. Writing steps are typed into it and kept as a journal. Each finished step ticks the same `schedule.check` record Aqua uses, so Aqua on every device updates on its own. It was designed and built on 2026-11-19; it was briefly called Usanza, then Adesso.
+Ventus (internal id `runner`) runs today's timed fitness routines step by step (mindfulness routines moved to Zenda on 2026-11-21, see [zenda.md](zenda.md)): press Start and it shows only what to do now, counts down, names each move and its reps, rests between rounds, and moves on by itself. Writing steps are typed into it and kept as a journal. Each finished step ticks the same `schedule.check` record Aqua uses, so Aqua on every device updates on its own. It was designed and built on 2026-11-19; it was briefly called Usanza, then Adesso.
 
 It exists twice: on the Mac (`KairosApp.swift`, `KairosModel.swift`, ⌥2) and as the web app at `/Pocket/ventus/` (`web/ventus/`). Both read the same routines and write the same records.
 
