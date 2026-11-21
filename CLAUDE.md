@@ -223,6 +223,15 @@ Calorie tracker (`⌥4`); its app id, data file and record kinds say `calorie`. 
 - Keep `MisuraMath` (`MisuraModel.swift`) and `web/terra/plan.js` giving the same numbers.
 - Over the daily limit is red, under is green; eaten is orange, workout and BMR are green.
 
+## Luna app
+
+Sleep tracker (`⌥5`); its app id, data file and record kinds say `sleep`. Details in
+[docs/kb/apps/luna.md](docs/kb/apps/luna.md), the Shortcut in [docs/kb/apps/luna-shortcut.md](docs/kb/apps/luna-shortcut.md). Rules to keep true:
+- Sleep data comes only from the iPhone's Luna Sync Shortcut as `sleep.sample` rows; neither app writes samples.
+- Every target (bed, wake, hours, deep, REM, tolerance) lives in `sleep.settings` (id `book`), never in code.
+- Keep `LunaMath` (`LunaModel.swift`) and `web/luna/sleep.js` giving the same nights, scores and comments.
+- `$ROOT/sleep.json` (`{"samples", "settings"}`, `DataVault` name `sleep`); samples carry their cloud id only locally (`detachedId`).
+
 ## Rollin app
 
 A hidden menu-bar ticker on the Experimental shelf; details in [docs/kb/apps/rollin.md](docs/kb/apps/rollin.md). Rules to keep true:
