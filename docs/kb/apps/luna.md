@@ -1,6 +1,6 @@
 # Luna
 
-Luna (internal id `sleep`) is the sleep app, built on 2026-11-21. It shows each night's sleep from Apple Health and comments on the night, the week and the month: what went well and what to fix. It is lavender (hue 258, theme `lavender`) with rounded type: SF Rounded on the Mac, Nunito on the web. Its icon is a wolf howling at the moon; the menu bar shows the wolf's head. Mac shortcut ⌥5.
+Luna (internal id `sleep`) is the sleep app, built on 2026-11-21. It shows each night's sleep from Apple Health and comments on the night, the week and the month: what went well and what to fix. It is lavender (hue 258, theme `lavender`) with rounded type: SF Rounded on the Mac, Nunito on the web. Its icon is a flat wolf howling beside a crescent moon and three stars (picked 2026-11-21, replacing the busier wolf on a rock); the menu bar shows the howling head (`Glyphs.luna`). Mac shortcut ⌥5.
 
 It exists twice: on the Mac (`LunaModel.swift`, `LunaApp.swift`) and as the web app at `/Pocket/luna/` (`web/luna/`). Both read the same records. `LunaMath` (Swift) and `web/luna/sleep.js` must give the same nights, scores and comments.
 
