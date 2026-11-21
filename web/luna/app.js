@@ -30,6 +30,19 @@ function model() {
 
 const selected = () => ui.key || S.today();
 const tone = (score) => TONES[S.scoreTone(score)] || "var(--line)";
+const dur = (min) => (Math.round(min) < 60 ? `${Math.round(min)}m` : S.duration(min));
+const dayLabel = (k) => `${S.dayName(k)} ${S.parseKey(k).getDate()}`;
+const tipAttr = (id, ...lines) => ` data-tid="${esc(id)}" data-tip="${esc(lines.join("\n"))}"`;
+
+function shares(t) {
+  const asleep = t.deep + t.core + t.rem;
+  const pct = (v, of) => (of > 0 ? Math.round((v / of) * 100) : 0);
+  return { deep: pct(t.deep, asleep), core: pct(t.core, asleep), rem: pct(t.rem, asleep), awake: pct(t.awake, asleep + t.awake) };
+}
+
+function stageTip(id, t, k) {
+  return tipAttr(id, `${dur(t[k])} · ${LANE_NAMES[k]} · ${shares(t)[k]}%`);
+}
 
 function header() {
   return `<header class="hd"><div class="tile"><img src="icon-192.png" alt=""></div><h1>Luna</h1><button class="circ" data-sync aria-label="Sync">${ICONS.sync}</button><button class="circ" data-go="settings" aria-label="Settings">${ICONS.settings}</button></header>
@@ -49,16 +62,16 @@ function strip(m, k) {
     .map((d) => {
       const n = m.nights.find((x) => x.key === d);
       const dot = n ? `<i class="dot" style="background:${tone(n.score)}"></i>` : `<i class="dot${d > now ? " far" : ""}"></i>`;
-      return `<button class="d${d === k ? " on" : ""}" data-key="${d}"><span class="w">${S.dayName(d)}</span><span class="n">${S.parseKey(d).getDate()}</span>${dot}</button>`;
+      return `<button class="d${d === k ? " on" : ""}" data-key="${d}"${n ? tipAttr(`d-${d}`, `${dur(n.asleep)} · ${n.score}`) : ""}><span class="w">${S.dayName(d)}</span><span class="n">${S.parseKey(d).getDate()}</span>${dot}</button>`;
     })
     .join("")}<button class="chev${canNext ? "" : " off"}" ${canNext ? `data-key="${next > now ? now : next}"` : "disabled"} aria-label="Later">${ICONS.right}</button></div>`;
 }
 
-function ring(score, size, stroke, center, sub) {
+function ring(score, size, stroke, center, sub, tip = "") {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const f = Math.max(0, Math.min(100, score)) / 100;
-  return `<div class="ring" style="width:${size}px;height:${size}px"><svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="var(--track)" stroke-width="${stroke}"/><circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="${tone(score)}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}"/></svg><div class="mid">${center}<span>${sub}</span></div></div>`;
+  return `<div class="ring" style="width:${size}px;height:${size}px"${tip}><svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="var(--track)" stroke-width="${stroke}"/><circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="${tone(score)}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}"/></svg><div class="mid">${center}<span>${sub}</span></div></div>`;
 }
 
 function hourLabel(h, full) {
@@ -76,7 +89,8 @@ function hypnogram(n) {
   const x = (t) => LW + ((t - n.bed) / span) * w;
   let s = "";
   let prev = null;
-  for (const seg of n.segments) {
+  const hits = [];
+  for (const [i, seg] of n.segments.entries()) {
     const lane = LANES.indexOf(seg.stage);
     const x0 = x(seg.start);
     const y = lane * lh;
@@ -86,8 +100,16 @@ function hypnogram(n) {
       s += `<rect x="${(x0 - 0.75).toFixed(1)}" y="${y1.toFixed(1)}" width="1.5" height="${(y2 - y1).toFixed(1)}" fill="var(--line)"/>`;
     }
     s += `<rect x="${x0.toFixed(1)}" y="${(y + lh * 0.18).toFixed(1)}" width="${Math.max(x(seg.end) - x0, 2).toFixed(1)}" height="${(lh * 0.64).toFixed(1)}" rx="${Math.min(4, lh * 0.2).toFixed(1)}" fill="${COLOURS[seg.stage]}"/>`;
+    const x1 = x(seg.end);
+    const hw = Math.max(x1 - x0, 6);
+    const mins = (seg.end - seg.start) / 60000;
+    hits.push({ mins, rect: `<rect class="hit" x="${((x0 + x1) / 2 - hw / 2).toFixed(1)}" y="0" width="${hw.toFixed(1)}" height="${H}" fill="transparent"${tipAttr(`h-${n.key}-${i}`, `${dur(mins)} · ${LANE_NAMES[seg.stage]}`, `${S.clock(seg.start)} – ${S.clock(seg.end)}`)}/>` });
     prev = lane;
   }
+  const hitText = hits
+    .sort((a, b) => b.mins - a.mins)
+    .map((h) => h.rect)
+    .join("");
   const labels = LANES.map((l, i) => `<text x="0" y="${(i * lh + lh / 2 + 4).toFixed(1)}" class="lane">${LANE_NAMES[l]}</text>`).join("");
   const step = span > 5 * 3600000 ? 2 : 1;
   const first = new Date(n.bed);
@@ -102,22 +124,22 @@ function hypnogram(n) {
       return `<text x="${px.toFixed(1)}" y="${H + 20}" text-anchor="${anchor}" class="tick">${hourLabel(new Date(t).getHours(), i === 0 || i === ticks.length - 1)}</text>`;
     })
     .join("");
-  return `<svg class="chart" viewBox="0 0 ${W} ${H + 26}" role="img" aria-label="Hypnogram">${labels}${s}${tickText}</svg>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H + 26}" role="img" aria-label="Hypnogram">${labels}${s}${tickText}${hitText}</svg>`;
 }
 
-function stackBar(t, h) {
+function stackBar(t, h, id) {
   const tot = S.STAGES.reduce((a, k) => a + t[k], 0) || 1;
-  return `<div class="stack" style="height:${h}px;border-radius:${h / 2}px">${S.STAGES.map((k) => (t[k] > 0 ? `<i style="flex:${(t[k] / tot).toFixed(4)};background:${COLOURS[k]}"></i>` : "")).join("")}</div>`;
+  return `<div class="stack" style="height:${h}px;border-radius:${h / 2}px">${S.STAGES.map((k) => (t[k] > 0 ? `<i style="flex:${(t[k] / tot).toFixed(4)};background:${COLOURS[k]}"${stageTip(`b-${id}-${k}`, t, k)}></i>` : "")).join("")}</div>`;
 }
 
-function legend(t) {
+function legend(t, id) {
   return `<div class="legend">${[
     ["deep", "Deep"],
     ["core", "Core"],
     ["rem", "REM"],
     ["awake", "Awake"],
   ]
-    .map(([k, n]) => `<div><span><i class="sw" style="background:${COLOURS[k]}"></i>${n}</span><b>${S.duration(t[k])}</b></div>`)
+    .map(([k, n]) => `<div${stageTip(`l-${id}-${k}`, t, k)}><span><i class="sw" style="background:${COLOURS[k]}"></i>${n}</span><b>${S.duration(t[k])}</b></div>`)
     .join("")}</div>`;
 }
 
@@ -134,8 +156,8 @@ function viewNight() {
     return `<main class="fill">${header()}${strip(m, k)}<div class="card empty"><div class="moon">${ICONS.moon}</div><button class="btn wide" data-sync>${ICONS.sync}<span>Sync</span></button></div></main>`;
   }
   return `<main>${header()}${strip(m, k)}
-    <div class="card top">${ring(n.score, 140, 13, `<b class="big">${n.score}</b>`, S.duration(n.asleep))}<div class="facts"><div class="kv"><span>Bed</span><b>${S.clock(n.bed)}</b></div><div class="kv"><span>Wake</span><b>${S.clock(n.wake)}</b></div><div class="rule"></div><div class="kv"><span>Heart</span><b>${n.hr ?? "–"}</b></div><div class="kv"><span>HRV</span><b>${n.hrv ?? "–"}</b></div></div></div>
-    <div class="card hyp">${hypnogram(n)}${legend(n)}</div>
+    <div class="card top">${ring(n.score, 140, 13, `<b class="big">${n.score}</b>`, S.duration(n.asleep), tipAttr(`r-${n.key}`, `Score ${n.score}`, `${dur(n.asleep)} asleep`))}<div class="facts"><div class="kv"><span>Bed</span><b>${S.clock(n.bed)}</b></div><div class="kv"><span>Wake</span><b>${S.clock(n.wake)}</b></div><div class="rule"></div><div class="kv"><span>In bed</span><b>${dur(n.inBed)}</b></div><div class="kv"><span>Awake</span><b>${dur(n.awake)}</b></div></div></div>
+    <div class="card hyp">${hypnogram(n)}${legend(n, "n")}</div>
     ${says(S.nightComments(n, m.settings))}
   </main>`;
 }
@@ -170,6 +192,7 @@ function windowChart(wk, st) {
   const y = (v) => ((v - top) / (bottom - top)) * H;
   const now = S.today();
   let s = "";
+  let hits = "";
   for (const v of [tb, tw]) s += `<line x1="${AX}" x2="${W}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--accent)" stroke-dasharray="3 4" opacity=".55"/>`;
   const firstHour = Math.ceil(top / 60);
   const bedHour = Math.floor(tb / 60);
@@ -188,13 +211,14 @@ function windowChart(wk, st) {
     if (n) {
       const y1 = y(sinceNoon(n.bed));
       const y2 = Math.max(y1 + 22, y(sinceNoon(n.wake)));
-      s += `<rect data-pick="${k}" x="${(cx - 11).toFixed(1)}" y="${y1.toFixed(1)}" width="22" height="${(y2 - y1).toFixed(1)}" rx="11" fill="${tone(n.score)}"/>`;
+      s += `<rect x="${(cx - 11).toFixed(1)}" y="${y1.toFixed(1)}" width="22" height="${(y2 - y1).toFixed(1)}" rx="11" fill="${tone(n.score)}"/>`;
+      hits += `<rect class="hit" data-pick="${k}" x="${(cx - bw / 2).toFixed(1)}" y="0" width="${bw.toFixed(1)}" height="${H}" fill="transparent"${tipAttr(`w-${k}`, dayLabel(k), `${S.clock(n.bed)} – ${S.clock(n.wake)}`, `${dur(n.asleep)} · ${n.score}`)}/>`;
     } else if (k >= now) {
       s += `<rect x="${(cx - 11).toFixed(1)}" y="${y(tb).toFixed(1)}" width="22" height="${(y(tw) - y(tb)).toFixed(1)}" rx="11" fill="none" stroke="var(--line)" stroke-dasharray="3 3"/>`;
     }
     s += `<text x="${cx.toFixed(1)}" y="${H + 26}" text-anchor="middle" class="day">${LETTERS[i]}</text>`;
   });
-  return `<svg class="chart" viewBox="0 0 ${W} ${H + 32}" role="img" aria-label="Sleep window">${s}</svg>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H + 32}" role="img" aria-label="Sleep window">${s}${hits}</svg>`;
 }
 
 function viewWeek() {
@@ -208,7 +232,7 @@ function viewWeek() {
   return `<main>${header()}
     ${arrows(S.shiftKey(k, -7), next > now ? now : next, rangeLabelWeek(wk.keys), S.weekStart(next) <= now)}
     <div class="card"><div class="wtop"><div><div class="big xl">${wk.avgAsleep == null ? "–" : S.duration(wk.avgAsleep)}</div><div class="lbl">avg${wk.avgScore == null ? "" : ` · ${wk.avgScore}`}</div></div>${chip}</div>${windowChart(wk, st)}</div>
-    ${wk.count ? `<div class="card stages">${stackBar(wk.stages, 14)}${legend(wk.stages)}</div>` : ""}
+    ${wk.count ? `<div class="card stages">${stackBar(wk.stages, 14, "w")}${legend(wk.stages, "w")}</div>` : ""}
     ${says(wk.comments)}
   </main>`;
 }
@@ -239,7 +263,11 @@ function lineChart(mo, st) {
   const band = `<rect x="0" y="${y(st.hours + 1).toFixed(1)}" width="${W}" height="${(y(st.hours - 0.5) - y(st.hours + 1)).toFixed(1)}" fill="var(--accent-soft)" opacity=".6" rx="6"/>`;
   const target = `<line x1="0" x2="${W}" y1="${y(st.hours).toFixed(1)}" y2="${y(st.hours).toFixed(1)}" stroke="var(--accent)" stroke-dasharray="3 4" opacity=".6"/>`;
   const dots = pts.map((v, i) => (v == null ? "" : `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.6" fill="var(--card)" stroke="var(--accent)" stroke-width="1.6"/>`)).join("");
-  return `<svg class="chart line" viewBox="0 0 ${W} ${H}" role="img" aria-label="Hours asleep">${band}${target}<path d="${p}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>${dots}</svg>`;
+  const step = (W - 8) / Math.max(1, pts.length - 1);
+  const hits = pts
+    .map((v, i) => (v == null ? "" : `<rect class="hit" data-pick="${mo.keys[i]}" x="${(x(i) - step / 2).toFixed(1)}" y="0" width="${step.toFixed(1)}" height="${H}" fill="transparent"${tipAttr(`p-${mo.keys[i]}`, `${dayLabel(mo.keys[i])} · ${dur(v * 60)}`)}/>`))
+    .join("");
+  return `<svg class="chart line" viewBox="0 0 ${W} ${H}" role="img" aria-label="Hours asleep">${band}${target}<path d="${p}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>${dots}${hits}</svg>`;
 }
 
 function viewMonth() {
@@ -256,7 +284,7 @@ function viewMonth() {
     .map((day) => {
       const n = mo.nights.find((x) => x.key === day);
       const cls = n ? `c ${S.scoreTone(n.score)}` : "c none";
-      return `<button class="${cls}${day === now ? " sel" : ""}" data-pick="${day}">${S.parseKey(day).getDate()}</button>`;
+      return `<button class="${cls}${day === now ? " sel" : ""}" data-pick="${day}"${n ? tipAttr(`m-${day}`, dayLabel(day), `${dur(n.asleep)} · ${n.score}`) : ""}>${S.parseKey(day).getDate()}</button>`;
     })
     .join("");
   return `<main>${header()}
@@ -333,7 +361,85 @@ function render() {
   const views = { night: viewNight, week: viewWeek, month: viewMonth, settings: viewSettings };
   if (!views[ui.view]) ui.view = "night";
   app.innerHTML = views[ui.view]() + (ui.toast ? `<div class="toast">${ICONS.ok}<span>${esc(ui.toast)}</span></div>` : "");
+  keepTip();
 }
+
+const tip = { node: null, el: null, id: null, x: 0, y: 0, touch: false, swallow: false };
+
+function tipNode() {
+  if (!tip.node) {
+    tip.node = document.createElement("div");
+    tip.node.className = "tip";
+    tip.node.setAttribute("role", "tooltip");
+    document.body.appendChild(tip.node);
+  }
+  return tip.node;
+}
+
+function showTip(target, x, y) {
+  const node = tipNode();
+  const id = target.dataset.tid;
+  if (tip.id !== id) {
+    const [head, ...rest] = target.dataset.tip.split("\n");
+    node.innerHTML = `<b>${esc(head)}</b>${rest.map((l) => `<span>${esc(l)}</span>`).join("")}`;
+  }
+  if (tip.el && tip.el !== target) tip.el.classList.remove("act");
+  target.classList.add("act");
+  tip.el = target;
+  tip.id = id;
+  tip.x = x;
+  tip.y = y;
+  node.classList.add("on");
+  const w = node.offsetWidth;
+  const h = node.offsetHeight;
+  const left = Math.max(8, Math.min(window.innerWidth - w - 8, x - w / 2));
+  const gap = tip.touch ? 30 : 14;
+  const top = y - h - gap < 8 ? y + gap : y - h - gap;
+  node.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
+}
+
+function hideTip() {
+  if (!tip.id) return;
+  tip.id = null;
+  if (tip.el) tip.el.classList.remove("act");
+  tip.el = null;
+  tipNode().classList.remove("on");
+}
+
+function keepTip() {
+  if (!tip.id) return;
+  const t = document.querySelector(`[data-tid="${CSS.escape(tip.id)}"]`);
+  if (t) showTip(t, tip.x, tip.y);
+  else hideTip();
+}
+
+document.addEventListener("pointermove", (e) => {
+  if (e.pointerType !== "mouse") return;
+  tip.touch = false;
+  const t = e.target.closest && e.target.closest("[data-tip]");
+  if (t) showTip(t, e.clientX, e.clientY);
+  else hideTip();
+});
+
+document.addEventListener("pointerdown", (e) => {
+  tip.swallow = false;
+  tip.touch = e.pointerType !== "mouse";
+});
+
+document.addEventListener("pointerup", (e) => {
+  if (e.pointerType === "mouse") return;
+  const t = e.target.closest && e.target.closest("[data-tip]");
+  if (!t) return hideTip();
+  const again = tip.id === t.dataset.tid;
+  showTip(t, e.clientX, e.clientY);
+  if (t.dataset.pick && !again) tip.swallow = true;
+});
+
+document.documentElement.addEventListener("pointerleave", (e) => {
+  if (e.pointerType === "mouse") hideTip();
+});
+window.addEventListener("scroll", hideTip, { passive: true });
+window.addEventListener("resize", hideTip);
 
 function toast(text) {
   ui.toast = text;
@@ -426,6 +532,10 @@ function saveSetting(field, value) {
 }
 
 document.addEventListener("click", async (e) => {
+  if (tip.swallow) {
+    tip.swallow = false;
+    return;
+  }
   const t = e.target.closest("[data-go],[data-key],[data-pick],[data-sync],[data-shortcut],[data-export],[data-signout]");
   if (!t) return;
   const d = t.dataset;

@@ -249,10 +249,6 @@ export function week(all, k, raw) {
   const prev = inKeys(all, weekKeys(shiftKey(keys[0], -7)));
   const avgAsleep = mean(list.map((n) => n.asleep));
   const prevAsleep = mean(prev.map((n) => n.asleep));
-  const hrs = list.filter((n) => n.hr != null).map((n) => n.hr);
-  const prevHrs = prev.filter((n) => n.hr != null).map((n) => n.hr);
-  const avgHr = mean(hrs);
-  const prevHr = mean(prevHrs);
   const goal = (st.hours - 1) * 60;
   const over = list.filter((n) => n.asleep >= goal).length;
   const bedSpread = spread(list.map((n) => n.bedDelta));
@@ -267,11 +263,6 @@ export function week(all, k, raw) {
       if (d >= 10) lines.push(ok(`${Math.round(d)}m more than last week`));
       else if (d <= -10) lines.push(fix(`${Math.round(-d)}m less than last week`));
     }
-    if (avgHr != null && prevHr != null) {
-      const d = avgHr - prevHr;
-      if (d <= -1) lines.push(ok(`Resting heart down ${Math.round(-d)}`));
-      else if (d >= 2) lines.push(fix(`Resting heart up ${Math.round(d)}`));
-    }
   }
   return {
     keys,
@@ -283,10 +274,6 @@ export function week(all, k, raw) {
     count: list.length,
     change: avgAsleep != null && prevAsleep != null ? Math.round(avgAsleep - prevAsleep) : null,
     stages: stageAverages(list),
-    hr: keys.map((key) => {
-      const n = list.find((x) => x.key === key);
-      return n ? n.hr : null;
-    }),
     comments: pick(lines, 3),
   };
 }
