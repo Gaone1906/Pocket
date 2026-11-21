@@ -83,6 +83,8 @@ let catalog: [AppSpec] = [
             glyph: Glyphs.ventus, hotKey: UInt32(kVK_ANSI_2), web: nil),
     AppSpec(id: "calorie", name: "Terra", summary: "Calories eaten and burned against your daily, weekly and monthly goals", symbol: "scalemass.fill",
             glyph: Glyphs.terra, hotKey: UInt32(kVK_ANSI_4), web: nil),
+    AppSpec(id: "sleep", name: "Luna", summary: "Last night's sleep from Apple Health, with a score and what to fix", symbol: "moon.stars.fill",
+            glyph: Glyphs.luna, hotKey: UInt32(kVK_ANSI_5), web: nil),
     AppSpec(id: "calculator", name: "Calculator", summary: "Type or tap a calculation, see the answer live", symbol: "plusminus.circle",
             glyph: nil, hotKey: UInt32(kVK_ANSI_C), web: nil),
     AppSpec(id: "scratchpad", name: "Scratchpad", summary: "Quick notes in pages, with lists, headings, bold and italic", symbol: "note.text",

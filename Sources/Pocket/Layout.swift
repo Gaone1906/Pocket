@@ -103,7 +103,8 @@ final class Layout: ObservableObject {
 
     static let elementKeys: [(String, UInt32)] = [
         ("pomodoro", UInt32(kVK_ANSI_1)), ("runner", UInt32(kVK_ANSI_2)),
-        ("schedule", UInt32(kVK_ANSI_3)), ("calorie", UInt32(kVK_ANSI_4)), ("preparo", UInt32(kVK_ANSI_9)),
+        ("schedule", UInt32(kVK_ANSI_3)), ("calorie", UInt32(kVK_ANSI_4)), ("sleep", UInt32(kVK_ANSI_5)),
+        ("preparo", UInt32(kVK_ANSI_9)),
     ]
 
     var tray: [String] { shelves.flatMap(\.apps) }
