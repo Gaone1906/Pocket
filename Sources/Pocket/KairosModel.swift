@@ -548,7 +548,7 @@ struct KairosSession: Identifiable {
     static func all(on day: String) -> [KairosSession] {
         let store = ScheduleStore.shared
         return ScheduleSlot.allCases.flatMap { slot in
-            store.routines.compactMap { routine -> KairosSession? in
+            store.routines.filter { !ZendaRoutines.owns($0) }.compactMap { routine -> KairosSession? in
                 guard routine.runs(on: day) else { return nil }
                 let steps = routine.steps(on: day, slot)
                 guard steps.contains(where: KairosPlan.isGuided) else { return nil }
@@ -580,7 +580,7 @@ struct KairosStats: Identifiable {
 
     static func all() -> [KairosStats] {
         let store = ScheduleStore.shared
-        return store.routines.filter(guided).map { make($0, store) }
+        return store.routines.filter { guided($0) && !ZendaRoutines.owns($0) }.map { make($0, store) }
     }
 
     static func guided(_ routine: ScheduleRoutine) -> Bool {
@@ -627,6 +627,8 @@ struct KairosRunState: Codable, Equatable {
     var said = 0
     var finished: Date?
     var spent: [String: Int] = [:]
+    var adhoc: [ScheduleStep]?
+    var adhocName: String?
 }
 
 struct KairosLive {
@@ -648,11 +650,13 @@ final class KairosRunner: ObservableObject {
     @Published private(set) var state: KairosRunState?
     @Published private(set) var now = Date()
     var onChange: (() -> Void)?
+    let key: String
     private var clock: Timer?
     private var shownSecond = -1
 
-    private init() {
-        if let data = UserDefaults.standard.data(forKey: Self.stateKey) {
+    init(key: String = KairosRunner.stateKey) {
+        self.key = key
+        if let data = UserDefaults.standard.data(forKey: key) {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             state = try? decoder.decode(KairosRunState.self, from: data)
@@ -672,7 +676,7 @@ final class KairosRunner: ObservableObject {
     }
 
     var live: KairosLive? {
-        guard let state, let routine = ScheduleStore.shared.routine(state.routine) else { return nil }
+        guard let state, let routine = ScheduleStore.shared.routine(state.routine) ?? state.adhoc.map({ ScheduleRoutine(id: state.routine, name: state.adhocName ?? "", hue: 0, starts: state.day, dated: [ScheduleRoutine.key(state.day, state.slot): $0]) }) else { return nil }
         let steps = routine.steps(on: state.day, state.slot)
         let beats = KairosPlan.beats(for: steps, day: state.day)
         guard !beats.isEmpty else { return nil }
@@ -686,13 +690,14 @@ final class KairosRunner: ObservableObject {
         return state.routine == session.routine.id && state.slot == session.slot && state.day == session.day
     }
 
-    func start(_ session: KairosSession) {
+    func start(_ session: KairosSession, adhoc: Bool = false) {
         let store = ScheduleStore.shared
         let items = store.items(on: session.day, slot: session.slot, in: [session.routine])
         let first = items.firstIndex { !$0.done } ?? 0
         let beats = KairosPlan.beats(for: session.steps, day: session.day)
         let index = max(0, beats.firstIndex { $0.step == first } ?? 0)
-        state = KairosRunState(routine: session.routine.id, day: session.day, slot: session.slot, index: index, started: Date(), stepStarted: Date())
+        state = KairosRunState(routine: session.routine.id, day: session.day, slot: session.slot, index: index, started: Date(), stepStarted: Date(),
+                               adhoc: adhoc ? session.steps : nil, adhocName: adhoc ? session.routine.name : nil)
         if beats.indices.contains(index) { enter(beats[index], newStep: true) }
         startClock()
         note("kairos run started routine=\(session.routine.name) day=\(session.day) slot=\(session.slot.rawValue) step=\(first + 1) of=\(session.total) beats=\(beats.count)")
@@ -718,7 +723,7 @@ final class KairosRunner: ObservableObject {
         state.spent[String(index), default: 0] += Int(Date().timeIntervalSince(state.stepStarted).rounded())
         self.state = state
         let store = ScheduleStore.shared
-        if let item = store.items(on: state.day, slot: state.slot, in: [live.routine]).first(where: { $0.step.id == step.id }), !item.done {
+        if state.adhoc == nil, let item = store.items(on: state.day, slot: state.slot, in: [live.routine]).first(where: { $0.step.id == step.id }), !item.done {
             store.set(item, done: true)
         }
     }
@@ -867,12 +872,12 @@ final class KairosRunner: ObservableObject {
 
     private func save() {
         guard let state else {
-            UserDefaults.standard.removeObject(forKey: Self.stateKey)
+            UserDefaults.standard.removeObject(forKey: key)
             return
         }
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        if let data = try? encoder.encode(state) { UserDefaults.standard.set(data, forKey: Self.stateKey) }
+        if let data = try? encoder.encode(state) { UserDefaults.standard.set(data, forKey: key) }
     }
 
     func chime(strong: Bool) {
