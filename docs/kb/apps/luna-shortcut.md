@@ -19,4 +19,4 @@ Shortcuts → Automation → **Alarm** → Is Stopped → Run Immediately → Lu
 
 ## From the web app
 
-The sync button opens `shortcuts://x-callback-url/run-shortcut?name=Luna%20Sync&x-success=<Luna url>#synced`; Shortcuts returns to Luna when it finishes, and Luna pulls and shows how many nights are new.
+The sync button opens `shortcuts://x-callback-url/run-shortcut?name=Luna%20Sync&x-success=<Luna url>#synced`; Shortcuts returns to Luna when it finishes, and Luna pulls and shows how many nights are new. In the Home Screen app (standalone), x-success would reopen the page in Safari instead, so there it runs `shortcuts://run-shortcut?name=Luna%20Sync` without a callback and pulls when the app becomes visible again.

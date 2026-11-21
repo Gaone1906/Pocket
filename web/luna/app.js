@@ -381,8 +381,31 @@ function startSync() {
   const before = nightKeys();
   if (!onApple()) return pullAndReport(before);
   writeSession("luna.before", JSON.stringify(before));
+  if (standalone()) {
+    pending = { before, at: Date.now() };
+    location.href = `shortcuts://run-shortcut?name=${SHORTCUT}`;
+    return;
+  }
   const back = location.href.split("#")[0] + "#synced";
   location.href = `shortcuts://x-callback-url/run-shortcut?name=${SHORTCUT}&x-success=${encodeURIComponent(back)}`;
+}
+
+let pending = null;
+
+function standalone() {
+  return navigator.standalone === true || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+}
+
+function backInApp() {
+  if (document.visibilityState !== "visible" || !pending) return;
+  const { before, at } = pending;
+  pending = null;
+  writeSession("luna.before", null);
+  if (Date.now() - at < 1500) {
+    pending = { before, at };
+    return;
+  }
+  setTimeout(() => pullAndReport(before), 600);
 }
 
 function returnedFromShortcut() {
@@ -492,6 +515,7 @@ render();
 if (location.hash === "#synced") returnedFromShortcut();
 else if (store.signedIn()) store.syncNow();
 window.addEventListener("hashchange", returnedFromShortcut);
+document.addEventListener("visibilitychange", backInApp);
 setInterval(() => {
   if (!(document.activeElement && document.activeElement.matches("input, select"))) render();
 }, 60000);
