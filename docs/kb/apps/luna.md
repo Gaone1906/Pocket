@@ -12,9 +12,8 @@ Related: [../cloud-sync.md](../cloud-sync.md), [../web-pages.md](../web-pages.md
 
 Health data exists only on the iPhone. An iOS Shortcut, **Luna Sync**, runs each morning on an automation (alarm stopped, or first unlock), because Health is locked while the phone is locked:
 
-1. Asks the table for the latest-ending `sleep.sample` (`GET /rest/v1/records?kind=eq.sleep.sample&select=data&order=data->>e.desc&limit=1`) and takes its `data.e`; with none, it starts 14 days back.
-2. Finds Health samples of Sleep Analysis, Heart Rate (only those starting between 8 pm and 11 am) and Heart Rate Variability that start after that time minus 12 hours of overlap.
-3. Upserts them all in one `POST /rest/v1/records?on_conflict=user_id,kind,id` with `Prefer: resolution=merge-duplicates`. Rows are idempotent, so overlap is harmless.
+1. Finds the Sleep Analysis samples that start in the last 14 days.
+2. Sends them as `Value|Start|End|Source` lines to `POST /rest/v1/rpc/luna_ingest` (`cloud/schema.sql`), which upserts one `sleep.sample` per line. Rows are idempotent, so re-sending 14 days each morning is harmless and fills missed mornings.
 
 The Shortcut's build steps are in [luna-shortcut.md](luna-shortcut.md).
 

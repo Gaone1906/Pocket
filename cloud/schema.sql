@@ -34,3 +34,45 @@ create trigger touch_record before insert or update on public.records
     for each row execute function public.touch_record();
 
 grant select, insert, update, delete on public.records to anon, authenticated;
+
+create or replace function public.luna_ingest(lines text, type text default null)
+returns integer
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+    line text;
+    parts text[];
+    v text;
+    q text;
+    n integer := 0;
+begin
+    foreach line in array regexp_split_to_array(coalesce(lines, ''), E'\\r?\\n') loop
+        line := btrim(line);
+        continue when line = '';
+        parts := string_to_array(line, '|');
+        continue when coalesce(array_length(parts, 1), 0) < 3;
+        if type is null then
+            v := btrim(parts[1]);
+            q := null;
+        else
+            v := type;
+            q := substring(parts[1] from '[0-9]+(?:\.[0-9]+)?');
+        end if;
+        continue when btrim(parts[2]) = '' or btrim(parts[3]) = '';
+        insert into public.records (kind, id, data, device)
+        values ('sleep.sample',
+                left(v || '|' || btrim(parts[2]) || '|' || btrim(coalesce(parts[4], '')), 200),
+                jsonb_strip_nulls(jsonb_build_object('s', btrim(parts[2]), 'e', btrim(parts[3]), 'v', v, 'q', q)),
+                'shortcut')
+        on conflict (user_id, kind, id) do update
+            set data = excluded.data, deleted = false, device = excluded.device
+            where public.records.data is distinct from excluded.data or public.records.deleted;
+        n := n + 1;
+    end loop;
+    return n;
+end
+$$;
+
+grant execute on function public.luna_ingest(text, text) to anon, authenticated;
