@@ -1,4 +1,4 @@
-const CACHE = "zenda-web-v1";
+const CACHE = "zenda-web-v2";
 const SHELL = ["./", "index.html", "style.css", "app.js", "store.js", "routines.js", "util.js", "../ventus/plan.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {
