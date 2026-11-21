@@ -12,8 +12,8 @@ Related: [../cloud-sync.md](../cloud-sync.md), [../web-pages.md](../web-pages.md
 
 Health data exists only on the iPhone. An iOS Shortcut, **Luna Sync**, runs each morning on an automation (alarm stopped, or first unlock), because Health is locked while the phone is locked:
 
-1. Asks the table for the newest `sleep.sample` (`GET /rest/v1/records?kind=eq.sleep.sample&select=data&order=updated_at.desc&limit=1`) and takes its `data.e`; with none, it starts 30 days back.
-2. Finds Health samples of Sleep Analysis, Heart Rate and Heart Rate Variability that end after that time (minus 12 hours of overlap).
+1. Asks the table for the latest-ending `sleep.sample` (`GET /rest/v1/records?kind=eq.sleep.sample&select=data&order=data->>e.desc&limit=1`) and takes its `data.e`; with none, it starts 14 days back.
+2. Finds Health samples of Sleep Analysis, Heart Rate (only those starting between 8 pm and 11 am) and Heart Rate Variability that start after that time minus 12 hours of overlap.
 3. Upserts them all in one `POST /rest/v1/records?on_conflict=user_id,kind,id` with `Prefer: resolution=merge-duplicates`. Rows are idempotent, so overlap is harmless.
 
 The Shortcut's build steps are in [luna-shortcut.md](luna-shortcut.md).
@@ -24,8 +24,10 @@ The web app's sync button opens `shortcuts://x-callback-url/run-shortcut?name=Lu
 
 | kind | id | data |
 | --- | --- | --- |
-| `sleep.sample` | `<v>\|<s>` | `{s, e, v, q?}`: start and end as ISO 8601 with offset; `v` is `InBed`, `Asleep`, `Core`, `Deep`, `REM`, `Awake`, `HR` or `HRV`; `q` is the number for `HR` (bpm) and `HRV` (ms) |
+| `sleep.sample` | `<v>\|<s>\|<source>` (opaque) | `{s, e, v, q?}`: start and end as ISO 8601 with offset; `v` is the Health value; `q` is the number for `HR` (bpm) and `HRV` (ms) |
 | `sleep.settings` | `book` | `{bed: "23:00", wake: "06:30", hours: 8, deep: 15, rem: 20, tolerance: 20, updated}` |
+
+**Normalising `v`.** The Shortcut writes Health's own labels (`In Bed`, `Asleep Unspecified`, `Asleep Core`, `Asleep Deep`, `Asleep REM`, `Awake`), and `q` may be a number or a string such as `54 count/min`. Readers map `v`, case-insensitively and in this order: contains `deep` → Deep, `rem` → REM, `core` → Core, `awake` → Awake, `bed` → InBed, `hrv` or `variability` → HRV, `hr` or `heart` → HR, anything else → Asleep. `q` is the first number in the value.
 
 The settings record is seeded in the database. Every target lives there, never in code; when a field is missing, the apps fall back to the values above. Settings can be changed on both the Mac and the web. Samples are written only by the Shortcut.
 
