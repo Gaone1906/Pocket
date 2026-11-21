@@ -4,24 +4,26 @@ Pocket's data reaches phones, iPads and other laptops through five small install
 
 Not to be confused with [apps/web-apps.md](apps/web-apps.md), which covers the websites (WhatsApp, Slack and so on) wrapped inside the Mac menu bar.
 
-Sol's formula cards (`web/sol/`, https://gaone1906.github.io/Pocket/sol/) are a sixth web app with no Mac counterpart yet; see [apps/sol.md](apps/sol.md).
+Luna (`web/luna/`, https://gaone1906.github.io/Pocket/luna/), the sleep app, is a sixth, with its Mac half in [apps/luna.md](apps/luna.md).
+
+Sol's formula cards (`web/sol/`, https://gaone1906.github.io/Pocket/sol/) are a seventh web app with no Mac counterpart yet; see [apps/sol.md](apps/sol.md).
 
 Related: [cloud-sync.md](cloud-sync.md) (the table, sync rules, setup link, dev server), [apps/schedule.md](apps/schedule.md) (Aqua on the Mac), [apps/pomodoro.md](apps/pomodoro.md) (Ignis on the Mac), [apps/kairos.md](apps/kairos.md) (Ventus on both), [apps/misura.md](apps/misura.md) (Terra on both).
 
 ## At a glance
 
-| | Routine | Aqua | Ignis | Ventus | Terra |
-| --- | --- | --- | --- | --- | --- |
-| URL | `https://gaone1906.github.io/Pocket/` | `https://gaone1906.github.io/Pocket/aqua/` | `https://gaone1906.github.io/Pocket/ignis/` | `https://gaone1906.github.io/Pocket/ventus/` | `https://gaone1906.github.io/Pocket/terra/` |
-| Folder | `web/` (top-level files only) | `web/aqua/` | `web/ignis/` | `web/ventus/` | `web/terra/` |
-| Who uses it | Pranav's parents | Pranav | Pranav | Pranav | Pranav |
-| Shows | The Hair routine only | Every Aqua routine | Ignis focus sessions | Today's timed routines, one step at a time, and the journal | Calories eaten and burned against the day, week and month goals |
-| Writes | Never | Step check-offs, night start hour, its theme | Never | Step check-offs and `runner.entry` journal entries | `calorie.entry`, `calorie.weight` and the plan (`calorie.settings`) |
-| Default theme | Sage, from the synced `settings.prefs`/`prefs` record | Sky, synced as `settings.prefs`/`orario` (field `aquaTheme`; the old `theme` field, Butter by default, is ignored) | Ember, kept per device in `localStorage` (`ignis.web.theme`) | Flint, fixed | Sage, fixed |
-| Icon | Shared Pocket icon | Koi whose fins flow into ripples, blue on pale blue | Lion whose mane turns to flame, red on pale red | Eagle dissolving into wind, cool grey on pale cool grey | Mantis built from leaves, green on pale green |
-| Title and Home Screen name | Routine | Aqua | Ignis | Ventus | Terra |
-| Local state key | `pocket.cloud.v1` | `orario.cloud.v1` | `aurelius.cloud.v1` | `runner.cloud.v1` | `misura.cloud.v1` |
-| Cache prefix (`sw.js`) | `pocket-` (`pocket-v10`) | `aqua-web-` (`aqua-web-v2`, also clears `orario-master-`) | `ignis-web-` (`ignis-web-v2`, also clears `aurelius-web-`) | `runner-` (`runner-v4`) | `terra-web-` (`terra-web-v3`, also clears `misura-`) |
+| | Routine | Aqua | Ignis | Ventus | Terra | Luna |
+| --- | --- | --- | --- | --- | --- | --- |
+| URL | `https://gaone1906.github.io/Pocket/` | `https://gaone1906.github.io/Pocket/aqua/` | `https://gaone1906.github.io/Pocket/ignis/` | `https://gaone1906.github.io/Pocket/ventus/` | `https://gaone1906.github.io/Pocket/terra/` | `https://gaone1906.github.io/Pocket/luna/` |
+| Folder | `web/` (top-level files only) | `web/aqua/` | `web/ignis/` | `web/ventus/` | `web/terra/` | `web/luna/` |
+| Who uses it | Pranav's parents | Pranav | Pranav | Pranav | Pranav | Pranav |
+| Shows | The Hair routine only | Every Aqua routine | Ignis focus sessions | Today's timed routines, one step at a time, and the journal | Calories eaten and burned against the day, week and month goals | Each night's sleep from Apple Health (score, hypnogram, comments), the week and the month |
+| Writes | Never | Step check-offs, night start hour, its theme | Never | Step check-offs and `runner.entry` journal entries | `calorie.entry`, `calorie.weight` and the plan (`calorie.settings`) | Only the targets (`sleep.settings`); samples come from the Luna Sync Shortcut |
+| Default theme | Sage, from the synced `settings.prefs`/`prefs` record | Sky, synced as `settings.prefs`/`orario` (field `aquaTheme`; the old `theme` field, Butter by default, is ignored) | Ember, kept per device in `localStorage` (`ignis.web.theme`) | Flint, fixed | Sage, fixed | Lavender, fixed |
+| Icon | Shared Pocket icon | Koi whose fins flow into ripples, blue on pale blue | Lion whose mane turns to flame, red on pale red | Eagle dissolving into wind, cool grey on pale cool grey | Mantis built from leaves, green on pale green | Wolf howling at the moon, lavender on pale lavender |
+| Title and Home Screen name | Routine | Aqua | Ignis | Ventus | Terra | Luna |
+| Local state key | `pocket.cloud.v1` | `orario.cloud.v1` | `aurelius.cloud.v1` | `runner.cloud.v1` | `misura.cloud.v1` | `luna.cloud.v1` |
+| Cache prefix (`sw.js`) | `pocket-` (`pocket-v10`) | `aqua-web-` (`aqua-web-v2`, also clears `orario-master-`) | `ignis-web-` (`ignis-web-v2`, also clears `aurelius-web-`) | `runner-` (`runner-v4`) | `terra-web-` (`terra-web-v3`, also clears `misura-`) | `luna-web-` (`luna-web-v1`) |
 
 `web/pomodoro/`, `web/aurelius/`, `web/orario/`, `web/kairos/` and `web/misura/` hold only an `index.html` that redirects to `../ignis/`, `../ignis/`, `../aqua/`, `../ventus/` and `../terra/`, keeping the query and hash, so old bookmarks, Home Screen icons and setup links still work. The folders were renamed on 2026-11-19 with the apps (Aurelius → Ignis, Kairos → Ventus, Orario → Aqua, Misura → Terra).
 
@@ -80,6 +82,18 @@ The calorie tracker (built 2026-11-19), the web half of [apps/misura.md](apps/mi
 
 Files: `index.html`, `app.js` (views and sheets), `plan.js` (the math, mirroring `MisuraMath`), `store.js`, `util.js`, `style.css` (Sage tokens, Nunito), `sw.js`, `manifest.webmanifest`, `icon.svg`, `icon-192.png`, `icon-512.png`.
 
+## Luna (`web/luna/`)
+
+The sleep app (built 2026-11-21), the web half of [apps/luna.md](apps/luna.md), which holds the records, the night math and every comment rule.
+- Night: week strip with a dot per night coloured by score (arrows page by week), the score ring with time asleep, Bed, Wake, Heart and HRV, the hypnogram, the stage bar and up to three comments. A night with no data shows a dashed moon and a Sync button.
+- Week: the range with arrows, the average with the change against last week, the sleep-window chart (a capsule per night, dashed lines at the target times, dashed outlines for nights to come), the stage bar and comments. Month: the calendar coloured by score, average, bedtime spread and score, hours asleep as a line against the target band, and two comments. Tapping a capsule or a day opens that night.
+- Sync (the round button or the empty night's button) remembers the nights it has in `sessionStorage` (`luna.before`), opens `shortcuts://x-callback-url/run-shortcut?name=Luna%20Sync` with `x-success` back to the page plus `#synced`, then pulls and shows `✓ N nights` or `✓ Up to date`. Outside iPhone and iPad it just pulls.
+- Settings: Bed, Wake, Sleep, Deep and REM write `sleep.settings`/`book` with `updated`; Luna Sync opens the Shortcut; Synced, Download a copy, Disconnect.
+- Pulls only `sleep.sample` and `sleep.settings` (`kind=in.(…)`) and keeps nothing else locally. Never writes samples.
+- Connects without asking in a browser that already holds a link under `pocket.cloud.v1`, `orario.cloud.v1`, `runner.cloud.v1`, `misura.cloud.v1` or `aurelius.cloud.v1`.
+
+Files: `index.html`, `app.js` (views, charts, sync flow), `sleep.js` (the shared math, mirroring `LunaMath`: value normalising, nights, score, comments, week and month), `store.js`, `util.js`, `style.css` (lavender tokens, Nunito), `sw.js`, `manifest.webmanifest`, `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`.
+
 ## Shared rules
 
 - **One backend.** All five use the same Supabase table, `public.records`, with the same record kinds and the same sync code shape (`store.js`: local outbox, push within half a second, pull every 4 s while visible). See [cloud-sync.md](cloud-sync.md).
@@ -87,4 +101,4 @@ Files: `index.html`, `app.js` (views and sheets), `plan.js` (the math, mirroring
 - **Home Screen apps have their own storage** on iPhone and iPad, so each installed app asks for the setup link once.
 - **Service worker caches are scoped.** Each `sw.js` deletes only old caches with its own prefix (see the table), because all five share one origin and would otherwise wipe each other's offline copy. When you change a file an app caches, bump that app's `CACHE` version and list any new file in its `SHELL`.
 - **Deploy.** `.github/workflows/pages.yml` copies `web/` (minus `web/dev`) to Pages on every push to `main` that touches `web/**`. A new web app is just a new folder under `web/` with its own manifest, `id`/`scope` of `./`, and a cache prefix no other app uses.
-- **Testing.** Run `web/dev/server.mjs` and open `/`, `/orario/`, `/aurelius/`, `/kairos/` or `/misura/` on it; never test against the real project.
+- **Testing.** Run `web/dev/server.mjs` and open `/`, `/orario/`, `/aurelius/`, `/kairos/`, `/misura/` or `/luna/` on it; never test against the real project.
