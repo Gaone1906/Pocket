@@ -1,5 +1,165 @@
 export default [
 {
+"id": "cat-basic-01",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Sums of series",
+"situation": "Add the natural numbers 1 + 2 + 3 + … + n.",
+"ask": "Sum?",
+"answer": "n(n + 1)/2",
+"example": "1 to 10: 10 × 11/2 = 55"
+},
+{
+"id": "cat-basic-02",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Sums of series",
+"situation": "Add the squares 1² + 2² + 3² + … + n².",
+"ask": "Sum?",
+"answer": "n(n + 1)(2n + 1)/6",
+"example": "1 to 10: 10 × 11 × 21/6 = 385"
+},
+{
+"id": "cat-basic-03",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Sums of series",
+"situation": "Add the cubes 1³ + 2³ + 3³ + … + n³.",
+"ask": "Sum?",
+"answer": "[n(n + 1)/2]²",
+"example": "1 to 5: 15² = 225, the square of 1 + … + 5"
+},
+{
+"id": "cat-basic-04",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Sums of series",
+"situation": "Add the first n odd numbers 1 + 3 + 5 + … + (2n − 1).",
+"ask": "Sum?",
+"answer": "n²",
+"example": "1 + 3 + 5 + 7 + 9 = 25"
+},
+{
+"id": "cat-basic-05",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Sums of series",
+"situation": "Add the first n even numbers 2 + 4 + 6 + … + 2n.",
+"ask": "Sum?",
+"answer": "n(n + 1)",
+"example": "2 + 4 + … + 10 = 5 × 6 = 30"
+},
+{
+"id": "cat-basic-06",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Algebraic identities",
+"situation": "Two numbers a and b, added and then squared.",
+"ask": "(a + b)²?",
+"answer": "a² + 2ab + b²",
+"example": "21² = 400 + 40 + 1 = 441"
+},
+{
+"id": "cat-basic-07",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Algebraic identities",
+"situation": "Two numbers a and b, subtracted and then squared.",
+"ask": "(a − b)²?",
+"answer": "a² − 2ab + b²",
+"example": "19² = 400 − 40 + 1 = 361"
+},
+{
+"id": "cat-basic-08",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Algebraic identities",
+"situation": "The difference of two squares, a² − b².",
+"ask": "Factor?",
+"answer": "(a + b)(a − b)",
+"example": "51 × 49 = 50² − 1² = 2499"
+},
+{
+"id": "cat-basic-09",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Algebraic identities",
+"situation": "Two numbers a and b, added and then cubed.",
+"ask": "(a + b)³?",
+"answer": "a³ + 3a²b + 3ab² + b³\n= a³ + b³ + 3ab(a + b)",
+"example": "11³ = 1000 + 300 + 30 + 1 = 1331"
+},
+{
+"id": "cat-basic-10",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Algebraic identities",
+"situation": "Two numbers a and b, subtracted and then cubed.",
+"ask": "(a − b)³?",
+"answer": "a³ − 3a²b + 3ab² − b³\n= a³ − b³ − 3ab(a − b)",
+"example": "9³ = 1000 − 300 + 30 − 1 = 729"
+},
+{
+"id": "cat-basic-11",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Algebraic identities",
+"situation": "The sum of two cubes, a³ + b³.",
+"ask": "Factor?",
+"answer": "(a + b)(a² − ab + b²)",
+"example": "2³ + 1³ = 3 × 3 = 9"
+},
+{
+"id": "cat-basic-12",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Algebraic identities",
+"situation": "The difference of two cubes, a³ − b³.",
+"ask": "Factor?",
+"answer": "(a − b)(a² + ab + b²)",
+"example": "3³ − 1³ = 2 × 13 = 26"
+},
+{
+"id": "cat-basic-13",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Algebraic identities",
+"situation": "Three numbers a, b and c, added and then squared.",
+"ask": "(a + b + c)²?",
+"answer": "a² + b² + c² + 2(ab + bc + ca)",
+"example": null
+},
+{
+"id": "cat-basic-14",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Algebraic identities",
+"situation": "a³ + b³ + c³ − 3abc",
+"ask": "Factor?",
+"answer": "(a + b + c)(a² + b² + c² − ab − bc − ca)",
+"example": "So if a + b + c = 0, a³ + b³ + c³ = 3abc"
+},
+{
+"id": "cat-basic-15",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Algebraic identities",
+"situation": "You know (a + b)² and (a − b)².",
+"ask": "Their sum and their difference?",
+"answer": "(a + b)² + (a − b)² = 2(a² + b²)\n(a + b)² − (a − b)² = 4ab",
+"example": null
+},
+{
+"id": "cat-basic-16",
+"exam": "CAT",
+"section": "Basics",
+"topic": "Algebraic identities",
+"situation": "x + 1/x = k.",
+"ask": "x² + 1/x² and x³ + 1/x³?",
+"answer": "x² + 1/x² = k² − 2\nx³ + 1/x³ = k³ − 3k",
+"example": "k = 3: 7 and 18"
+},
+{
 "id": "cat-pct-01",
 "exam": "CAT",
 "section": "Arithmetic",
@@ -740,60 +900,10 @@ export default [
 "example": null
 },
 {
-"id": "cat-prog-06",
-"exam": "CAT",
-"section": "Algebra",
-"topic": "Progressions and series",
-"situation": "1 to n, their squares, their cubes.",
-"ask": "Σn, Σn², Σn³?",
-"answer": "n(n + 1)/2\nn(n + 1)(2n + 1)/6\n[n(n + 1)/2]²",
-"example": null
-},
-{
-"id": "cat-iden-01",
-"exam": "CAT",
-"section": "Algebra",
-"topic": "Identities and modulus",
-"situation": "(a ± b)² and a² − b²",
-"ask": "Expand or factor?",
-"answer": "a² ± 2ab + b²\n(a + b)(a − b)",
-"example": null
-},
-{
-"id": "cat-iden-02",
-"exam": "CAT",
-"section": "Algebra",
-"topic": "Identities and modulus",
-"situation": "(a ± b)³",
-"ask": "Expand?",
-"answer": "a³ ± 3a²b + 3ab² ± b³",
-"example": null
-},
-{
-"id": "cat-iden-03",
-"exam": "CAT",
-"section": "Algebra",
-"topic": "Identities and modulus",
-"situation": "a³ + b³ and a³ − b³",
-"ask": "Factor?",
-"answer": "(a ± b)(a² ∓ ab + b²)",
-"example": null
-},
-{
-"id": "cat-iden-04",
-"exam": "CAT",
-"section": "Algebra",
-"topic": "Identities and modulus",
-"situation": "a³ + b³ + c³ − 3abc",
-"ask": "Factor?",
-"answer": "(a + b + c)(a² + b² + c² − ab − bc − ca)",
-"example": "So if a + b + c = 0, a³ + b³ + c³ = 3abc"
-},
-{
 "id": "cat-iden-05",
 "exam": "CAT",
 "section": "Algebra",
-"topic": "Identities and modulus",
+"topic": "Modulus and inequalities",
 "situation": "|x| < a and |x| > a",
 "ask": "Without the modulus?",
 "answer": "|x| < a ⇔ −a < x < a\n|x| > a ⇔ x > a or x < −a",
@@ -803,7 +913,7 @@ export default [
 "id": "cat-iden-06",
 "exam": "CAT",
 "section": "Algebra",
-"topic": "Identities and modulus",
+"topic": "Modulus and inequalities",
 "situation": "|a + b| against |a| + |b|.",
 "ask": "Which is bigger?",
 "answer": "|a + b| ≤ |a| + |b|",
@@ -813,7 +923,7 @@ export default [
 "id": "cat-iden-07",
 "exam": "CAT",
 "section": "Algebra",
-"topic": "Identities and modulus",
+"topic": "Modulus and inequalities",
 "situation": "a + b is fixed.",
 "ask": "When is ab largest?",
 "answer": "When a = b: ab ≤ (a + b)²/4",
@@ -823,7 +933,7 @@ export default [
 "id": "cat-iden-08",
 "exam": "CAT",
 "section": "Algebra",
-"topic": "Identities and modulus",
+"topic": "Modulus and inequalities",
 "situation": "ab is fixed, a and b positive.",
 "ask": "When is a + b smallest?",
 "answer": "When a = b",
