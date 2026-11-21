@@ -1,6 +1,6 @@
 # Zenda
 
-Zenda (app id `zenda`) is the mindfulness app, built on 2026-11-21 by splitting the mindfulness side out of Ventus; Ventus keeps fitness. Its icon is the ink-swirl panda (yin-yang spots, tail curling into ink); the menu bar shows glyph G1, an ensō with an S-curve and two dots. Mac shortcut ⌥6.
+Zenda (app id `zenda`) is the mindfulness app, built on 2026-11-21 by splitting the mindfulness side out of Ventus; Ventus keeps fitness. Its icon is the ink-swirl panda (P1: neck raised, looking up, facing right); the menu bar shows glyph G1, an ensō with an S-curve and two dots. Mac shortcut ⌥6.
 
 It exists twice: on the Mac (`Zenda*.swift`) and as the web app at `/Pocket/zenda/` (`web/zenda/`). Both read and write the same records. Mockups: the "Zenda mockups" Design canvas (Desktop and Web pages).
 
@@ -33,7 +33,7 @@ On the Mac: `$ROOT/zenda.json` (`{"projects": [...]}`) through `DataVault` as `z
 Today (morning and night cards, Start, week dot strip, project chips with day n), Scheduled (project pill, goal, date range with progress, week stepper, day strip, the day's steps), Start (Box breathing 2/4/8/12, Visualize and Affirm with project and minute chips, Body scan 5/10/20, journal books), sessions (box breathing square with the ball, visualize read-along over the ensō, affirm with Said it and repeat dots, journal page with Save ⌘↩), Review (W/M/All, streak, sessions done/planned, hours present, entries, heatmap, adherence bars, minutes per day, book shelf) and the Book view (two-page spread on the Mac, one page on the web).
 
 - Mac: no dropdown; the menu-bar item or ⌥6 opens a 1100×720 window with a left rail (logo, Today, Scheduled, Start, Review, gear). Serif design for headings and read-along text, SF Rounded elsewhere. Logo is `ZendaLogo.jpeg` (base64 in `ZendaLogo.swift`). Logs start with `zenda`.
-- Web: 390-wide column with a bottom tab bar, Shippori Mincho and Zen Maru Gothic. Local key `zenda.cloud.v1`; borrows the setup link from any other Pocket web app. Cache prefix `zenda-web-` (`zenda-web-v1`).
+- Web: 390-wide column with a bottom tab bar, Shippori Mincho and Zen Maru Gothic. Local key `zenda.cloud.v1`; borrows the setup link from any other Pocket web app. Cache prefix `zenda-web-` (`zenda-web-v2`).
 
 ## Look
 

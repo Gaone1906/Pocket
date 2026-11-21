@@ -14,7 +14,7 @@ Sol is the swipe deck for revising exam formulas, at `https://gaone1906.github.i
 - Cards are data, not code. They live in the shared Supabase table as `sol.card` records (id = card id, e.g. `cat-pct-02`), each `{id, exam, section, topic, situation, ask, answer, example}`. `web/sol/cards.js` is a bundled copy of the CAT Quant deck so the app works before it is connected; `sol.card` rows are merged over it by id (the table wins, and new ids or exams just appear).
 - Progress is one `sol.mark` record per card: `{id, box (0-5), due (yyyy-MM-dd or null), mastered, updated}`. Box 0 with a mark means "not yet".
 - The Mac's CloudSync ignores both kinds; nothing on the Mac reads them yet.
-- Local state key `sol.cloud.v1`; it borrows the setup link from any other Pocket web app in the same browser. Per-device prefs: `sol.exam`, `sol.pick`, `sol.guided`. Cache prefix `sol-web-` (`sol-web-v1`).
+- Local state key `sol.cloud.v1`; it borrows the setup link from any other Pocket web app in the same browser. Per-device prefs: `sol.exam`, `sol.pick`, `sol.guided`. Cache prefix `sol-web-` (`sol-web-v4`).
 
 ## Card source
 
@@ -22,4 +22,4 @@ The CAT Quant cards (211) were rewritten from Pranav's "CAT Quant formula book" 
 
 ## Look
 
-Butter: ground #FBF5DF, card #FFF8DC, tile #FCF0B8, gold #C99A0E, ink #2B2410, not-yet clay #A4441F. Bricolage Grotesque headings, Geist body, STIX Two Text for formulas. Icon: the S1 gold galloping sun horse.
+Butter: ground #FBF5DF, card #FFF8DC, tile #FCF0B8, gold #C99A0E, ink #2B2410, not-yet clay #A4441F. Bricolage Grotesque headings, Geist body, STIX Two Text for formulas. Icon: the gold sun horse, redrawn on 21 Nov 2026 with a bigger body and tighter flames, facing right.

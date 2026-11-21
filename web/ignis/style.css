@@ -115,7 +115,7 @@ header {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: url("icon.svg?v=3") center/cover;
+  background: url("icon.svg?v=4") center/cover;
   box-shadow: 0 2px 6px var(--shadow);
   flex: none;
 }
