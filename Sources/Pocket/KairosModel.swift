@@ -430,7 +430,9 @@ final class KairosJournal: ObservableObject {
 
     func entry(_ id: String) -> KairosEntry? { entries.first { $0.id == id } }
 
-    static func isDaily(_ entry: KairosEntry) -> Bool { !["feel", "manual", "template"].contains(entry.tag ?? "") }
+    static let notWriting: Set<String> = ["feel", "manual", "template", "project", "workout", "run"]
+
+    static func isDaily(_ entry: KairosEntry) -> Bool { !notWriting.contains(entry.tag ?? "") }
 
     var templates: [KairosEntry] {
         entries.filter { $0.tag == "template" }.sorted { ($0.title ?? "").localizedCaseInsensitiveCompare($1.title ?? "") == .orderedAscending }
@@ -546,15 +548,20 @@ struct KairosSession: Identifiable {
     var writing: Int { steps.filter { KairosPlan.type($0) == "write" }.count }
 
     static func all(on day: String) -> [KairosSession] {
-        let store = ScheduleStore.shared
+        let routines = KairosFit.routines
         return ScheduleSlot.allCases.flatMap { slot in
-            store.routines.filter { !ZendaRoutines.owns($0) }.compactMap { routine -> KairosSession? in
-                guard routine.runs(on: day) else { return nil }
-                let steps = routine.steps(on: day, slot)
-                guard steps.contains(where: KairosPlan.isGuided) else { return nil }
-                let done = store.items(on: day, slot: slot, in: [routine]).filter(\.done).count
-                return KairosSession(routine: routine, slot: slot, day: day, steps: steps, done: done)
-            }
+            routines.flatMap { of($0, on: day).filter { $0.slot == slot } }
+        }
+    }
+
+    static func of(_ routine: ScheduleRoutine, on day: String) -> [KairosSession] {
+        guard routine.runs(on: day) else { return [] }
+        let store = ScheduleStore.shared
+        return ScheduleSlot.allCases.compactMap { slot -> KairosSession? in
+            let steps = routine.steps(on: day, slot)
+            guard steps.contains(where: KairosPlan.isGuided) else { return nil }
+            let done = store.items(on: day, slot: slot, in: [routine]).filter(\.done).count
+            return KairosSession(routine: routine, slot: slot, day: day, steps: steps, done: done)
         }
     }
 
@@ -566,49 +573,6 @@ struct KairosSession: Identifiable {
 
     static func title(_ routine: ScheduleRoutine, on day: String) -> String {
         dayNumber(routine, on: day).map { "\(routine.name) · Day \($0.n)" } ?? routine.name
-    }
-}
-
-struct KairosStats: Identifiable {
-    let routine: ScheduleRoutine
-    let done: Int
-    let skipped: Int
-    let streak: Int
-    let best: Int
-
-    var id: UUID { routine.id }
-
-    static func all() -> [KairosStats] {
-        let store = ScheduleStore.shared
-        return store.routines.filter { guided($0) && !ZendaRoutines.owns($0) }.map { make($0, store) }
-    }
-
-    static func guided(_ routine: ScheduleRoutine) -> Bool {
-        let lists = Array(routine.plan.values) + Array((routine.dated ?? [:]).values)
-        return lists.contains { $0.contains(where: KairosPlan.isGuided) }
-    }
-
-    private static func make(_ routine: ScheduleRoutine, _ store: ScheduleStore) -> KairosStats {
-        let last = min(routine.ends ?? store.today, store.today)
-        var day = routine.starts
-        var done = 0, skipped = 0, streak = 0, best = 0
-        while day <= last {
-            switch store.status(on: day, in: [routine]) {
-            case .done:
-                done += 1
-                streak += 1
-                best = max(best, streak)
-            case .missed, .partial:
-                skipped += 1
-                streak = 0
-            default:
-                break
-            }
-            let next = ScheduleDays.shift(day, by: 1)
-            guard next != day else { break }
-            day = next
-        }
-        return KairosStats(routine: routine, done: done, skipped: skipped, streak: streak, best: best)
     }
 }
 
@@ -629,6 +593,10 @@ struct KairosRunState: Codable, Equatable {
     var spent: [String: Int] = [:]
     var adhoc: [ScheduleStep]?
     var adhocName: String?
+    var only: [UUID]?
+    var workout: String?
+
+    var isAdhoc: Bool { adhoc != nil }
 }
 
 struct KairosLive {
@@ -677,7 +645,8 @@ final class KairosRunner: ObservableObject {
 
     var live: KairosLive? {
         guard let state, let routine = ScheduleStore.shared.routine(state.routine) ?? state.adhoc.map({ ScheduleRoutine(id: state.routine, name: state.adhocName ?? "", hue: 0, starts: state.day, dated: [ScheduleRoutine.key(state.day, state.slot): $0]) }) else { return nil }
-        let steps = routine.steps(on: state.day, state.slot)
+        var steps = routine.steps(on: state.day, state.slot)
+        if let only = state.only { steps = steps.filter { only.contains($0.id) } }
         let beats = KairosPlan.beats(for: steps, day: state.day)
         guard !beats.isEmpty else { return nil }
         return KairosLive(routine: routine, steps: steps, beats: beats, index: min(state.index, beats.count - 1))
@@ -686,21 +655,42 @@ final class KairosRunner: ObservableObject {
     var running: Bool { state != nil && state?.finished == nil }
 
     func isRunning(_ session: KairosSession) -> Bool {
-        guard let state, state.finished == nil else { return false }
+        guard let state, state.finished == nil, !state.isAdhoc else { return false }
         return state.routine == session.routine.id && state.slot == session.slot && state.day == session.day
     }
 
     func start(_ session: KairosSession, adhoc: Bool = false) {
         let store = ScheduleStore.shared
         let items = store.items(on: session.day, slot: session.slot, in: [session.routine])
-        let first = items.firstIndex { !$0.done } ?? 0
+        let first = adhoc ? 0 : (items.firstIndex { !$0.done } ?? 0)
         let beats = KairosPlan.beats(for: session.steps, day: session.day)
+        guard !beats.isEmpty else { return note("kairos run refused routine=\(session.routine.name) day=\(session.day) cause=no beats") }
         let index = max(0, beats.firstIndex { $0.step == first } ?? 0)
         state = KairosRunState(routine: session.routine.id, day: session.day, slot: session.slot, index: index, started: Date(), stepStarted: Date(),
                                adhoc: adhoc ? session.steps : nil, adhocName: adhoc ? session.routine.name : nil)
         if beats.indices.contains(index) { enter(beats[index], newStep: true) }
         startClock()
-        note("kairos run started routine=\(session.routine.name) day=\(session.day) slot=\(session.slot.rawValue) step=\(first + 1) of=\(session.total) beats=\(beats.count)")
+        note("kairos run started routine=\(session.routine.name) day=\(session.day) slot=\(session.slot.rawValue) step=\(first + 1) of=\(session.total) beats=\(beats.count) adhoc=\(adhoc)")
+        publish()
+    }
+
+    func start(step: ScheduleStep, of routine: ScheduleRoutine, day: String, slot: ScheduleSlot) {
+        guard routine.steps(on: day, slot).contains(where: { $0.id == step.id }) else {
+            return note("kairos step run refused routine=\(routine.name) day=\(day) step=\(step.title) cause=missing")
+        }
+        var fresh = KairosRunState(routine: routine.id, day: day, slot: slot, index: 0, started: Date(), stepStarted: Date())
+        fresh.only = [step.id]
+        fresh.adhoc = [step]
+        fresh.adhocName = routine.name
+        state = fresh
+        guard let live, let first = live.beat else {
+            state = nil
+            save()
+            return note("kairos step run refused routine=\(routine.name) day=\(day) step=\(step.title) cause=no beats")
+        }
+        enter(first, newStep: true)
+        startClock()
+        note("kairos step run started routine=\(routine.name) day=\(day) slot=\(slot.rawValue) step=\(KairosPlan.split(step.title).name) beats=\(live.beats.count)")
         publish()
     }
 
@@ -722,8 +712,9 @@ final class KairosRunner: ObservableObject {
         let step = live.steps[index]
         state.spent[String(index), default: 0] += Int(Date().timeIntervalSince(state.stepStarted).rounded())
         self.state = state
+        guard !state.isAdhoc else { return }
         let store = ScheduleStore.shared
-        if state.adhoc == nil, let item = store.items(on: state.day, slot: state.slot, in: [live.routine]).first(where: { $0.step.id == step.id }), !item.done {
+        if let item = store.items(on: state.day, slot: state.slot, in: [live.routine]).first(where: { $0.step.id == step.id }), !item.done {
             store.set(item, done: true)
         }
     }
@@ -734,6 +725,7 @@ final class KairosRunner: ObservableObject {
         if tick, next == nil || next?.step != current.step { complete(live, step: current.step) }
         guard let next else {
             state?.finished = Date()
+            if state?.isAdhoc == true, key == Self.stateKey { logWorkout(live) }
             save()
             stopClock()
             chime(strong: true)
@@ -745,6 +737,19 @@ final class KairosRunner: ObservableObject {
         enter(next, newStep: next.step != current.step)
         if !current.quiet && tick { chime(strong: false) }
         publish()
+    }
+
+    private func logWorkout(_ live: KairosLive) {
+        guard var state, state.workout == nil else { return }
+        let id = "workout|\(UUID().uuidString)"
+        let title = live.steps.count == 1 ? KairosPlan.split(live.steps[0].title).name : KairosFit.title(live.steps, fallback: live.routine.name)
+        let seconds = max(0, ((state.finished ?? Date()).timeIntervalSince(state.started)).rounded())
+        let entry = KairosEntry(id: id, routine: live.routine.id.uuidString, routineName: live.routine.name, day: ScheduleStore.shared.today,
+                                slot: "", step: "guided", title: title, tag: "workout", seconds: seconds)
+        KairosJournal.shared.put(entry)
+        state.workout = id
+        self.state = state
+        note("kairos workout logged id=\(id) kind=guided routine=\(live.routine.name) title=\(title) seconds=\(Int(seconds))")
     }
 
     func back() {
@@ -883,5 +888,330 @@ final class KairosRunner: ObservableObject {
     func chime(strong: Bool) {
         guard Self.sound else { return }
         NSSound(named: strong ? "Glass" : "Tink")?.play()
+    }
+}
+
+enum KairosFit {
+    static let types: Set<String> = ["moves", "intervals", "rounds", "log"]
+    private static let minutesOnly = try? NSRegularExpression(pattern: #"^\s*\d+\s*min\b.*$"#)
+    private static let firstNumber = try? NSRegularExpression(pattern: #"\d+(?:[.,]\d+)?"#)
+    private static let restName = try? NSRegularExpression(pattern: #"stretch|mobility|cool.?down|recovery|rest"#, options: .caseInsensitive)
+    private static let sideName = try? NSRegularExpression(pattern: #"warm|stretch|cool|calves|shins|mobility"#, options: .caseInsensitive)
+    static let kmPattern = try? NSRegularExpression(pattern: #"\bkm\b"#, options: .caseInsensitive)
+
+    static func matches(_ pattern: NSRegularExpression?, _ text: String) -> Bool {
+        pattern?.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
+    }
+
+    static func isFitness(_ routine: ScheduleRoutine) -> Bool {
+        let lists = Array(routine.plan.values) + Array((routine.dated ?? [:]).values)
+        return lists.contains { $0.contains { types.contains(KairosPlan.type($0)) } }
+    }
+
+    static var routines: [ScheduleRoutine] { ScheduleStore.shared.routines.filter(isFitness) }
+
+    static func name(_ step: ScheduleStep) -> String { KairosPlan.split(step.title).name }
+
+    static func easy(_ step: ScheduleStep) -> Bool { matches(restName, name(step)) }
+
+    static func warm(_ step: ScheduleStep) -> Bool { name(step).lowercased().hasPrefix("warm") }
+
+    static func days(_ from: String, _ to: String) -> Int { KairosPlan.dayNumber(to) - KairosPlan.dayNumber(from) }
+
+    static func monday(_ day: String) -> String {
+        ScheduleDays.shift(day, by: -((ScheduleDays.weekday(day) + 5) % 7))
+    }
+
+    static func range(_ from: String, _ to: String) -> [String] {
+        let count = days(from, to)
+        guard count >= 0, ScheduleDays.date(from) != nil else { return [] }
+        return (0...min(count, 730)).map { ScheduleDays.shift(from, by: $0) }
+    }
+
+    static func steps(_ routine: ScheduleRoutine, on day: String) -> [(slot: ScheduleSlot, step: ScheduleStep)] {
+        guard routine.runs(on: day) else { return [] }
+        return ScheduleSlot.allCases.flatMap { slot in routine.steps(on: day, slot).map { (slot: slot, step: $0) } }
+    }
+
+    static func short(_ name: String) -> String {
+        let lower = name.lowercased()
+        return lower.contains("rope") || lower.contains("skip") ? "Rope" : name
+    }
+
+    static func title(_ steps: [ScheduleStep], fallback: String) -> String {
+        var names: [String] = []
+        for step in steps {
+            let label = name(step)
+            if !label.isEmpty && !names.contains(label) { names.append(label) }
+        }
+        let main = names.filter { !matches(sideName, $0) }
+        let pick = main.isEmpty ? Array(names.prefix(2)) : Array(main.prefix(2))
+        return pick.isEmpty ? fallback : pick.map(short).joined(separator: " + ")
+    }
+
+    static func seconds(_ steps: [ScheduleStep]) -> Int { steps.reduce(0) { $0 + KairosPlan.estimate($1) } }
+
+    static func detail(_ step: ScheduleStep) -> String {
+        let detail = KairosPlan.split(step.title).detail
+        let range = NSRange(detail.startIndex..., in: detail)
+        if minutesOnly?.firstMatch(in: detail, range: range) != nil { return "" }
+        return detail.replacingOccurrences(of: ", ", with: " · ")
+    }
+
+    static func intervals(_ step: ScheduleStep) -> [(seconds: Int, hot: Bool)] {
+        let run = KairosPlan.run(step)
+        guard KairosPlan.text(run["type"]) == "intervals" else { return [] }
+        let rounds = min(KairosPlan.num(run["rounds"], 1), 30)
+        let on = KairosPlan.num(run["on"], 30)
+        let off = KairosPlan.num(run["off"])
+        var out: [(seconds: Int, hot: Bool)] = []
+        for round in 0..<rounds {
+            out.append((seconds: on, hot: true))
+            if off > 0 && round < rounds - 1 { out.append((seconds: off, hot: false)) }
+        }
+        return out
+    }
+
+    static func sets(_ step: ScheduleStep) -> [Int] {
+        let run = KairosPlan.run(step)
+        guard KairosPlan.text(run["type"]) == "rounds" else { return [] }
+        let moves = (run["moves"]?.list ?? []).filter { !KairosPlan.text($0["name"]).isEmpty }
+        guard moves.count == 1 else { return [] }
+        let reps = KairosPlan.num(moves[0]["reps"])
+        guard reps > 0 else { return [] }
+        return Array(repeating: reps, count: min(KairosPlan.num(run["rounds"], 1), 40))
+    }
+
+    static func setsLabel(_ step: ScheduleStep) -> String? {
+        let run = KairosPlan.run(step)
+        guard KairosPlan.text(run["type"]) == "rounds" else { return nil }
+        let moves = run["moves"]?.list ?? []
+        let chips = Self.sets(step)
+        if !chips.isEmpty { return "\(chips.reduce(0, +))" }
+        guard let first = moves.first, KairosPlan.num(first["reps"]) > 0 else { return nil }
+        return "\(KairosPlan.num(run["rounds"], 1)) × \(KairosPlan.num(first["reps"]))"
+    }
+
+    static func number(_ text: String) -> Double? {
+        let range = NSRange(text.startIndex..., in: text)
+        guard let match = firstNumber?.firstMatch(in: text, range: range), let found = Range(match.range, in: text) else { return nil }
+        return Double(text[found].replacingOccurrences(of: ",", with: "."))
+    }
+
+    static func same(_ entry: KairosEntry, _ routine: ScheduleRoutine) -> Bool {
+        entry.routine.caseInsensitiveCompare(routine.id.uuidString) == .orderedSame
+    }
+
+    static func feelScore(_ value: String?) -> Int? {
+        guard let value = value?.lowercased(), !value.isEmpty else { return nil }
+        switch value {
+        case "easy": return 2
+        case "right": return 3
+        case "hard", "too-hard": return 4
+        default:
+            guard let number = Int(value), (1...5).contains(number) else { return nil }
+            return number
+        }
+    }
+}
+
+enum KairosDayState: Equatable {
+    case off
+    case rest
+    case future
+    case open
+    case done
+    case part
+    case missed
+
+    static func of(_ routine: ScheduleRoutine, on day: String, today: String) -> KairosDayState {
+        let list = KairosFit.steps(routine, on: day)
+        guard !list.isEmpty else { return .off }
+        if list.allSatisfy({ KairosFit.easy($0.step) }) { return .rest }
+        return status(routine, on: day, today: today)
+    }
+
+    static func status(_ routine: ScheduleRoutine, on day: String, today: String) -> KairosDayState {
+        let list = KairosFit.steps(routine, on: day)
+        guard !list.isEmpty else { return .off }
+        let store = ScheduleStore.shared
+        let done = ScheduleSlot.allCases.flatMap { store.items(on: day, slot: $0, in: [routine]) }.filter(\.done).count
+        if done >= list.count { return .done }
+        if done > 0 { return .part }
+        if day > today { return .future }
+        return day == today ? .open : .missed
+    }
+}
+
+struct VentusMilestone: Hashable {
+    var day: String
+    var label: String
+}
+
+enum VentusKind: String, CaseIterable, Identifiable {
+    case run
+    case rope
+    case walk
+    case gym
+    case other
+
+    var id: String { rawValue }
+    var label: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
+    var distance: Bool { self == .run || self == .walk }
+}
+
+struct VentusProject: Identifiable, Equatable {
+    let routine: ScheduleRoutine
+    var entryId: String
+    var name: String
+    var goal: String
+    var start: String
+    var end: String
+    var targets: [String]
+    var achieved: Set<Int>
+    var milestones: [VentusMilestone]
+
+    var id: UUID { routine.id }
+    var total: Int { max(1, KairosFit.days(start, end) + 1) }
+    var days: [String] { KairosFit.range(start, end) }
+
+    func dayNumber(_ day: String) -> Int { KairosFit.days(start, day) + 1 }
+
+    static func all(_ journal: KairosJournal) -> [VentusProject] {
+        KairosFit.routines.map { make($0, journal) }.sorted { $0.start < $1.start }
+    }
+
+    static func current(_ projects: [VentusProject], today: String) -> VentusProject? {
+        projects.first { $0.start <= today && today <= $0.end } ?? projects.first
+    }
+
+    static func valid(_ day: String?) -> String? {
+        guard let day = day?.trimmingCharacters(in: .whitespaces), day.count == 10, ScheduleDays.date(day) != nil else { return nil }
+        return day
+    }
+
+    static func make(_ routine: ScheduleRoutine, _ journal: KairosJournal) -> VentusProject {
+        let key = "project|\(routine.id.uuidString)"
+        let entry = journal.entries.first { $0.id.caseInsensitiveCompare(key) == .orderedSame }
+            ?? journal.entries.first { $0.tag == "project" && KairosFit.same($0, routine) }
+        let dated = (routine.dated ?? [:]).keys.map { String($0.prefix(10)) }.filter { valid($0) != nil }.max()
+        let start = valid(entry?.day) ?? routine.starts
+        var end = valid(entry?.notes) ?? routine.ends ?? dated ?? ScheduleDays.shift(start, by: 27)
+        if end < start { end = start }
+        let targets = (entry?.lines ?? []).map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        let achieved = Set((entry?.feel ?? "").split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }.filter { $0 >= 0 && $0 < targets.count })
+        let milestones = (entry?.prompts ?? []).compactMap { line -> VentusMilestone? in
+            guard let bar = line.firstIndex(of: "|"), let day = valid(String(line[..<bar])) else { return nil }
+            let label = line[line.index(after: bar)...].trimmingCharacters(in: .whitespaces)
+            return VentusMilestone(day: day, label: label.isEmpty ? "Milestone" : label)
+        }
+        .sorted { $0.day < $1.day }
+        let title = (entry?.title ?? "").trimmingCharacters(in: .whitespaces)
+        return VentusProject(routine: routine, entryId: entry?.id ?? key, name: title.isEmpty ? routine.name : title,
+                             goal: entry?.text ?? "", start: start, end: end, targets: targets, achieved: achieved, milestones: milestones)
+    }
+
+    func save(_ journal: KairosJournal, reason: String) {
+        var entry = journal.entry(entryId) ?? KairosEntry(id: entryId, routine: routine.id.uuidString, routineName: routine.name, day: start,
+                                                          slot: "", step: "project", title: name, tag: "project")
+        entry.routineName = routine.name
+        entry.slot = ""
+        entry.step = "project"
+        entry.tag = "project"
+        entry.title = name
+        entry.text = goal
+        entry.day = start
+        entry.notes = end
+        entry.lines = targets
+        entry.feel = achieved.isEmpty ? nil : achieved.sorted().map(String.init).joined(separator: ",")
+        entry.prompts = milestones.map { "\($0.day)|\($0.label)" }
+        journal.put(entry)
+        note("kairos project saved routine=\(routine.name) name=\(name) start=\(start) end=\(end) targets=\(targets.count) achieved=\(achieved.count) milestones=\(milestones.count) reason=\(reason)")
+    }
+
+    func state(_ day: String, today: String) -> KairosDayState {
+        guard day >= start, day <= end else { return .off }
+        return KairosDayState.of(routine, on: day, today: today)
+    }
+
+    func status(_ day: String, today: String) -> KairosDayState {
+        guard day >= start, day <= end else { return .off }
+        return KairosDayState.status(routine, on: day, today: today)
+    }
+
+    func nextMilestone(after today: String) -> VentusMilestone? {
+        milestones.first { $0.day >= today }
+    }
+
+    func streak(_ today: String) -> Int {
+        var day = min(today, end)
+        var count = 0
+        var guardDays = 0
+        while day >= start && guardDays < 800 {
+            guardDays += 1
+            let status = self.status(day, today: today)
+            if status == .done {
+                count += 1
+            } else if !(day == today || status == .off || state(day, today: today) == .rest) {
+                break
+            }
+            day = ScheduleDays.shift(day, by: -1)
+        }
+        return count
+    }
+
+    func workouts(_ journal: KairosJournal) -> [KairosEntry] {
+        journal.entries.filter { $0.tag == "workout" && KairosFit.same($0, routine) }
+    }
+
+    func runs(_ journal: KairosJournal) -> [KairosEntry] {
+        journal.entries
+            .filter { KairosFit.same($0, routine) && ($0.tag == "run" || ($0.tag == "workout" && $0.step == "run")) && ($0.km != nil || $0.seconds != nil) }
+            .sorted { $0.day != $1.day ? $0.day > $1.day : ($0.updated ?? "") > ($1.updated ?? "") }
+    }
+
+    func doneSeconds(_ day: String) -> Int {
+        let store = ScheduleStore.shared
+        return ScheduleSlot.allCases.flatMap { store.items(on: day, slot: $0, in: [routine]) }
+            .filter(\.done).reduce(0) { $0 + KairosPlan.estimate($1.step) }
+    }
+
+    func best(_ index: Int, _ journal: KairosJournal) -> Double? {
+        guard targets.indices.contains(index) else { return nil }
+        let target = targets[index]
+        let lower = target.lowercased()
+        if KairosFit.matches(KairosFit.kmPattern, target) {
+            return ((runs(journal).compactMap(\.km).max() ?? 0) * 100).rounded() / 100
+        }
+        if lower.contains("rope") || lower.contains("skip") {
+            let best = workouts(journal).filter { $0.step == "rope" }.compactMap { Double(($0.text ?? "").trimmingCharacters(in: .whitespaces)) }.max() ?? 0
+            return best
+        }
+        return nil
+    }
+
+    func progress(_ index: Int, _ journal: KairosJournal) -> Double {
+        if achieved.contains(index) { return 1 }
+        guard targets.indices.contains(index), let goal = KairosFit.number(targets[index]), goal > 0, let best = best(index, journal) else { return 0 }
+        return max(0, min(1, best / goal))
+    }
+
+    func feels(_ journal: KairosJournal) -> [Int] {
+        journal.entries
+            .filter { KairosFit.same($0, routine) && ($0.tag == "feel" || $0.tag == "workout") }
+            .sorted { $0.day != $1.day ? $0.day < $1.day : ($0.updated ?? "") < ($1.updated ?? "") }
+            .compactMap { KairosFit.feelScore($0.feel) }
+            .suffix(7)
+            .map { $0 }
+    }
+
+    func nextSession(after today: String) -> (day: String, steps: [ScheduleStep])? {
+        for offset in 1...21 {
+            let day = ScheduleDays.shift(today, by: offset)
+            guard day <= end else { return nil }
+            let steps = KairosSession.of(routine, on: day).flatMap(\.steps)
+            if !steps.isEmpty { return (day, steps) }
+        }
+        return nil
     }
 }

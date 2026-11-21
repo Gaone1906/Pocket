@@ -16,6 +16,7 @@ cp "$root/Resources/Info.plist" "$app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :PocketSource string $root" "$app/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :PocketCommit string $(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo unknown)" "$app/Contents/Info.plist"
 mkdir -p "$app/Contents/Resources"
+cp "$root/Resources/ventus-bear.png" "$app/Contents/Resources/ventus-bear.png"
 codesign --force --sign "$identity" "$app"
 echo "installed $app (signed with ${identity/-/ad-hoc signature})"
 [[ "${POCKET_NO_OPEN:-0}" == 1 ]] && exit 0
