@@ -9,8 +9,8 @@ enum MisuraBoard: BoardScope {
     static let over = Color(hue: 8, saturation: 62, lightness: 50)
     static let overInk = Color(hue: 8, saturation: 60, lightness: 42)
     static let under = Color(hue: 145, saturation: 45, lightness: 32)
-    static let food = Color(hue: 22, saturation: 85, lightness: 46)
-    static let burn = Color(hue: 145, saturation: 38, lightness: 58)
+    static let food = Color(hue: 28, saturation: 80, lightness: 40)
+    static let burn = Color(hue: 145, saturation: 38, lightness: 64)
 }
 
 struct MisuraPlan: Codable, Equatable {

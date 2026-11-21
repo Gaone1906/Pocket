@@ -52,7 +52,7 @@ Derived members:
 
 ## Theme list (`BoardTheme.all`, in picker order)
 
-Light, from `pastel(id, name, hue:, saturation:)`: `sage` (default), `rose`, `butter`, `apricot`, `sky`, `lavender`, `blush`, `stone`, `ember` (hue 354 × 1.55, Ignis's default), `flint` (hue 212 × 0.15, a cool stone grey, Ventus's default), `bark` (hue 28 × 0.9, the Ursus brown, Terra's default since 2026-11-21).
+Light, from `pastel(id, name, hue:, saturation:)`: `sage` (default), `rose`, `butter`, `apricot`, `sky`, `lavender`, `blush`, `stone`, `ember` (hue 354 × 1.55, Ignis's default), `flint` (hue 212 × 0.15, a cool stone grey, Ventus's default).
 
 Dark, from `dusk(id, name, ground:, glow:, depth:)`: a deep background tinted with the `ground` hue and pastel text, accents and project tints from the `glow` hue.
 
@@ -81,7 +81,7 @@ given any theme from `BoardTheme.all`. The Pocket theme still colours the dropdo
 | Aqua | `sky` | `/Pocket/aqua/` |
 | Ignis | `ember` | `/Pocket/ignis/` |
 | Ventus | `flint` | `/Pocket/ventus/` |
-| Terra | `bark` | `/Pocket/terra/` |
+| Terra | `sage` | `/Pocket/terra/` |
 
 The Hair web app (`/Pocket/`) defaults to Sage, but it has no Mac app of its own: Hair lives inside Aqua.
 

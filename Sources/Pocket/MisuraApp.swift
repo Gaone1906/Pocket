@@ -91,7 +91,7 @@ struct MisuraBar: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(MisuraBoard.line.opacity(0.7))
-                Capsule().fill(tint ?? MisuraBoard.under)
+                Capsule().fill(tint ?? MisuraBoard.accentInk)
                     .frame(width: max(height, geo.size.width * min(1, max(0, value))))
                     .opacity(value <= 0 ? 0 : 1)
                 if let marker {
@@ -116,7 +116,7 @@ struct MisuraRing: View {
             Circle().stroke(MisuraBoard.line.opacity(0.7), lineWidth: line)
             Circle()
                 .trim(from: 0, to: min(1, max(0, fraction)))
-                .stroke(tint ?? MisuraBoard.under, style: StrokeStyle(lineWidth: line, lineCap: .round))
+                .stroke(tint ?? MisuraBoard.accentInk, style: StrokeStyle(lineWidth: line, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
         .frame(width: size, height: size)
@@ -711,7 +711,7 @@ private struct MisuraDayView: View {
     @ViewBuilder private func dot(_ key: String) -> some View {
         let summary = store.summary(key)
         if let summary, summary.logged, key < store.today {
-            Circle().fill(summary.over ? MisuraBoard.over : MisuraBoard.under).frame(width: 7, height: 7)
+            Circle().fill(summary.over ? MisuraBoard.over : MisuraBoard.accentInk).frame(width: 7, height: 7)
         } else {
             Circle().stroke(key == store.today ? MisuraBoard.accentInk : MisuraBoard.line, lineWidth: 1.5).frame(width: 7, height: 7)
         }
@@ -857,7 +857,7 @@ private struct MisuraWeekView: View {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 3)
-                            .background(Capsule().fill(week.underLimit ? MisuraBoard.under : MisuraBoard.over))
+                            .background(Capsule().fill(week.underLimit ? MisuraBoard.accentInk : MisuraBoard.over))
                     }
                 }
                 HStack(alignment: .top, spacing: 14) {
@@ -920,7 +920,7 @@ private struct MisuraWeekView: View {
                                 HStack(alignment: .bottom, spacing: 4) {
                                     if summary.logged {
                                         UnevenRoundedRectangle(topLeadingRadius: 6, topTrailingRadius: 6)
-                                            .fill(summary.over ? MisuraBoard.over : MisuraBoard.under)
+                                            .fill(summary.over ? MisuraBoard.over : MisuraBoard.accentInk)
                                             .frame(width: 30, height: max(4, height * summary.eaten / top))
                                             .overlay(UnevenRoundedRectangle(topLeadingRadius: 6, topTrailingRadius: 6).stroke(summary.day == store.today ? MisuraBoard.ink : .clear, lineWidth: 2).padding(-2))
                                         UnevenRoundedRectangle(topLeadingRadius: 4, topTrailingRadius: 4)
@@ -1067,7 +1067,7 @@ private struct MisuraMonthView: View {
     private func cell(_ key: String) -> some View {
         let summary = store.summary(key)
         let logged = summary?.logged == true
-        let fill = !logged ? MisuraBoard.line.opacity(0.6) : (summary?.over == true ? MisuraBoard.over : MisuraBoard.under)
+        let fill = !logged ? MisuraBoard.line.opacity(0.6) : (summary?.over == true ? MisuraBoard.over : MisuraBoard.accentInk)
         return Button { pick(key) } label: {
             VStack(alignment: .leading) {
                 Text("\(MisuraDays.dayNumber(key))").font(MisuraLook.font(12, .bold))

@@ -53,7 +53,7 @@ function ring(fraction, size, stroke, over) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const f = Math.max(0, Math.min(1, fraction));
-  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="ring"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="var(--track)" stroke-width="${stroke}"/><circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="${over ? "var(--over)" : "var(--under)"}" stroke-width="${stroke}" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - f)).toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/></svg>`;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="ring"><circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="var(--track)" stroke-width="${stroke}"/><circle cx="${size / 2}" cy="${size / 2}" r="${r}" stroke="${over ? "var(--over)" : "var(--accent)"}" stroke-width="${stroke}" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - f)).toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/></svg>`;
 }
 
 function head() {
@@ -66,7 +66,7 @@ function strip(m, k) {
   return `<div class="card strip"><button class="nav" data-day="${shiftDay(k, -7)}" aria-label="Previous week">${ICONS.left}</button>${days
     .map((d) => {
       const s = m.summary(d);
-      const dot = s && s.logged && d < m.today ? `<i class="dot" style="background:${s.over ? "var(--over)" : "var(--under)"}"></i>` : `<i class="dot ring${d === m.today ? " now" : ""}"></i>`;
+      const dot = s && s.logged && d < m.today ? `<i class="dot" style="background:${s.over ? "var(--over)" : "var(--accent)"}"></i>` : `<i class="dot ring${d === m.today ? " now" : ""}"></i>`;
       return `<button class="d${d === k ? " on" : ""}" data-day="${d}"><span class="w">${wd(d)}</span><span class="n">${parseDay(d).getDate()}</span>${dot}</button>`;
     })
     .join("")}<button class="nav" data-day="${shiftDay(k, 7)}" aria-label="Next week">${ICONS.right}</button></div>`;
