@@ -156,6 +156,11 @@ declare
   k text := case when p_kind in ('show', 'anime') then p_kind else 'movie' end;
   u uuid := public.fabula_user(p_who);
   pre text := public.fabula_prefix(p_who);
+  gl text[] := (
+    select array_agg(distinct l->>'name') from records r, jsonb_array_elements(r.data->'langs') l
+    where r.user_id = u and r.kind = pre || '.guide' and r.id = 'list' and not coalesce(r.deleted, false)
+  );
+  kw numeric := case when gl is null then 0.6 else 0 end;
 begin
 return (
 with recs_live as (
@@ -211,6 +216,7 @@ cand as (
     and lower(m.title) not in (select t from seen_titles)
     and not (m.tmdb = any(coalesce(p_exclude, '{}')))
     and (p_langs is null or cardinality(p_langs) = 0 or m.language = any(p_langs))
+    and (gl is null or k = 'anime' or m.language = any(gl))
     and (p_genres is null or cardinality(p_genres) = 0 or m.genres && p_genres)
     and m.year between 1990 and 2026
     and case k
@@ -263,7 +269,7 @@ seq as (
 ),
 scored as (
   select c.*,
-    1.2 * coalesce(g.ga, 0) + 0.6 * tanh(coalesce(g.ka, 0)) + 1.0 * coalesce(g.da, 0) + 0.6 * coalesce(g.ca, 0)
+    1.2 * coalesce(g.ga, 0) + kw * tanh(coalesce(g.ka, 0)) + 1.0 * coalesce(g.da, 0) + 0.6 * coalesce(g.ca, 0)
     + 0.35 * least(coalesce(rb.n, 0), 4)
     + 0.3 * (coalesce(c.vote, 6.5) - 7)
     + 0.04 * ln(1 + coalesce(c.votes, 0))
