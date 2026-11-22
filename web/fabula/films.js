@@ -2,6 +2,26 @@ import { esc, ICONS } from "./util.js";
 
 export const LANGUAGES = ["English", "Hindi", "Telugu", "Tamil", "Malayalam", "Kannada", "Korean", "Japanese", "Spanish", "French"];
 export const GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Family", "Fantasy", "Horror", "Mystery", "Romance", "Sci-fi", "Thriller", "War"];
+export const KINDS = ["movie", "show", "anime"];
+export const KIND_NAMES = { movie: "Movies", show: "Shows", anime: "Anime" };
+export const KIND_LANGS = { movie: LANGUAGES, show: ["English", "Korean", "Hindi"], anime: [] };
+export const KIND_GENRES = {
+  movie: GENRES,
+  show: ["Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Family", "Fantasy", "Mystery", "Romance", "Sci-fi", "War"],
+  anime: ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Horror", "Mystery", "Romance", "Sci-fi", "Slice of Life", "Sports", "Supernatural", "Thriller"],
+};
+export const NOUN = { movie: ["film", "films"], show: ["show", "shows"], anime: ["anime", "anime"] };
+
+export function kindOf(film) {
+  if (film && KINDS.includes(film.kind)) return film.kind;
+  const id = Number(film && film.tmdb);
+  return id >= 200000000 ? "anime" : id >= 100000000 ? "show" : "movie";
+}
+
+export function noun(kind, n = 1) {
+  const w = NOUN[kind] || NOUN.movie;
+  return n === 1 ? w[0] : w[1];
+}
 
 const GRADIENTS = [
   ["#1d2a44", "#5b4426", "#c99a52"],
@@ -43,8 +63,24 @@ export function genreList(film) {
   return Array.isArray(film && film.genres) ? film.genres : [];
 }
 
+function plural(n, one, many) {
+  return n ? `${n} ${n === 1 ? one : many}` : "";
+}
+
 export function meta(film, { genres = 2, director = false } = {}) {
   if (!film) return "";
+  const kind = kindOf(film);
+  if (kind === "anime") {
+    return [film.year, film.format, film.format === "Movie" ? runtime(film.runtime) : plural(Number(film.episodes), "ep", "eps"), director ? film.director : genreList(film).slice(0, genres).join(", ") || film.director]
+      .filter(Boolean)
+      .join(" · ");
+  }
+  if (kind === "show") {
+    const g = director ? film.director : genreList(film).slice(0, genres).join(", ");
+    return [film.year, plural(Number(film.seasons), "season", "seasons"), film.runtime ? `${film.runtime}m` : "", g, film.language && film.language !== "English" ? film.language : ""]
+      .filter(Boolean)
+      .join(" · ");
+  }
   const parts = [film.year, runtime(film.runtime)];
   if (director) parts.push(film.director);
   else {
@@ -56,6 +92,8 @@ export function meta(film, { genres = 2, director = false } = {}) {
 }
 
 export function imdbTag(film) {
+  const m = film && film.mal != null && film.mal !== "" ? Number(film.mal) : NaN;
+  if (Number.isFinite(m)) return `<span class="imdb mal">MAL: <b>${m.toFixed(2)}</b>/10</span>`;
   const n = film && film.imdb != null && film.imdb !== "" ? Number(film.imdb) : NaN;
   if (!Number.isFinite(n)) return "";
   return `<span class="imdb">IMDb: <b>${n.toFixed(1)}</b>/10</span>`;

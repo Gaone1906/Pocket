@@ -92,9 +92,21 @@ Loaded by `fabula-tmdb` `ingest` on a `pg_cron` job (`fabula-ingest`, every minu
 Malayalam and Kannada films with at least 20 votes (5 from 2025). Documentaries are skipped. Progress is `ingest_cursor` in
 `fabula_admin`. Any film logged through search is added on the fly.
 
+## Movies, Shows and Anime
+
+One `movies` table holds all three, told apart by `kind` (`movie`, `show`, `anime`). Shows use id 100,000,000 + TMDB TV
+id and come from TMDB TV (English, Korean and Hindi, 1990 on) with IMDb ratings; anime uses id 200,000,000 + MyAnimeList
+id and comes only from the MyAnimeList API (`fabula-anime`, secret `MAL_CLIENT_ID`), with `mal_score`, `mal_members`,
+`mal_scorers`, `format`, `episodes`, `season`, and the studio in `director`. Japanese animated films are left out of
+Movies. `fabula_deck` and `fabula_refine` take `p_kind` first; the old four-argument versions are movie-only wrappers.
+Decks hide titles under 5/10 (IMDb for shows, MAL for anime) or with under 500 votes, and anime specials. Taste from
+other kinds counts at a quarter weight. Records keep the `ortus.*` kinds with a `kind` field. Cards show `IMDb: x/10` or
+`MAL: x.xx/10` (MAL blue). Refills: `fabula-tmdb` actions `ingest_shows` and `imdb` (kind `show` or `movie`), and
+`fabula-anime` action `ingest`, all with the ingest token.
+
 ## Local state
 
-Web: `fabula.cloud.v1` (setup link, picked up from the other apps), `fabula.langs`, `fabula.genres`, `fabula.sort`,
+Web: `fabula.cloud.v1` (setup link, picked up from the other apps), `fabula.kind`, `fabula.langs`, `fabula.genres` (with `.show` and `.anime` suffixes for those types), `fabula.sort`,
 `fabula.tonight`, `fabula.name`, `fabula.match`; the friend page keeps `fabula.match.<code>` in sessionStorage. Cache prefix
 `fabula-web-`. Mac: UserDefaults `fabula.langs`, `fabula.genres`; `$ROOT/ortus.json` is `{"logs", "swipes"}` (git noun
 "film"). Both record kinds use `detachedId`: the row id is the TMDB id and `data` has no `id`. Mac code notes are in

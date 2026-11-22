@@ -131,31 +131,48 @@ function norm(s: string) {
   return s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-async function tmdbFn(body: unknown) {
-  const res = await fetch(`${URL_}/functions/v1/fabula-tmdb`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+async function tmdbFn(body: unknown, fn = "fabula-tmdb") {
+  const res = await fetch(`${URL_}/functions/v1/${fn}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
   if (!res.ok) return null;
   return await res.json();
 }
 
-const FIELDS = "tmdb,title,year,runtime,language,genres,director,cast,overview,poster,backdrop,vote,providers,imdb_rating,imdb_votes";
+const FIELDS = "tmdb,title,original_title,year,runtime,language,genres,director,cast,overview,poster,backdrop,vote,providers,imdb_rating,imdb_votes,kind,seasons,episodes,format,mal_score";
+const NOUNS: Record<string, string> = { movie: "films", show: "TV series", anime: "Japanese anime titles" };
 
-async function find(title: string, y: number | null) {
-  const { data } = await db.from("movies").select(FIELDS).ilike("title", title.replace(/[%_]/g, "")).limit(5);
-  const hits = (data || []).filter((m: any) => norm(m.title) === norm(title));
-  const best = hits.sort((a: any, b: any) => Math.abs((a.year ?? 0) - (y ?? 0)) - Math.abs((b.year ?? 0) - (y ?? 0)))[0];
-  if (best && (!y || !best.year || Math.abs(best.year - y) <= 1)) return best;
-  const s = await tmdbFn({ action: "search", q: title, year: y || undefined });
-  const r = (s?.results || []).find((x: any) => norm(x.title) === norm(title) || norm(x.original_title || "") === norm(title)) || (s?.results || [])[0];
+function animeFilm(m: any) {
+  return m.language === "Japanese" && (m.genres || []).includes("Animation");
+}
+
+async function find(title: string, y: number | null, kind: string) {
+  const t = title.replace(/[%_]/g, "");
+  const [a, b] = await Promise.all([
+    db.from("movies").select(FIELDS).eq("kind", kind).ilike("title", t).limit(5),
+    db.from("movies").select(FIELDS).eq("kind", kind).ilike("original_title", t).limit(5),
+  ]);
+  const hits = [...(a.data || []), ...(b.data || [])].filter((m: any) => norm(m.title) === norm(title) || norm(m.original_title || "") === norm(title));
+  const best = hits.sort((p: any, q: any) => Math.abs((p.year ?? 0) - (y ?? 0)) - Math.abs((q.year ?? 0) - (y ?? 0)))[0];
+  if (best && (!y || !best.year || Math.abs(best.year - y) <= 1) && !(kind === "movie" && animeFilm(best))) return best;
+  if (best && kind === "movie" && animeFilm(best)) return null;
+  const fn = kind === "anime" ? "fabula-anime" : "fabula-tmdb";
+  const q = kind === "anime" ? title.slice(0, 64) : title;
+  const s = await tmdbFn(kind === "anime" ? { action: "search", q } : { action: "search", q, kind, year: kind === "movie" ? y || undefined : undefined }, fn);
+  const list: any[] = s?.results || [];
+  const r = list.find((x: any) => (norm(x.title) === norm(title) || norm(x.original_title || "") === norm(title)) && (!y || !x.year || Math.abs(x.year - y) <= 1))
+    || list.find((x: any) => norm(x.title) === norm(title) || norm(x.original_title || "") === norm(title))
+    || list[0];
   if (!r) return null;
-  const added = await tmdbFn({ action: "add", tmdb: r.tmdb });
+  const added = await tmdbFn({ action: "add", tmdb: r.tmdb }, fn);
   const m = added?.movie;
   if (!m) return null;
   const out: any = {};
   for (const k of FIELDS.split(",")) out[k] = m[k];
+  if (kind === "movie" && animeFilm(out)) return null;
   return out;
 }
 
-async function mood(text: string, notes: string[], shown: number[]) {
+async function mood(text: string, notes: string[], shown: number[], kind: string) {
+  const many = NOUNS[kind];
   const rows = await records(["ortus.log", "ortus.swipe", "ortus.taste"]);
   const logs = rows.filter((r: any) => r.kind === "ortus.log").map((r: any) => r.data).filter(Boolean);
   const swipes = rows.filter((r: any) => r.kind === "ortus.swipe").map((r: any) => r.data).filter(Boolean);
@@ -166,7 +183,7 @@ async function mood(text: string, notes: string[], shown: number[]) {
   const loved = logs.filter((l: any) => l.rating >= 9).sort((a: any, b: any) => b.rating - a.rating).slice(0, 40);
   const disliked = logs.filter((l: any) => l.rating <= 6.5).slice(0, 15);
   const { data: shownRows } = shown.length ? await db.from("movies").select("title,year").in("tmdb", shown) : { data: [] };
-  const system = "You recommend films to one person for tonight. Match their mood first, their taste second. Prefer films that are easy to stream in India. Never suggest a film they have already seen or were already shown. Answer by calling the answer tool.";
+  const system = `You recommend ${many} to one person for tonight. Match their mood first, their taste second. ${kind === "anime" ? "Suggest only Japanese anime (series or films)." : kind === "show" ? "Suggest only TV series in English, Korean or Hindi, never anime." : "Suggest only feature films, never anime films."} Prefer titles that are easy to stream in India. Never suggest a title they have already seen or were already shown. Answer by calling the answer tool.`;
   const user = [
     `Mood: ${text}`,
     notes.length ? `Follow-up notes, newest last:\n${notes.map((n) => `- ${n}`).join("\n")}` : "",
@@ -175,13 +192,14 @@ async function mood(text: string, notes: string[], shown: number[]) {
     disliked.length ? `Disliked:\n${disliked.map(line).join("\n")}` : "",
     `Already seen or swiped (never suggest): ${[...logs, ...swipes].map((d: any) => d.title).filter(Boolean).join("; ")}`,
     (shownRows || []).length ? `Already shown tonight (never suggest again): ${(shownRows || []).map((m: any) => `${m.title} (${m.year})`).join("; ")}` : "",
-    `Fill the answer: {"films": [12 items of {"title": exact English release title, "year": release year, "why": one sentence under 18 words tying it to the mood}]}`,
+    `Their ratings above may include films, shows and anime; use them for taste, but suggest only ${many}.`,
+    `Fill the answer: {"films": [12 items of {"title": ${kind === "anime" ? "the title as listed on MyAnimeList, in English when it has one" : `exact English ${kind === "show" ? "series" : "release"} title`}, "year": ${kind === "movie" ? "release year" : "first air year"}, "why": one sentence under 18 words tying it to the mood}]}`,
   ].filter(Boolean).join("\n\n");
   const films: any[] = [];
   const ids = new Set<number>();
   const ruledOut: string[] = [];
   for (let round = 1; round <= 3 && films.length < 4; round++) {
-    const ask = round === 1 ? user : `${user}\n\nThese were already ruled out, so suggest different films: ${ruledOut.join("; ")}`;
+    const ask = round === 1 ? user : `${user}\n\nThese were already ruled out, so suggest different ${many}: ${ruledOut.join("; ")}`;
     const out = await haiku("mood", system, ask, 2200, MOOD_SCHEMA);
     const ideas = (Array.isArray(out.films) ? out.films : []).slice(0, 12);
     let seen = 0, missing = 0, dup = 0;
@@ -191,11 +209,14 @@ async function mood(text: string, notes: string[], shown: number[]) {
       const label = `${title} (${Number(f.year) || "?"})`;
       if (seenTitles.has(norm(title))) { seen++; ruledOut.push(label); return null; }
       try {
-        const m = await find(title, Number(f.year) || null);
+        const m = await find(title, Number(f.year) || null, kind);
         if (!m) { missing++; ruledOut.push(label); return null; }
         if (seenIds.has(m.tmdb) || shownSet.has(m.tmdb)) { seen++; ruledOut.push(label); return null; }
-        const { imdb_rating, imdb_votes, ...rest } = m;
-        return { ...rest, imdb: (imdb_votes ?? 0) >= 1000 ? imdb_rating : null, cast: (m.cast || []).slice(0, 3), why: clean(f.why, 200) };
+        const { imdb_rating, imdb_votes, mal_score, original_title, ...rest } = m;
+        return {
+          ...rest, imdb: (imdb_votes ?? 0) >= (kind === "show" ? 500 : 1000) ? imdb_rating : null, mal: kind === "anime" ? mal_score : null,
+          cast: (m.cast || []).slice(0, 3), why: clean(f.why, 200),
+        };
       } catch (e) {
         missing++;
         ruledOut.push(label);
@@ -229,7 +250,8 @@ Deno.serve(async (req) => {
         if (text.length < 2) return json({ error: "Tell me the mood first" }, 400);
         const notes = (Array.isArray(body.notes) ? body.notes : []).map((n: unknown) => clean(n, 300)).filter(Boolean).slice(-8);
         const shown = (Array.isArray(body.shown) ? body.shown : []).map(Number).filter((n: number) => Number.isInteger(n) && n > 0).slice(-80);
-        return json(await mood(text, notes, shown));
+        const kind = ["show", "anime"].includes(body.kind) ? body.kind : "movie";
+        return json(await mood(text, notes, shown, kind));
       }
       case "taste": {
         const fresh = (Array.isArray(body.fresh) ? body.fresh : []).map(Number).filter((n: number) => Number.isInteger(n) && n > 0).slice(0, 400);

@@ -111,8 +111,7 @@ $$;
 revoke all on function public.fabula_set_imdb(jsonb) from public, anon, authenticated;
 grant execute on function public.fabula_set_imdb(jsonb) to service_role;
 
-drop function if exists public.fabula_deck(text[], text[], integer, integer[]);
-create or replace function public.fabula_deck(p_langs text[] default null, p_genres text[] default null, p_limit integer default 20, p_exclude integer[] default '{}', p_kind text default 'movie')
+create or replace function public.fabula_deck(p_kind text, p_langs text[] default null, p_genres text[] default null, p_limit integer default 20, p_exclude integer[] default '{}')
 returns jsonb
 language plpgsql
 stable
@@ -275,10 +274,18 @@ from picked p
 );
 end
 $$;
-grant execute on function public.fabula_deck(text[], text[], integer, integer[], text) to anon, authenticated;
+grant execute on function public.fabula_deck(text, text[], text[], integer, integer[]) to anon, authenticated;
 
-drop function if exists public.fabula_refine(text[], text[], integer, integer[]);
-create or replace function public.fabula_refine(p_langs text[] default null, p_genres text[] default null, p_limit integer default 10, p_exclude integer[] default '{}', p_kind text default 'movie')
+create or replace function public.fabula_deck(p_langs text[] default null, p_genres text[] default null, p_limit integer default 20, p_exclude integer[] default '{}')
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$ select public.fabula_deck('movie', p_langs, p_genres, p_limit, p_exclude) $$;
+grant execute on function public.fabula_deck(text[], text[], integer, integer[]) to anon, authenticated;
+
+create or replace function public.fabula_refine(p_kind text, p_langs text[] default null, p_genres text[] default null, p_limit integer default 10, p_exclude integer[] default '{}')
 returns jsonb
 language plpgsql
 stable
@@ -320,4 +327,13 @@ from picked
 );
 end
 $$;
-grant execute on function public.fabula_refine(text[], text[], integer, integer[], text) to anon, authenticated;
+grant execute on function public.fabula_refine(text, text[], text[], integer, integer[]) to anon, authenticated;
+
+create or replace function public.fabula_refine(p_langs text[] default null, p_genres text[] default null, p_limit integer default 10, p_exclude integer[] default '{}')
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$ select public.fabula_refine('movie', p_langs, p_genres, p_limit, p_exclude) $$;
+grant execute on function public.fabula_refine(text[], text[], integer, integer[]) to anon, authenticated;

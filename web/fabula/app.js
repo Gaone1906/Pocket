@@ -1,6 +1,6 @@
 import * as store from "./store.js";
 import { $, esc, ICONS, isoNow, readJSON, readLocal, writeLocal, reduceMotion, buzz } from "./util.js";
-import { LANGUAGES, GENRES, card, meta, metaRow, posterStyle, thumb, ratingText, ratingClass, genreList } from "./films.js";
+import { LANGUAGES, GENRES, KINDS, KIND_NAMES, KIND_LANGS, KIND_GENRES, kindOf, noun, card, meta, metaRow, posterStyle, thumb, ratingText, ratingClass, genreList } from "./films.js";
 import { attach, fly, springBack } from "./drag.js";
 import { caller, createRoom, lobbyView, swipeView, matchedView, notice, nameSheet, bindSwipe } from "./room.js";
 
@@ -10,6 +10,13 @@ const UNSEEN = "ortus.unseen";
 const VIEWS = ["recommend", "watchlist", "log", "match", "refiner", "ai"];
 const REF_LANGS = ["English", "Hindi", "Telugu", "Tamil", "Malayalam", "Kannada", "Korean", "Japanese", "Spanish"];
 const REF_GENRES = ["Action", "Animation", "Comedy", "Crime", "Drama", "Fantasy", "Horror", "Mystery", "Romance", "Sci-fi", "Thriller", "War"];
+const REF_KIND_LANGS = { movie: REF_LANGS, show: KIND_LANGS.show, anime: [] };
+const REF_KIND_GENRES = { movie: REF_GENRES, show: KIND_GENRES.show, anime: KIND_GENRES.anime };
+const START_KIND = KINDS.includes(readLocal("fabula.kind", "")) ? readLocal("fabula.kind", "") : "movie";
+
+function filterKey(name, kind) {
+  return kind === "movie" ? `fabula.${name}` : `fabula.${name}.${kind}`;
+}
 const IDEAS = ["Cosy and clever", "Edge of my seat", "Make me cry", "Something weird"];
 const ADDED = ["Any time", "This week", "This month"];
 const SORTS = ["Rating", "Recently logged", "Title", "Year"];
@@ -19,8 +26,8 @@ function list(key, allowed) {
   return Array.isArray(v) ? v.filter((x) => allowed.includes(x)) : [];
 }
 
-function freshRef(langs = [], genres = []) {
-  return { step: "pick", langs, genres, films: [], scores: {}, shown: [], fresh: [], rated: 0, unseen: 0, loading: false, error: "", taste: null, tasteLoading: false, tasteError: "", seq: 0 };
+function freshRef(langs = [], genres = [], kind = START_KIND) {
+  return { step: "pick", kind, langs, genres, films: [], scores: {}, shown: [], fresh: [], rated: 0, unseen: 0, loading: false, error: "", taste: null, tasteLoading: false, tasteError: "", seq: 0 };
 }
 
 function freshAi(draft = "") {
@@ -32,8 +39,9 @@ const ui = {
   nav: false,
   sheet: null,
   pick: null,
-  langs: list("fabula.langs", LANGUAGES),
-  genres: list("fabula.genres", GENRES),
+  kind: START_KIND,
+  langs: list(filterKey("langs", START_KIND), KIND_LANGS[START_KIND]),
+  genres: list(filterKey("genres", START_KIND), KIND_GENRES[START_KIND]),
   queue: [],
   swiped: new Set(),
   history: [],
@@ -79,7 +87,7 @@ function go(view) {
   ui.nav = false;
   ui.sheet = null;
   ui.pick = null;
-  if (view === "refiner" && ui.ref.step === "done") ui.ref = freshRef(ui.ref.langs, ui.ref.genres);
+  if (view === "refiner" && ui.ref.step === "done") ui.ref = freshRef(ui.ref.langs, ui.ref.genres, ui.ref.kind);
   if (ui.view === view) return render();
   ui.view = view;
   const hash = view === "recommend" ? "" : "#" + view;
@@ -99,7 +107,7 @@ function enterView() {
 
 function createRoom_() {
   ui.askName = false;
-  room.create(ui.name, ui.langs.length ? ui.langs : null, ui.genres.length ? ui.genres : null);
+  room.create(ui.name, ui.langs.length ? ui.langs : null, ui.genres.length ? ui.genres : null, ui.kind);
 }
 
 window.addEventListener("popstate", () => {
@@ -114,6 +122,7 @@ function swipeRecord(film, verdict) {
   const now = isoNow();
   return {
     tmdb: film.tmdb,
+    kind: kindOf(film),
     verdict,
     at: now,
     title: film.title || "",
@@ -123,6 +132,7 @@ function swipeRecord(film, verdict) {
     genres: genreList(film),
     runtime: film.runtime ?? null,
     director: film.director ?? null,
+    ...extras(film),
     updated: now,
   };
 }
@@ -132,6 +142,7 @@ function logRecord(film, rating, comment) {
   const old = store.get(LOG, String(film.tmdb));
   return {
     tmdb: film.tmdb,
+    kind: kindOf(film),
     title: film.title || "",
     year: film.year ?? null,
     rating,
@@ -141,9 +152,35 @@ function logRecord(film, rating, comment) {
     genres: genreList(film),
     director: film.director ?? null,
     runtime: film.runtime ?? null,
+    ...extras(film),
     logged: (old && old.logged) || now,
     updated: now,
   };
+}
+
+function extras(film) {
+  const out = {};
+  for (const k of ["seasons", "episodes", "format"]) if (film[k] != null) out[k] = film[k];
+  return out;
+}
+
+function setKind(kind) {
+  if (!KINDS.includes(kind) || kind === ui.kind) return;
+  ui.kind = kind;
+  writeLocal("fabula.kind", kind);
+  ui.langs = list(filterKey("langs", kind), KIND_LANGS[kind]);
+  ui.genres = list(filterKey("genres", kind), KIND_GENRES[kind]);
+  ui.wlLang = [];
+  ui.wlGenre = [];
+  ui.history = [];
+  ui.hookOpen = null;
+  resetDeck();
+}
+
+function kindSeg(act = "kind") {
+  return `<div class="kseg" role="group">${KINDS.map(
+    (k) => `<button class="kopt ${ui.kind === k ? "on" : ""}" data-act="${act}" data-v="${k}" aria-pressed="${ui.kind === k}">${KIND_NAMES[k]}</button>`
+  ).join("")}</div>`;
 }
 
 function putSwipe(film, verdict) {
@@ -160,7 +197,7 @@ function watchlist() {
   const pick = tonight();
   return store
     .all(SWIPE)
-    .filter((s) => (s.verdict === "yes" || s.verdict === "super") && !logged.has(Number(s.tmdb)))
+    .filter((s) => (s.verdict === "yes" || s.verdict === "super") && !logged.has(Number(s.tmdb)) && kindOf(s) === ui.kind)
     .sort((a, b) => {
       const pa = Number(a.tmdb) === pick ? 1 : 0;
       const pb = Number(b.tmdb) === pick ? 1 : 0;
@@ -180,7 +217,8 @@ async function refill() {
   try {
     const exclude = [...new Set([...ui.swiped, ...ui.queue.map((f) => f.tmdb)])];
     const rows = await store.rpc("fabula_deck", {
-      p_langs: ui.langs.length ? ui.langs : null,
+      p_kind: ui.kind,
+      p_langs: ui.langs.length && ui.kind !== "anime" ? ui.langs : null,
       p_genres: ui.genres.length ? ui.genres : null,
       p_limit: 20,
       p_exclude: exclude,
@@ -192,7 +230,7 @@ async function refill() {
     ui.exhausted = fresh.length === 0;
     ui.deckError = "";
   } catch (e) {
-    if (gen === ui.gen) ui.deckError = e.message || "Can't load films";
+    if (gen === ui.gen) ui.deckError = e.message || `Can't load ${noun(ui.kind, 2)}`;
   } finally {
     if (gen === ui.gen) {
       ui.loading = false;
@@ -305,17 +343,17 @@ function viewRecommend() {
   if (top) {
     stage = `${card(ui.queue[1])}${card(top, { top: true, undo: true, canUndo: ui.history.length > 0, open: ui.hookOpen === top.tmdb })}`;
   } else if (ui.deckError) {
-    stage = `<div class="plate"></div><div class="done"><b>Can't load films</b><span>${esc(ui.deckError)}</span><button class="btn" data-act="retry">Try again</button></div>`;
+    stage = `<div class="plate"></div><div class="done"><b>Can't load ${noun(ui.kind, 2)}</b><span>${esc(ui.deckError)}</span><button class="btn" data-act="retry">Try again</button></div>`;
   } else if (ui.loading || !ui.exhausted) {
     stage = `<div class="plate"></div><div class="card skeleton"><div class="face"><div class="poster"></div><div class="lower"><div class="info"><span class="bar w60"></span><span class="bar"></span><span class="bar w80"></span></div></div></div></div>`;
   } else {
-    stage = `<div class="plate"></div><div class="done"><b>That's every film for now</b>${
+    stage = `<div class="plate"></div><div class="done"><b>That's every ${noun(ui.kind)} for now</b>${
       ui.langs.length || ui.genres.length ? `<button class="btn ghost" data-act="clear-all">Clear filters</button>` : ""
     }${ui.history.length ? `<button class="iconbtn" data-act="undo" aria-label="Undo last swipe">${ICONS.undo}</button>` : ""}</div>`;
   }
   return `<main class="screen rec">
     ${header()}
-    <div class="pills">${pill(sum(ui.langs, "Language"), ui.langs.length, "filter", "langs")}${pill(sum(ui.genres, "Genre"), ui.genres.length, "filter", "genres")}</div>
+    <div class="pills">${pill(KIND_NAMES[ui.kind], false, "filter", "kind")}${ui.kind === "anime" ? "" : pill(sum(ui.langs, "Language"), ui.langs.length, "filter", "langs")}${pill(sum(ui.genres, "Genre"), ui.genres.length, "filter", "genres")}</div>
     <div class="stack">${stage}</div>
   </main>`;
 }
@@ -339,9 +377,13 @@ function filterSheet() {
   const s = ui.sheet;
   const deck = s.key === "langs" || s.key === "genres";
   let title, names, chosen;
+  if (s.key === "kind") {
+    return sheet(`<h2>Type</h2>${chips(KINDS.map((k) => KIND_NAMES[k]), (n) => KIND_NAMES[s.draft] === n, "opt")}
+    <div class="two"><button class="btn wide" data-act="opt-done">Done</button></div>`);
+  }
   if (deck) {
     title = s.key === "langs" ? "Language" : "Genre";
-    names = s.key === "langs" ? LANGUAGES : GENRES;
+    names = s.key === "langs" ? KIND_LANGS[ui.kind] : KIND_GENRES[ui.kind];
     chosen = (n) => s.draft.includes(n);
   } else {
     const items = watchlist();
@@ -376,7 +418,7 @@ function rateSheet() {
   return sheet(
     `<div class="titles"><h2>How was ${esc(f.title)}?</h2>${sub ? `<span class="muted">${esc(sub)}</span>` : ""}</div>
     <div class="scores">${grid}</div>
-    <input class="field" data-input="comment" aria-label="Comments" placeholder="Tell us about the movie!" value="${esc(s.comment)}" maxlength="500">
+    <input class="field" data-input="comment" aria-label="Comments" placeholder="Tell us about the ${{ movie: "movie", show: "show", anime: "anime" }[kindOf(f)]}!" value="${esc(s.comment)}" maxlength="500">
     <div class="two">${
       edit ? `<button class="btn ghost danger" data-act="log-delete">Delete</button>` : `<button class="btn ghost" data-act="rate-skip">Skip rating</button>`
     }<button class="btn wide" data-act="rate-save" ${s.rating ? "" : "disabled"}>${edit ? "Save" : "Save to Log"}</button></div>`,
@@ -393,8 +435,8 @@ function wlFilmSheet() {
 function addSheet() {
   const s = ui.sheet;
   return sheet(
-    `<h2>Add a film</h2>
-    <div class="searchrow">${ICONS.search}<input class="field" type="search" data-input="add-q" aria-label="Search films" placeholder="Search films" value="${esc(s.q)}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+    `<h2>Add ${ui.kind === "anime" ? "an anime" : `a ${noun(ui.kind)}`}</h2>
+    <div class="searchrow">${ICONS.search}<input class="field" type="search" data-input="add-q" aria-label="Search ${noun(ui.kind, 2)}" placeholder="Search ${noun(ui.kind, 2)}" value="${esc(s.q)}" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
     <div class="results" id="add-results">${addResults()}</div>`,
     "add"
   );
@@ -408,7 +450,7 @@ function addResults() {
   return s.results
     .map(
       (r) => `<button class="result" data-act="add-pick" data-v="${esc(r.tmdb)}">${thumb(r, "thumb sm")}<span class="rt"><b>${esc(r.title)}</b><span class="muted">${esc(
-        [r.year, r.language, r.original_title && r.original_title !== r.title ? r.original_title : ""].filter(Boolean).join(" · ")
+        [r.year, r.format || r.language, r.original_title && r.original_title !== r.title ? r.original_title : ""].filter(Boolean).join(" · ")
       )}</span></span>${store.get(LOG, String(r.tmdb)) ? `<span class="rating ${ratingClass(store.get(LOG, String(r.tmdb)).rating)}">${esc(ratingText(store.get(LOG, String(r.tmdb)).rating))}</span>` : ""}</button>`
     )
     .join("");
@@ -480,7 +522,8 @@ function viewWatchlist() {
   };
   const total = items.length;
   return `<main class="screen wlist">
-    ${subhead("Watchlist", `<span class="count">${total} ${total === 1 ? "film" : "films"}</span>`)}
+    ${subhead("Watchlist", `<span class="count">${total} ${noun(ui.kind, total)}</span>`)}
+    ${kindSeg()}
     <div class="pills three">${pill(sum(ui.wlLang, "Language"), ui.wlLang.length, "wfilter", "lang")}${pill(sum(ui.wlGenre, "Genre"), ui.wlGenre.length, "wfilter", "genre")}${pill(
     ui.wlAdded,
     ui.wlAdded !== "Any time",
@@ -517,7 +560,7 @@ function logStats(logs) {
 
 function logItems() {
   const q = ui.logQuery.trim().toLowerCase();
-  const logs = store.all(LOG).filter((l) => !q || [l.title, l.comment, l.director, l.year, l.language].join(" ").toLowerCase().includes(q));
+  const logs = store.all(LOG).filter((l) => kindOf(l) === ui.kind).filter((l) => !q || [l.title, l.comment, l.director, l.year, l.language].join(" ").toLowerCase().includes(q));
   const by = {
     Rating: (a, b) => Number(b.rating) - Number(a.rating) || String(b.logged || "").localeCompare(String(a.logged || "")),
     "Recently logged": (a, b) => String(b.logged || "").localeCompare(String(a.logged || "")),
@@ -538,16 +581,17 @@ function logRows() {
 }
 
 function viewLog() {
-  const logs = store.all(LOG);
+  const logs = store.all(LOG).filter((l) => kindOf(l) === ui.kind);
   const st = logStats(logs);
   return `<main class="screen log">
-    ${subhead("Log", `<button class="addbtn" data-act="add-open" aria-label="Add a film">+ Add film</button>`)}
+    ${subhead("Log", `<button class="addbtn" data-act="add-open" aria-label="Add ${noun(ui.kind)}">+ Add ${noun(ui.kind)}</button>`)}
+    ${kindSeg()}
     <div class="stats">
-      <div class="stat"><b>${st.count}</b><span>films logged</span></div>
+      <div class="stat"><b>${st.count}</b><span>${noun(ui.kind, st.count)} logged</span></div>
       <div class="stat"><b>${st.avg}</b><span>your average</span></div>
       <div class="stat"><b>${st.best}</b><span>best decade</span></div>
     </div>
-    <div class="searchbar"><input type="search" class="field" data-input="log-q" aria-label="Search your log" placeholder="Search ${st.count} ${st.count === 1 ? "film" : "films"}" value="${esc(ui.logQuery)}"><button class="sortbtn" data-act="sort-open">${esc(ui.logSort)} ▾</button></div>
+    <div class="searchbar"><input type="search" class="field" data-input="log-q" aria-label="Search your log" placeholder="Search ${st.count} ${noun(ui.kind, st.count)}" value="${esc(ui.logQuery)}"><button class="sortbtn" data-act="sort-open">${esc(ui.logSort)} ▾</button></div>
     <div class="lrows" id="log-rows">${logRows()}</div>
   </main>`;
 }
@@ -584,7 +628,8 @@ function backhead(title, act, label, right = "") {
 }
 
 function refChoice(r) {
-  return `${r.langs.length ? r.langs.join(", ") : "Any language"} · ${r.genres.length ? r.genres.join(", ") : "Any genre"}`;
+  const lang = r.kind === "anime" ? "" : `${r.langs.length ? r.langs.join(", ") : "Any language"} · `;
+  return `${KIND_NAMES[r.kind]} · ${lang}${r.genres.length ? r.genres.join(", ") : "Any genre"}`;
 }
 
 function refRated(r) {
@@ -598,7 +643,7 @@ function refRow(f) {
     <div class="rf-poster" style="${posterStyle(f, "w342")}"></div>
     <div class="rf-body">
       <b class="rf-title">${esc(f.title)}</b>
-      <span class="muted">${esc([f.year, f.director].filter(Boolean).join(" · "))}</span>
+      <span class="muted">${esc(kindOf(f) === "movie" ? [f.year, f.director].filter(Boolean).join(" · ") : meta(f, { director: true }))}</span>
       ${f.overview ? `<span class="rf-blurb">${esc(f.overview)}</span>` : ""}
       <div class="rf-rate"><input type="range" min="1" max="10" step="1" value="${s || 5}" class="range ${s ? "" : "untouched"}" data-input="ref-score" data-v="${esc(id)}" aria-label="Rate ${esc(f.title)}"><span class="rf-val ${s ? "on" : ""}">${s ? `${s} / 10` : "Not seen"}</span></div>
     </div>
@@ -614,8 +659,8 @@ function viewRefiner() {
   if (r.step === "list") {
     let body;
     if (r.loading) body = [0, 1, 2, 3].map(() => rowSkeleton("rf-row")).join("");
-    else if (r.error) body = `<div class="done quiet"><b>Can't load films</b><span>${esc(r.error)}</span><button class="btn" data-act="ref-retry">Try again</button></div>`;
-    else if (!r.films.length) body = `<div class="done quiet"><b>That's every film for now</b></div>`;
+    else if (r.error) body = `<div class="done quiet"><b>Can't load ${noun(r.kind, 2)}</b><span>${esc(r.error)}</span><button class="btn" data-act="ref-retry">Try again</button></div>`;
+    else if (!r.films.length) body = `<div class="done quiet"><b>That's every ${noun(r.kind)} for now</b></div>`;
     else body = r.films.map(refRow).join("");
     const foot = r.loading
       ? ""
@@ -627,7 +672,7 @@ function viewRefiner() {
   }
   if (r.step === "done") {
     return `<main class="screen rf-done">
-      <div class="rf-hero"><div class="rf-tick">${ICONS.check}</div><h1>Taste updated</h1><span class="muted">${r.rated} ${r.rated === 1 ? "film" : "films"} rated, ${r.unseen} not seen.</span></div>
+      <div class="rf-hero"><div class="rf-tick">${ICONS.check}</div><h1>Taste updated</h1><span class="muted">${r.rated} ${noun(r.kind, r.rated)} rated, ${r.unseen} not seen.</span></div>
       ${r.fresh.length ? tasteCards(r) : ""}
       <div class="grow"></div>
       <button class="btn big" data-act="ref-home">Back to Recommend</button>
@@ -638,8 +683,9 @@ function viewRefiner() {
   return `<main class="screen rf-pick">
     ${backhead("Refiner", "nav", "Back to menu")}
     <h1 class="bigq">What would you like to refine?</h1>
-    <div class="rf-group"><span class="flabel">Language</span>${chips(["Any", ...REF_LANGS], on("langs"), "ref-lang")}</div>
-    <div class="rf-group"><span class="flabel">Genre</span>${chips(["Any", ...REF_GENRES], on("genres"), "ref-genre")}</div>
+    <div class="rf-group"><span class="flabel">Type</span>${chips(KINDS.map((k) => KIND_NAMES[k]), (n) => KIND_NAMES[r.kind] === n, "ref-kind")}</div>
+    ${r.kind === "anime" ? "" : `<div class="rf-group"><span class="flabel">Language</span>${chips(["Any", ...REF_KIND_LANGS[r.kind]], on("langs"), "ref-lang")}</div>`}
+    <div class="rf-group"><span class="flabel">Genre</span>${chips(["Any", ...REF_KIND_GENRES[r.kind]], on("genres"), "ref-genre")}</div>
     <div class="grow"></div>
     <button class="btn big" data-act="ref-start">Start refining</button>
   </main>`;
@@ -684,12 +730,13 @@ function viewAi() {
       ${backhead("AI Mode", "nav", "Back to menu")}
       <div class="grow"></div>
       <div class="ai-hero"><div class="ai-spark">${ICONS.sparkle}</div><h1 class="bigq">What are you in the mood for?</h1></div>
+      ${kindSeg()}
       <div class="ai-ideas">${IDEAS.map((i) => `<button class="ai-idea" data-act="ai-idea" data-v="${esc(i)}">${esc(i)}</button>`).join("")}</div>
       <div class="grow"></div>
       <form class="ai-box" data-form="mood">
         <label class="flabel" for="ai-mood">Your mood</label>
         <textarea id="ai-mood" rows="4" data-input="ai-mood" maxlength="500" placeholder="Rainy Sunday, want something cosy but not dumb, under 2 hours">${esc(a.draft)}</textarea>
-        <button class="btn big ai-find" ${a.draft.trim().length < 2 ? "disabled" : ""}>Find films${ICONS.arrow}</button>
+        <button class="btn big ai-find" ${a.draft.trim().length < 2 ? "disabled" : ""}>Find ${noun(ui.kind, 2)}${ICONS.arrow}</button>
       </form>
     </main>`;
   }
@@ -724,7 +771,7 @@ function sidebar() {
   <nav class="side" aria-label="Fabula">
     <div class="sidebrand"><img src="logo-96.png" alt=""><span>Fabula</span></div>
     ${item("recommend", ICONS.cards, "Recommend")}${item("log", ICONS.list, "Log")}${item("refiner", ICONS.sliders, "Refiner")}${item("ai", ICONS.sparkle, "AI Mode")}
-    <div class="credit">Film data from TMDB · Streaming data from JustWatch</div>
+    <div class="credit">Film and show data from TMDB · Anime data from MyAnimeList · Streaming data from JustWatch</div>
   </nav>`;
 }
 
@@ -862,6 +909,10 @@ function toast(text) {
 }
 
 function openFilter(key) {
+  if (key === "kind") {
+    ui.sheet = { type: "filter", key, draft: ui.kind };
+    return;
+  }
   const draft = key === "langs" ? [...ui.langs] : key === "genres" ? [...ui.genres] : key === "lang" ? [...ui.wlLang] : key === "genre" ? [...ui.wlGenre] : ui.wlAdded;
   ui.sheet = { type: "filter", key, draft };
 }
@@ -869,12 +920,13 @@ function openFilter(key) {
 function applyFilter() {
   const s = ui.sheet;
   ui.sheet = null;
-  if (s.key === "langs" || s.key === "genres") {
+  if (s.key === "kind") setKind(s.draft);
+  else if (s.key === "langs" || s.key === "genres") {
     const before = JSON.stringify([ui.langs, ui.genres]);
     if (s.key === "langs") ui.langs = s.draft;
     else ui.genres = s.draft;
-    writeLocal("fabula.langs", JSON.stringify(ui.langs));
-    writeLocal("fabula.genres", JSON.stringify(ui.genres));
+    writeLocal(filterKey("langs", ui.kind), JSON.stringify(ui.langs));
+    writeLocal(filterKey("genres", ui.kind), JSON.stringify(ui.genres));
     if (JSON.stringify([ui.langs, ui.genres]) !== before) resetDeck();
   } else if (s.key === "lang") ui.wlLang = s.draft;
   else if (s.key === "genre") ui.wlGenre = s.draft;
@@ -907,7 +959,7 @@ function searchFilms(q) {
   const s = ui.sheet;
   s.q = q;
   s.error = "";
-  if (q.trim().length < 2) {
+  if (q.trim().length < (ui.kind === "anime" ? 3 : 2)) {
     s.results = [];
     s.loading = false;
     updateResults();
@@ -918,7 +970,7 @@ function searchFilms(q) {
     s.loading = true;
     updateResults();
     try {
-      const res = await store.fn("fabula-tmdb", { action: "search", q: q.trim() });
+      const res = ui.kind === "anime" ? await store.fn("fabula-anime", { action: "search", q: q.trim() }) : await store.fn("fabula-tmdb", { action: "search", q: q.trim(), kind: ui.kind });
       if (mine !== s.seq || ui.sheet !== s) return;
       s.results = (res && res.results) || [];
     } catch (e) {
@@ -941,8 +993,9 @@ async function pickResult(id) {
   s.adding = true;
   const r = s.results.find((x) => String(x.tmdb) === String(id));
   try {
-    const res = await store.fn("fabula-tmdb", { action: "add", tmdb: Number(id) });
-    const film = (res && res.movie) || r;
+    const res = await store.fn(kindOf({ tmdb: id }) === "anime" ? "fabula-anime" : "fabula-tmdb", { action: "add", tmdb: Number(id) });
+    const raw = (res && res.movie) || r;
+    const film = raw.mal_score != null && raw.mal == null ? { ...raw, mal: raw.mal_score } : raw;
     const old = store.get(LOG, String(film.tmdb));
     ui.sheet = { type: "rate", mode: old ? "edit" : "add", film: old ? { ...film, ...old } : film, rating: old ? old.rating : null, comment: old ? old.comment || "" : "" };
   } catch (e) {
@@ -980,7 +1033,7 @@ function watchMatched() {
 }
 
 function refStart() {
-  ui.ref = { ...freshRef(ui.ref.langs, ui.ref.genres), step: "list" };
+  ui.ref = { ...freshRef(ui.ref.langs, ui.ref.genres, ui.ref.kind), step: "list" };
   refLoad();
 }
 
@@ -998,7 +1051,8 @@ async function refLoad() {
   try {
     await store.pushNow();
     const rows = await store.rpc("fabula_refine", {
-      p_langs: r.langs.length ? r.langs : null,
+      p_kind: r.kind,
+      p_langs: r.langs.length && r.kind !== "anime" ? r.langs : null,
       p_genres: r.genres.length ? r.genres : null,
       p_limit: 10,
       p_exclude: r.shown,
@@ -1006,7 +1060,7 @@ async function refLoad() {
     const have = new Set(r.shown);
     films = (Array.isArray(rows) ? rows : []).filter((f) => f && f.tmdb && !have.has(f.tmdb)).slice(0, 10);
   } catch (e) {
-    error = e.message || "Can't load films";
+    error = e.message || `Can't load ${noun(r.kind, 2)}`;
   }
   if (ui.ref !== r || seq !== r.seq) return;
   r.films = films;
@@ -1027,7 +1081,7 @@ function refSave(touchedOnly = false) {
       r.rated++;
       r.fresh.push(f.tmdb);
     } else if (!touchedOnly) {
-      store.put(UNSEEN, id, { tmdb: f.tmdb, title: f.title || "", year: f.year ?? null, at: now, updated: now });
+      store.put(UNSEEN, id, { tmdb: f.tmdb, kind: kindOf(f), title: f.title || "", year: f.year ?? null, at: now, updated: now });
       r.unseen++;
     }
   }
@@ -1086,7 +1140,7 @@ function refScore(el) {
 function aiFind() {
   const text = ui.ai.draft.trim();
   if (text.length < 2) return;
-  ui.ai = { ...freshAi(ui.ai.draft), step: "results", mood: text, thread: [text] };
+  ui.ai = { ...freshAi(ui.ai.draft), step: "results", kind: ui.kind, mood: text, thread: [text] };
   aiRound();
 }
 
@@ -1106,10 +1160,10 @@ async function aiRound(entry = "", note = "") {
   let films = null;
   let error = "";
   try {
-    const res = await store.fn("fabula-ai", { action: "mood", text: a.mood, notes: a.notes, shown: a.shown });
+    const res = await store.fn("fabula-ai", { action: "mood", kind: a.kind, text: a.mood, notes: a.notes, shown: a.shown });
     films = (res && Array.isArray(res.films) ? res.films : []).filter((f) => f && f.tmdb).slice(0, 4);
   } catch (e) {
-    error = e.message || "Can't find films";
+    error = e.message || `Can't find ${noun(a.kind, 2)}`;
   }
   if (ui.ai !== a || seq !== a.seq) return;
   if (films) {
@@ -1175,17 +1229,21 @@ document.addEventListener("click", (e) => {
     case "clear-all":
       ui.langs = [];
       ui.genres = [];
-      writeLocal("fabula.langs", "[]");
-      writeLocal("fabula.genres", "[]");
+      writeLocal(filterKey("langs", ui.kind), "[]");
+      writeLocal(filterKey("genres", ui.kind), "[]");
       resetDeck();
       break;
     case "filter":
     case "wfilter":
       openFilter(v);
       break;
+    case "kind":
+      setKind(v);
+      break;
     case "opt": {
       const s = ui.sheet;
-      if (s.key === "added") s.draft = v;
+      if (s.key === "kind") s.draft = KINDS.find((k) => KIND_NAMES[k] === v) || s.draft;
+      else if (s.key === "added") s.draft = v;
       else s.draft = s.draft.includes(v) ? s.draft.filter((x) => x !== v) : [...s.draft, v];
       break;
     }
@@ -1266,6 +1324,11 @@ document.addEventListener("click", (e) => {
       break;
     case "match-watch":
       return watchMatched();
+    case "ref-kind": {
+      const k = KINDS.find((x) => KIND_NAMES[x] === v);
+      if (k && k !== ui.ref.kind) ui.ref = freshRef([], [], k);
+      break;
+    }
     case "ref-lang":
     case "ref-genre": {
       const key = el.dataset.act === "ref-lang" ? "langs" : "genres";
@@ -1285,17 +1348,17 @@ document.addEventListener("click", (e) => {
     case "ref-back":
       ui.ref.seq++;
       refSave(true);
-      ui.ref = freshRef(ui.ref.langs, ui.ref.genres);
+      ui.ref = freshRef(ui.ref.langs, ui.ref.genres, ui.ref.kind);
       window.scrollTo(0, 0);
       break;
     case "ref-taste":
       return refTaste();
     case "ref-home":
-      ui.ref = freshRef(ui.ref.langs, ui.ref.genres);
+      ui.ref = freshRef(ui.ref.langs, ui.ref.genres, ui.ref.kind);
       resetDeck();
       return go("recommend");
     case "ref-again":
-      ui.ref = freshRef(ui.ref.langs, ui.ref.genres);
+      ui.ref = freshRef(ui.ref.langs, ui.ref.genres, ui.ref.kind);
       window.scrollTo(0, 0);
       break;
     case "ai-idea":

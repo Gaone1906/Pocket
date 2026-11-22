@@ -1,5 +1,5 @@
 import { esc, ICONS } from "./util.js";
-import { avatar, card, posterStyle, runtime } from "./films.js";
+import { avatar, card, posterStyle, meta } from "./films.js";
 import { attach, fly } from "./drag.js";
 
 export const MAX_MEMBERS = 8;
@@ -64,9 +64,9 @@ export function createRoom({ call, code = null, member = null, save = () => {}, 
     onChange();
   }
 
-  room.create = async (name, langs, genres) => {
+  room.create = async (name, langs, genres, kind) => {
     set({ busy: true, error: null, state: null });
-    await run({ action: "create", name, langs, genres });
+    await run({ action: "create", name, langs, genres, kind });
     room.busy = false;
     onChange();
     if (room.member) poll();
@@ -217,7 +217,7 @@ export function matchedView(room, { host }) {
   const f = s.matched;
   const n = (s.members || []).length;
   const at = (s.deck || []).findIndex((d) => d.tmdb === f.tmdb) + 1;
-  const crew = [f.year, runtime(f.runtime), (f.genres || []).slice(0, 2).join(", "), f.director].filter(Boolean).join(" · ");
+  const crew = [meta(f), f.director].filter(Boolean).join(" · ");
   return `<main class="screen matched">
     <h1 class="big">It's a match!</h1>
     <span class="muted">${n === 2 ? "Both of you" : `All ${n} of you`} said yes${at ? ` on card ${at}` : ""}</span>

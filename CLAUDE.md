@@ -254,7 +254,7 @@ projects. Details in [docs/kb/apps/zenda.md](docs/kb/apps/zenda.md). Rules to ke
 
 ## Fabula app (formerly Ortus)
 
-Movie recommender (`⌥7`, app id `ortus`): Recommend (swipe), Watchlist, Log, Refiner, AI Mode, and Match with friends on the web. Its app id,
+Movie, show and anime recommender (`⌥7`, app id `ortus`): Recommend (swipe), Watchlist, Log, Refiner, AI Mode, and Match with friends on the web. Anime comes only from MyAnimeList (`fabula-anime`, secret `MAL_CLIENT_ID`). Its app id,
 data file and record kinds still say `ortus`. Details in [docs/kb/apps/fabula.md](docs/kb/apps/fabula.md). Rules to keep true:
 - The film catalogue lives only in the `movies` table, filled by the `fabula-tmdb` edge function. Never hard-code films.
 - Personal data is `ortus.log`, `ortus.swipe` and `ortus.unseen` records, id = TMDB id (`ortus.taste` id `book` is server-written). Both apps write them; merge by id, newer `updated` wins.

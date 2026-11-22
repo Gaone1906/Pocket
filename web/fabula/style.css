@@ -109,6 +109,7 @@ h1, h2 { margin: 0; font-family: var(--serif); font-weight: 700; }
 .metarow .meta, .metarow .muted { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .imdb { flex: none; font-size: 13px; color: var(--muted); }
 .imdb b { color: var(--gold); font-weight: 600; }
+.imdb.mal b { color: #5B8DEF; }
 .hook { font-size: 15px; line-height: 1.45; overflow: hidden; max-height: 4.35em; -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent); mask-image: linear-gradient(180deg, #000 60%, transparent); transition: max-height .38s cubic-bezier(.2, .8, .2, 1); }
 .card.top .hook { cursor: pointer; }
 .card.open .hook { -webkit-mask-image: none; mask-image: none; overflow-y: auto; }
@@ -408,3 +409,6 @@ input[type=search]::-webkit-search-cancel-button { filter: invert(.6); }
   .chip:hover:not(.on), .score:hover:not(.on) { border-color: var(--faint); }
   .wl:hover, .lrow:hover, .result:hover { filter: brightness(1.08); }
 }
+.kseg { display: flex; gap: 4px; padding: 4px; margin: 6px 0 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); flex: none; }
+.kopt { flex: 1; height: 30px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--muted); background: none; border: 0; }
+.kopt.on { background: var(--wash); color: var(--wash-ink); }
