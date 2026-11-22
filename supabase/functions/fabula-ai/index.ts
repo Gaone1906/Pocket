@@ -2,7 +2,11 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const URL_ = Deno.env.get("SUPABASE_URL")!;
 const db = createClient(URL_, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-const USER = "00000000-0000-0000-0000-000000000000";
+const PROFILES: Record<string, { user: string; pre: string }> = {
+  pranav: { user: "00000000-0000-0000-0000-000000000000", pre: "ortus" },
+  momo: { user: "6d6f6d6f-0000-4000-8000-000000000001", pre: "momo" },
+};
+type Profile = { user: string; pre: string };
 const MODEL = "claude-haiku-5-5";
 const GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Family", "Fantasy", "History", "Horror", "Music", "Mystery", "Romance", "Sci-fi", "Thriller", "War", "Western"];
 const cors = {
@@ -86,8 +90,8 @@ async function haiku(task: string, system: string, user: string, maxTokens: numb
   }
 }
 
-async function records(kinds: string[]) {
-  const { data, error } = await db.from("records").select("kind,id,data").eq("user_id", USER).in("kind", kinds).or("deleted.is.null,deleted.eq.false");
+async function records(p: Profile, kinds: string[]) {
+  const { data, error } = await db.from("records").select("kind,id,data").eq("user_id", p.user).in("kind", kinds.map((k) => `${p.pre}.${k}`)).or("deleted.is.null,deleted.eq.false");
   if (error) throw new Error(error.message);
   return data || [];
 }
@@ -96,8 +100,8 @@ function line(l: any) {
   return `${l.title} (${l.year ?? "?"}) ${l.rating}/10${l.director ? `, ${l.director}` : ""}${l.genres?.length ? `, ${l.genres.slice(0, 3).join("/")}` : ""}`;
 }
 
-async function taste(fresh: number[]) {
-  const rows = await records(["ortus.log"]);
+async function taste(p: Profile, fresh: number[]) {
+  const rows = await records(p, ["log"]);
   const logs = rows.map((r: any) => r.data).filter((d: any) => d && d.rating != null);
   if (!logs.length) throw new Error("No ratings yet");
   const freshSet = new Set(fresh);
@@ -122,7 +126,7 @@ async function taste(fresh: number[]) {
     ratings: logs.length,
     updated: now,
   };
-  const { error } = await db.from("records").upsert({ user_id: USER, kind: "ortus.taste", id: "book", data, deleted: false, device: "fabula-ai" }, { onConflict: "user_id,kind,id" });
+  const { error } = await db.from("records").upsert({ user_id: p.user, kind: `${p.pre}.taste`, id: "book", data, deleted: false, device: "fabula-ai" }, { onConflict: "user_id,kind,id" });
   if (error) throw new Error(error.message);
   return data;
 }
@@ -171,12 +175,12 @@ async function find(title: string, y: number | null, kind: string) {
   return out;
 }
 
-async function mood(text: string, notes: string[], shown: number[], kind: string) {
+async function mood(p: Profile, text: string, notes: string[], shown: number[], kind: string) {
   const many = NOUNS[kind];
-  const rows = await records(["ortus.log", "ortus.swipe", "ortus.taste"]);
-  const logs = rows.filter((r: any) => r.kind === "ortus.log").map((r: any) => r.data).filter(Boolean);
-  const swipes = rows.filter((r: any) => r.kind === "ortus.swipe").map((r: any) => r.data).filter(Boolean);
-  const profile = rows.find((r: any) => r.kind === "ortus.taste" && r.id === "book")?.data;
+  const rows = await records(p, ["log", "swipe", "taste"]);
+  const logs = rows.filter((r: any) => r.kind === `${p.pre}.log`).map((r: any) => r.data).filter(Boolean);
+  const swipes = rows.filter((r: any) => r.kind === `${p.pre}.swipe`).map((r: any) => r.data).filter(Boolean);
+  const profile = rows.find((r: any) => r.kind === `${p.pre}.taste` && r.id === "book")?.data;
   const seenIds = new Set<number>([...logs, ...swipes].map((d: any) => Number(d.tmdb)).filter(Boolean));
   const seenTitles = new Set<string>([...logs, ...swipes].map((d: any) => norm(String(d.title || ""))).filter(Boolean));
   const shownSet = new Set(shown);
@@ -243,6 +247,9 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return json({ error: "Body must be JSON" }, 400); }
   if (!(await keyValid(req.headers.get("apikey")))) return json({ error: "Not allowed" }, 403);
+  const who = String(body?.who ?? "pranav");
+  const prof = Object.hasOwn(PROFILES, who) ? PROFILES[who] : null;
+  if (!prof) return json({ error: "Unknown profile" }, 400);
   try {
     switch (body?.action) {
       case "mood": {
@@ -251,11 +258,11 @@ Deno.serve(async (req) => {
         const notes = (Array.isArray(body.notes) ? body.notes : []).map((n: unknown) => clean(n, 300)).filter(Boolean).slice(-8);
         const shown = (Array.isArray(body.shown) ? body.shown : []).map(Number).filter((n: number) => Number.isInteger(n) && n > 0).slice(-80);
         const kind = ["show", "anime"].includes(body.kind) ? body.kind : "movie";
-        return json(await mood(text, notes, shown, kind));
+        return json(await mood(prof, text, notes, shown, kind));
       }
       case "taste": {
         const fresh = (Array.isArray(body.fresh) ? body.fresh : []).map(Number).filter((n: number) => Number.isInteger(n) && n > 0).slice(0, 400);
-        return json({ taste: await taste(fresh) });
+        return json({ taste: await taste(prof, fresh) });
       }
       default:
         return json({ error: "Unknown action" }, 400);
