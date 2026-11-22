@@ -137,6 +137,10 @@ Harshi ("Momo"). It has no Mac half. It uses the same setup link as the other we
   slider is Not seen, saved as `momo.unseen`, and still counts toward the 40. Guide answers carry `guide: <language>`. If a
   language runs out of films it is skipped. Finishing writes `momo.guide` id `done`, calls `fabula-ai`
   `taste` with `who` `momo`, shows "Got it, Momo!", and then the full app unlocks.
+- **Her deck.** `fabula_deck` treats a profile with a `<prefix>.guide` list as guided: ratings are centred on that
+  person's own average instead of the fixed 8.1 (Pranav's), and when no language filter is set the movie deck takes
+  quotas per guide language, weighted by how many films she rated or said yes to in each (plus 10 each), interleaved.
+  Pranav has no guide list, so his deck is unchanged.
 - **Look.** Pastel rose in `momo.css` over `../fabula/style.css`: ground #F9D9DF, cards #FFF4F5, ink #4A1520, red accent
   #D6334A, Fredoka for headings. The logo is Momo's chibi sticker on a pastel rose-to-red background. The name is spelled
   "MomoFlix"; never use Netflix-style red N branding.

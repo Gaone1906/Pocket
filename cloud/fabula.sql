@@ -168,16 +168,19 @@ logged as (
 swiped as (
   select (data->>'tmdb')::int as tmdb, data->>'verdict' as v, coalesce((data->>'at')::timestamptz, now()) as at from recs_live where kind = pre || '.swipe' and data ? 'tmdb'
 ),
+mu as (
+  select case when exists (select 1 from records where user_id = u and kind = pre || '.guide' and id = 'list' and not coalesce(deleted, false)) then coalesce(avg(r), 8.1) else 8.1 end as v from logged where r is not null
+),
 rated as (
   select tmdb, r, 1.0::numeric as w from logged where r is not null
   union all
   select s.tmdb,
-    case s.v when 'super' then 10 when 'yes' then 8.8 else 7.0 end,
+    (select v from mu) + case s.v when 'super' then 1.9 when 'yes' then 0.7 else -1.1 end,
     case when s.v = 'no' then greatest(0, 0.5 * (1 - extract(epoch from now() - s.at) / (90 * 86400)))::numeric else 0.5 end
   from swiped s where s.v in ('super', 'yes', 'no') and not exists (select 1 from logged l where l.tmdb = s.tmdb)
 ),
 r2 as (
-  select m.tmdb, m.title, m.director, m.genres, m.keywords, m."cast", m.recs, m.collection, m.kind, rated.r, rated.r - 8.1 as c,
+  select m.tmdb, m.title, m.director, m.genres, m.keywords, m."cast", m.recs, m.collection, m.kind, rated.r, rated.r - (select v from mu) as c,
     rated.w * case when m.kind = k then 1 else 0.25 end as w
   from rated join movies m using (tmdb) where rated.w > 0
 ),
@@ -201,7 +204,7 @@ loved as (
   select r2.tmdb, r2.title, r2.director, r2.recs, r2.r from r2 join logged using (tmdb) where r2.r >= 9
 ),
 cand as (
-  select m.tmdb, m.title, m.year, m.genres, m.keywords, m.director, m."cast", m.collection,
+  select m.tmdb, m.title, m.year, m.language, m.genres, m.keywords, m.director, m."cast", m.collection,
     case when k = 'show' then coalesce(m.imdb_rating, m.vote) else m.vote end as vote, m.votes from movies m
   where m.kind = k
     and m.tmdb not in (select tmdb from seen where tmdb is not null)
@@ -276,11 +279,28 @@ scored as (
 dedup as (
   select distinct on (lower(title)) * from scored order by lower(title), score desc
 ),
+mixl as (
+  select distinct l->>'name' as l from records r, jsonb_array_elements(r.data->'langs') l
+  where k = 'movie' and (p_langs is null or cardinality(p_langs) = 0)
+    and r.user_id = u and r.kind = pre || '.guide' and r.id = 'list' and not coalesce(r.deleted, false)
+),
+mixw as (
+  select x.l, count(w.tmdb) + 10.0 as n from mixl x
+  left join (
+    select m.language, m.tmdb from logged g join movies m using (tmdb) where g.r is not null
+    union all select m.language, m.tmdb from swiped s join movies m using (tmdb) where s.v in ('yes', 'super')
+  ) w on w.language = x.l
+  group by x.l
+),
+mixq as (
+  select l, greatest(1, round(greatest(1, round(p_limit * 0.8)) * n / sum(n) over ())) as q from mixw
+),
 ranked as (
-  select s.*, row_number() over (order by score desc) as rk from dedup s
+  select s.*, row_number() over (order by score desc) as rk, row_number() over (partition by language order by score desc) as lrk from dedup s
 ),
 top as (
-  select * from ranked where rk <= greatest(1, round(p_limit * 0.8))
+  select r.*, case when q.q is null then r.rk::float else (r.lrk - 0.5) / q.q * greatest(1, round(p_limit * 0.8)) end as pos0 from ranked r left join mixq q on q.l = r.language
+  where case when exists (select 1 from mixq) then q.q is not null and r.lrk <= q.q else r.rk <= greatest(1, round(p_limit * 0.8)) end
 ),
 explore as (
   select * from ranked
@@ -288,7 +308,7 @@ explore as (
   order by random() limit greatest(0, p_limit - (select count(*) from top))
 ),
 picked as (
-  select m.*, t.rk::float as pos from top t join movies m using (tmdb)
+  select m.*, t.pos0 as pos from top t join movies m using (tmdb)
   union all select m.*, random() * greatest(1, round(p_limit * 0.8)) + 0.5 from explore e join movies m using (tmdb)
 )
 select coalesce(jsonb_agg(jsonb_build_object(
