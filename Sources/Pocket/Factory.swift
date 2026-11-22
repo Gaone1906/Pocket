@@ -15,6 +15,7 @@ func makeApp(_ spec: AppSpec) -> PocketApp? {
     case "zenda": return ZendaApp(spec: spec)
     case "ortus": return OrtusApp(spec: spec)
     case "calculator": return CalculatorApp(spec: spec)
+    case "downloader": return DownloaderApp(spec: spec)
     case "stats": return StatsApp(spec: spec)
     case "scratchpad": return ScratchpadApp(spec: spec)
     case "rollin": return RollinApp(spec: spec)

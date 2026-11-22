@@ -93,6 +93,8 @@ let catalog: [AppSpec] = [
             glyph: nil, hotKey: UInt32(kVK_ANSI_C), web: nil),
     AppSpec(id: "scratchpad", name: "Scratchpad", summary: "Quick notes in pages, with lists, headings, bold and italic", symbol: "note.text",
             glyph: nil, hotKey: UInt32(kVK_ANSI_N), web: nil),
+    AppSpec(id: "downloader", name: "Downloader", summary: "Paste a link and aria2 downloads it, with progress in the menu bar", symbol: "arrow.down.circle",
+            glyph: nil, hotKey: UInt32(kVK_ANSI_Minus), web: nil, pinnedByDefault: true),
     AppSpec(id: "stats", name: "System Stats", summary: "CPU, memory, disk, network and battery at a glance", symbol: "gauge.with.dots.needle.33percent",
             glyph: nil, hotKey: nil, web: nil),
     AppSpec(id: "rollin", name: "Rollin", summary: "Rolls new WhatsApp messages and one-time codes across the menu bar like a stock ticker", symbol: "chart.line.uptrend.xyaxis",
