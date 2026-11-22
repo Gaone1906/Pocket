@@ -1,24 +1,12 @@
-const CACHE = "ortus-web-v1";
-const SHELL = ["./", "index.html", "style.css", "app.js", "store.js", "pick.js", "util.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
-
-self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
-});
+self.addEventListener("install", () => self.skipWaiting());
 
 self.addEventListener("activate", (e) => {
-  e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith("ortus-web-") && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
-});
-
-self.addEventListener("fetch", (e) => {
-  const url = new URL(e.request.url);
-  if (e.request.method !== "GET" || url.origin !== self.location.origin) return;
-  e.respondWith(
-    fetch(e.request)
-      .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy));
-        return res;
-      })
-      .catch(() => caches.match(e.request).then((hit) => hit || caches.match("index.html")))
+  e.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("ortus-web-")).map((k) => caches.delete(k))))
+      .then(() => self.registration.unregister())
+      .then(() => self.clients.matchAll({ type: "window" }))
+      .then((clients) => Promise.all(clients.map((c) => c.navigate(new URL("../fabula/", self.registration.scope).href).catch(() => {}))))
   );
 });

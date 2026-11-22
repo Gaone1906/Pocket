@@ -152,7 +152,7 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 
 Ignis and Aqua (Schedule) reach every device through a Supabase table (`cloud/schema.sql`, one row per item,
 open to the app's anon key, no sign-in), synced by `Sources/Pocket/CloudSync.swift` on the Mac and by the installable web app in `web/`
-everywhere else. The main web app shows only the Hair routine; `web/aqua/` has all of Aqua, `web/ignis/` a view-only Ignis (no timer), `web/ventus/` the Ventus runner and `web/terra/` Terra. To-do, Calendar and Matinee stay
+everywhere else. The main web app shows only the Hair routine; `web/aqua/` has all of Aqua, `web/ignis/` a view-only Ignis (no timer), `web/ventus/` the Ventus runner, `web/terra/` Terra and `web/fabula/` Fabula (friend Match pages at `web/fabula/match.html`; `web/ortus/` redirects there). To-do, Calendar and Matinee stay
 Mac-only. Setup, the record
 kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md); the five web apps side by side are in
 [docs/kb/web-pages.md](docs/kb/web-pages.md). Rules to keep true:
@@ -252,15 +252,17 @@ projects. Details in [docs/kb/apps/zenda.md](docs/kb/apps/zenda.md). Rules to ke
 - Projects are data: `$ROOT/zenda.json` (`{"projects": [...]}`, `DataVault` name `zenda`), synced as `zenda.project`.
   Never seed them in code.
 
-## Ortus app
+## Fabula app (formerly Ortus)
 
-Motivation (`⌥7`, app id `ortus`): quotes, reels, videos and stories, purely to read or watch. Details in
-[docs/kb/apps/ortus.md](docs/kb/apps/ortus.md). Rules to keep true:
-- Every quote, story, reel and video is an `ortus.quote`, `ortus.story`, `ortus.reel` or `ortus.video` record. Never hard-code content in either app; adding content is a db insert.
-- Keep `OrtusPick` (`OrtusModel.swift`) and `web/ortus/pick.js` giving the same day key (4am rollover), FNV-1a hash and
-  daily picks, so the Mac and the phone show the same quote, story and reel of the day.
-- `$ROOT/ortus.json` (`{"quotes", "stories", "reels", "videos"}`, `DataVault` name `ortus`). The Mac only reads
-  the library: `OrtusStore` writes adopted cloud data verbatim and never edits it, so sync never pushes back.
+Movie recommender (`⌥7`, app id `ortus`): Recommend (swipe), Watchlist, Log, and Match with friends on the web. Its app id,
+data file and record kinds still say `ortus`. Details in [docs/kb/apps/fabula.md](docs/kb/apps/fabula.md). Rules to keep true:
+- The film catalogue lives only in the `movies` table, filled by the `fabula-tmdb` edge function. Never hard-code films.
+- Personal data is `ortus.log` and `ortus.swipe` records, id = TMDB id. Both apps write them; merge by id, newer `updated` wins.
+- Recommendations come only from `rpc/fabula_deck`, so the Mac and the web always agree. Change the scorer in
+  `cloud/fabula.sql` and apply it to the database; never re-implement it in an app.
+- The TMDB token is the `TMDB_TOKEN` edge-function secret and nowhere else. Friend Match links never carry the anon key: friends
+  reach the locked `match_*` tables only through `fabula-match`.
+- Keep the UI free of instructional or hint text (the owner's rule).
 
 ## Rollin app
 

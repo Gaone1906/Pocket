@@ -39,10 +39,8 @@ struct CloudDocument {
                        collections: [CloudCollection(kind: "zenda.project", key: "projects", sortKey: nil)],
                        metaKind: nil),
          CloudDocument(name: "ortus", file: PocketData.ortus,
-                       collections: [CloudCollection(kind: "ortus.quote", key: "quotes", sortKey: nil),
-                                     CloudCollection(kind: "ortus.story", key: "stories", sortKey: nil),
-                                     CloudCollection(kind: "ortus.reel", key: "reels", sortKey: nil),
-                                     CloudCollection(kind: "ortus.video", key: "videos", sortKey: nil)],
+                       collections: [CloudCollection(kind: "ortus.log", key: "logs", sortKey: nil, detachedId: true),
+                                     CloudCollection(kind: "ortus.swipe", key: "swipes", sortKey: nil, detachedId: true)],
                        metaKind: nil)]
     }
 }
@@ -188,6 +186,7 @@ final class CloudSync: ObservableObject {
         var cursor: String
         var seen: [String: String]
         var docs: [String]?
+        var kinds: [String]?
     }
 
     private func loadState() -> SyncState {
@@ -346,11 +345,21 @@ final class CloudSync: ObservableObject {
             let docs = CloudDocument.all
             let known = Set(state.docs ?? ["board", "schedule"])
             let added = docs.map(\.name).filter { !known.contains($0) }
-            if !added.isEmpty {
-                note("pocket cloud full pull reason=new documents names=\(added.joined(separator: ",")) cursor=\(state.cursor)")
+            let allKinds = docs.flatMap { doc in doc.collections.map(\.kind) + (doc.metaKind.map { [$0] } ?? []) }
+            let knownKinds = Set(state.kinds ?? [])
+            let newKinds = allKinds.filter { !knownKinds.contains($0) }
+            if !added.isEmpty || !newKinds.isEmpty {
+                note("pocket cloud full pull reason=new documents names=\(added.joined(separator: ",")) kinds=\(newKinds.joined(separator: ",")) cursor=\(state.cursor)")
                 state.cursor = "1970-01-01T00:00:00Z"
             }
             state.docs = docs.map(\.name)
+            state.kinds = allKinds
+            let kindSet = Set(allKinds)
+            let stale = state.seen.keys.filter { key in !kindSet.contains(key.split(separator: "|", maxSplits: 1).first.map(String.init) ?? "") }
+            if !stale.isEmpty {
+                for key in stale { state.seen.removeValue(forKey: key) }
+                note("pocket cloud forgot retired kinds keys=\(stale.count)")
+            }
             let before = Dictionary(uniqueKeysWithValues: docs.map { doc in (doc.name, Self.read(doc).map { Self.records(of: doc, in: $0) }) })
             var changedHere = Set<String>()
             for doc in docs {
