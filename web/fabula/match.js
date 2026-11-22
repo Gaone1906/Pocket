@@ -1,10 +1,11 @@
 import { $, esc, readSession, writeSession } from "./util.js";
 import { caller, createRoom, lobbyView, swipeView, matchedView, noticeView, nameSheet, bindSwipe, nightTitle } from "./room.js";
+import { lk } from "./profile.js";
 
 const parts = location.hash.replace(/^#/, "").split(".");
 const ref = /^[a-z0-9]{8,40}$/.test(parts[0] || "") ? parts[0] : "";
 const code = /^[a-z0-9]{8,20}$/.test(parts[1] || "") ? parts[1] : "";
-const key = "fabula.match." + code;
+const key = lk("match." + code);
 
 const ui = { draft: "" };
 
