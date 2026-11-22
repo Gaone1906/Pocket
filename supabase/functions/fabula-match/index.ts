@@ -44,8 +44,12 @@ async function member(roomId: string, id: unknown) {
 
 async function movies(ids: number[]) {
   if (!ids.length) return [];
-  const { data } = await db.from("movies").select("tmdb,title,year,runtime,language,genres,director,cast,overview,poster,backdrop,vote,providers").in("tmdb", ids);
-  const byId = new Map((data || []).map((m: any) => [m.tmdb, { ...m, cast: (m.cast || []).slice(0, 3) }]));
+  const { data } = await db.from("movies").select("tmdb,title,year,runtime,language,genres,director,cast,overview,poster,backdrop,vote,providers,kind,seasons,episodes,format,imdb_rating,imdb_votes,mal_score").in("tmdb", ids);
+  const byId = new Map((data || []).map(({ imdb_rating, imdb_votes, mal_score, ...m }: any) => [m.tmdb, {
+    ...m, cast: (m.cast || []).slice(0, 3),
+    imdb: (imdb_votes ?? 0) >= (m.kind === "show" ? 500 : 1000) ? imdb_rating : null,
+    mal: m.kind === "anime" ? mal_score : null,
+  }]));
   return ids.map((id) => byId.get(id)).filter(Boolean);
 }
 
@@ -92,10 +96,11 @@ Deno.serve(async (req) => {
         const name = cleanName(body.name) || "Host";
         const langs = Array.isArray(body.langs) ? body.langs.map(String).slice(0, 12) : null;
         const genres = Array.isArray(body.genres) ? body.genres.map(String).slice(0, 14) : null;
-        const { data: deck, error } = await db.rpc("fabula_deck", { p_langs: langs, p_genres: genres, p_limit: 40, p_exclude: [] });
+        const kind = ["show", "anime"].includes(body.kind) ? body.kind : "movie";
+        const { data: deck, error } = await db.rpc("fabula_deck", { p_kind: kind, p_langs: langs, p_genres: genres, p_limit: 40, p_exclude: [] });
         if (error) return json({ error: error.message }, 502);
         const ids = (deck || []).map((m: any) => m.tmdb);
-        if (!ids.length) return json({ error: "No films match those filters" }, 400);
+        if (!ids.length) return json({ error: "Nothing matches those filters" }, 400);
         const { data: r, error: e2 } = await db.from("match_room").insert({ code: code(), deck: ids }).select().single();
         if (e2) return json({ error: e2.message }, 502);
         const { data: me } = await db.from("match_member").insert({ room: r.id, name, is_host: true }).select().single();
