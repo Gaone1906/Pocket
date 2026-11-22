@@ -28,6 +28,7 @@ This knowledge base is the full context for agents working on Pocket, a macOS me
 | Fabula (movie recommender, formerly Ortus; app id `ortus`) | ⌥7 | [apps/fabula.md](apps/fabula.md), Mac notes in [apps/ortus.md](apps/ortus.md) |
 | Calculator | ⌥C | [apps/calculator.md](apps/calculator.md) |
 | Scratchpad | ⌥N | [apps/scratchpad.md](apps/scratchpad.md) |
+| Downloader (aria2, percentage in the menu bar) | ⌥- | [apps/downloader.md](apps/downloader.md) |
 | System Stats | none | [apps/stats.md](apps/stats.md) |
 | Rollin (hidden menu-bar ticker for WhatsApp messages and codes) | none | [apps/rollin.md](apps/rollin.md) |
 | Matinee (District ticket hunter) | none | [apps/matinee.md](apps/matinee.md) |

@@ -74,6 +74,12 @@ Rules that matter:
 Reference integration: Preparo, the exam practice app at `~/Desktop/workspace/personal/preparo/app/app.js` (search `POCKET`) starts
 40/8 sessions under "Quant Question Bank" and loads 22 questions per focus.
 
+## Downloader API
+
+`POST /downloader` with `{"url": "<http, https, ftp or magnet link>"}` hands a link to the Downloader app (aria2, saves to
+`~/Downloads`) and answers `202`; `GET /downloader` returns `{downloads: [{id, name, status, total, done, speed, error,
+path}], percent, problem}`. `409` when the Downloader app isn't enabled. Details: [docs/kb/apps/downloader.md](docs/kb/apps/downloader.md).
+
 ## Backups: setting up and restoring data
 
 Pocket's data is six JSON files under `~/Library/Application Support/Pocket` (`$ROOT` below): `Pomodoro/board.json`

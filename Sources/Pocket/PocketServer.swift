@@ -127,11 +127,39 @@ final class PocketServer {
         "GET /pomodoro/projects": "board projects",
         "GET /pomodoro/sessions?since=<ISO 8601>&project=<name>": "finished focus sessions",
         "GET /pomodoro/stats": "today and all-time totals",
+        "GET /downloader": "downloads with progress and the menu bar percent",
+        "POST /downloader": "download a link with aria2; body {url}",
         "GET /cloud": "cloud sync status",
         "POST /cloud/connect": "start syncing from the setup link; body {link}",
         "POST /cloud/sync": "sync with the cloud now",
         "POST /cloud/disconnect": "stop syncing on this Mac",
     ]
+
+    private func downloader(_ request: Request) -> Response {
+        guard let app = AppDelegate.shared.app("downloader") as? DownloaderApp else {
+            note("pocket server downloader unavailable method=\(request.method) cause=not enabled")
+            return Response(status: 409, body: ["error": "Downloader isn't enabled in Pocket"])
+        }
+        let source = request.headers["x-pocket-source"] ?? request.headers["origin"] ?? request.headers["user-agent"] ?? "local"
+        switch request.method {
+        case "GET":
+            return Response(status: 200, body: app.remoteState())
+        case "POST":
+            do {
+                let json = try Self.object(request.body)
+                guard let link = try Self.text(json, "url"), app.remoteAdd(link, source: source) else {
+                    return Response(status: 400, body: ["error": "body needs {\"url\": \"<http, https, ftp or magnet link>\"}"])
+                }
+                return Response(status: 202, body: app.remoteState())
+            } catch {
+                let message = (error as? Invalid)?.message ?? "\(error)"
+                note("pocket server downloader rejected source=\(source) error=\(message)")
+                return Response(status: 400, body: ["error": message])
+            }
+        default:
+            return Response(status: 405, body: ["error": "use GET or POST"])
+        }
+    }
 
     private func route(_ request: Request) -> Response {
         if request.method == "GET", request.path == "/" {
@@ -139,6 +167,9 @@ final class PocketServer {
         }
         if request.path == "/cloud" || request.path.hasPrefix("/cloud/") {
             return cloud(request)
+        }
+        if request.path == "/downloader" {
+            return downloader(request)
         }
         guard let pomodoro = AppDelegate.shared.app("pomodoro") as? PomodoroApp else {
             if request.method == "POST" { note("pocket server pomodoro unavailable path=\(request.path) cause=not enabled") }

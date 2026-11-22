@@ -20,6 +20,7 @@ struct Shortcut: Codable, Equatable {
     ]
 
     static let named: [UInt32: String] = [
+        UInt32(kVK_ANSI_Minus): "-", UInt32(kVK_ANSI_Equal): "=",
         UInt32(kVK_Space): "Space", UInt32(kVK_Return): "↩", UInt32(kVK_Tab): "⇥",
         UInt32(kVK_LeftArrow): "←", UInt32(kVK_RightArrow): "→", UInt32(kVK_UpArrow): "↑", UInt32(kVK_DownArrow): "↓",
         UInt32(kVK_F1): "F1", UInt32(kVK_F2): "F2", UInt32(kVK_F3): "F3", UInt32(kVK_F4): "F4", UInt32(kVK_F5): "F5",
@@ -28,7 +29,7 @@ struct Shortcut: Codable, Equatable {
     ]
 
     static func option(_ code: UInt32) -> Shortcut {
-        Shortcut(code: code, mods: UInt32(optionKey), label: letters[code] ?? "#\(code)")
+        Shortcut(code: code, mods: UInt32(optionKey), label: letters[code] ?? named[code] ?? "#\(code)")
     }
 
     static func from(_ event: NSEvent) -> Shortcut? {

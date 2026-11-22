@@ -15,6 +15,7 @@ Small apps that live in the macOS menu bar. Click an icon and the app drops down
 | Ignis | Focus, break and long-break timer; the countdown shows in the menu bar, gold while focusing and silver on a break. The expand button opens a board where finished sessions glow as dots until you file them as tally marks under a project; each project counts one stick per 25 minutes focused, struck through every five, with a shorter stick for the remainder. Right-click a project (or use its ⋯ menu) and choose **Declare a session…** to log time worked away from the laptop: pick the day, the minutes and, optionally, the start and end time. The heading switches to a Calendar table with a row per day and a cell per project. The left sidebar shows sessions and time focused today and all time; the settings button at the top right holds the timer lengths. The theme is chosen in Pocket Settings (right-click any Pocket icon → Pocket Settings…) and tints every native app: eight light pastels (Sage, Rose, Butter, Apricot, Sky, Lavender, Blush, Stone) and eight dark ones with pastel glows (Moonlit Sage, Harbour, Aurora, Nocturne, Candlelight, Mint Cocoa, Coral Reef, Plum Blossom) |
 | Calculator | Type or tap a calculation and see the answer as you go |
 | Scratchpad | Notes in pages, with headings, bold, italic, underline, strikethrough and bulleted or numbered lists (type `- `, `1. ` or `# ` to start one) |
+| Downloader | Paste a link and aria2 downloads it, with the percentage in the menu bar |
 | System Stats | CPU, memory, disk, network and battery at a glance |
 | Matinee | Hunts District movie tickets and holds seats for you |
 | Preparo | Opens Preparo, the local exam practice app at http://localhost:8960, in Ardia (or the default browser if Ardia is missing) |
@@ -22,7 +23,7 @@ Small apps that live in the macOS menu bar. Click an icon and the app drops down
 ## For agents and contributors
 
 The knowledge base in [docs/kb](docs/kb/README.md) covers every app, the shell, data and backups, theming, operations and the current handoff state. Each app has its own file:
-[web apps](docs/kb/apps/web-apps.md) · [Calendar](docs/kb/apps/calendar.md) · [To-do](docs/kb/apps/todo.md) · [Ignis](docs/kb/apps/pomodoro.md) · [Aqua](docs/kb/apps/schedule.md) · [Calculator](docs/kb/apps/calculator.md) · [Scratchpad](docs/kb/apps/scratchpad.md) · [System Stats](docs/kb/apps/stats.md) · [Matinee](docs/kb/apps/matinee.md).
+[web apps](docs/kb/apps/web-apps.md) · [Calendar](docs/kb/apps/calendar.md) · [To-do](docs/kb/apps/todo.md) · [Ignis](docs/kb/apps/pomodoro.md) · [Aqua](docs/kb/apps/schedule.md) · [Calculator](docs/kb/apps/calculator.md) · [Scratchpad](docs/kb/apps/scratchpad.md) · [Downloader](docs/kb/apps/downloader.md) · [System Stats](docs/kb/apps/stats.md) · [Matinee](docs/kb/apps/matinee.md).
 
 ## Install
 
@@ -45,7 +46,7 @@ The first launch opens a setup window. In it you:
 
 - The thin line in the menu bar opens the dropdown. Drag icons between the **Menu bar** and **Dropdown** rows to rearrange them.
 - Right-click any icon to move it, rerun setup, or quit.
-- Each app has a keyboard shortcut that opens it from anywhere. The defaults are ⌥W WhatsApp, ⌥S Slack, ⌥M Spotify, ⌥G Gmail, ⌥1 Ignis, ⌥2 Ventus, ⌥3 Aqua, ⌥4 Terra, ⌥9 Preparo, ⌥D Calendar, ⌥T To-do, ⌥C Calculator and ⌥N Scratchpad; Outlook has no default shortcut. To change one, click it next to the app in setup and press the new keys; Delete clears it.
+- Each app has a keyboard shortcut that opens it from anywhere. The defaults are ⌥W WhatsApp, ⌥S Slack, ⌥M Spotify, ⌥G Gmail, ⌥1 Ignis, ⌥2 Ventus, ⌥3 Aqua, ⌥4 Terra, ⌥9 Preparo, ⌥D Calendar, ⌥T To-do, ⌥C Calculator, ⌥N Scratchpad and ⌥- Downloader; Outlook has no default shortcut. To change one, click it next to the app in setup and press the new keys; Delete clears it.
 - Esc or clicking elsewhere hides the panel.
 - Local tools and pages on `localhost` can drive the Ignis timer through `http://127.0.0.1:8977`: start, pause, resume and stop it with custom focus and break lengths, log sessions under a project, and read projects, sessions and totals. `GET /` lists the routes and [CLAUDE.md](CLAUDE.md) is the integration guide. Requests from other websites are refused.
 
