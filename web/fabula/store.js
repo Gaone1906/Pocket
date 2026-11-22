@@ -1,6 +1,6 @@
 const KEY = "fabula.cloud.v1";
 const OTHER_KEYS = ["ortus.cloud.v1", "luna.cloud.v1", "zenda.cloud.v1", "pocket.cloud.v1", "orario.cloud.v1", "runner.cloud.v1", "misura.cloud.v1", "aurelius.cloud.v1"];
-const KINDS = ["ortus.swipe", "ortus.log"];
+const KINDS = ["ortus.swipe", "ortus.log", "ortus.unseen"];
 const SHARED = "00000000-0000-0000-0000-000000000000";
 
 const listeners = new Set();
@@ -273,6 +273,15 @@ async function runSync() {
     if (quiet) persist();
     else emit();
     if (pendingCount() && !state.problem) scheduleFlush();
+  }
+}
+
+export async function pushNow() {
+  if (!signedIn()) return;
+  for (let i = 0; i < 3 && pendingCount(); i++) {
+    if (running) await running;
+    await syncNow();
+    if (state.problem) throw new Error(state.problem);
   }
 }
 

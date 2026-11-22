@@ -356,7 +356,7 @@ final class DataVault: ObservableObject {
         case "calorie": list = (object?["entries"] as? [Any] ?? []) + (object?["weights"] as? [Any] ?? [])
         case "sleep": list = object?["samples"] as? [Any] ?? []
         case "zenda": list = object?["projects"] as? [Any] ?? []
-        case "ortus": list = (object?["logs"] as? [Any] ?? []) + (object?["swipes"] as? [Any] ?? [])
+        case "ortus": list = (object?["logs"] as? [Any] ?? []) + (object?["swipes"] as? [Any] ?? []) + (object?["unseen"] as? [Any] ?? [])
         default: list = json as? [Any] ?? []
         }
         return Set(list.compactMap { ($0 as? [String: Any])?["id"] as? String })

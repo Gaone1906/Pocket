@@ -245,6 +245,7 @@ struct FabulaEntry: Identifiable {
 struct FabulaBook {
     var logs: [FabulaEntry] = []
     var swipes: [FabulaEntry] = []
+    var unseen: [FabulaEntry] = []
 
     static let legacyKeys = ["quotes", "stories", "reels", "videos"]
 
@@ -266,7 +267,7 @@ struct FabulaBook {
             }
             return out
         }
-        return FabulaBook(logs: list("logs"), swipes: list("swipes"))
+        return FabulaBook(logs: list("logs"), swipes: list("swipes"), unseen: list("unseen"))
     }
 
     static func isLegacy(_ data: Data) -> Bool {
@@ -275,7 +276,7 @@ struct FabulaBook {
     }
 
     func encode() throws -> Data {
-        let object: [String: Any] = ["logs": logs.map(\.raw), "swipes": swipes.map(\.raw)]
+        let object: [String: Any] = ["logs": logs.map(\.raw), "swipes": swipes.map(\.raw), "unseen": unseen.map(\.raw)]
         guard JSONSerialization.isValidJSONObject(object) else {
             throw NSError(domain: "fabula", code: 2, userInfo: [NSLocalizedDescriptionKey: "not valid JSON"])
         }
@@ -289,6 +290,7 @@ final class OrtusStore: ObservableObject {
 
     @Published private(set) var logs: [FabulaEntry] = []
     @Published private(set) var swipes: [FabulaEntry] = []
+    @Published private(set) var unseen: [FabulaEntry] = []
 
     var onChange: (() -> Void)?
     private let file = PocketData.ortus
@@ -303,7 +305,8 @@ final class OrtusStore: ObservableObject {
                 let book = try FabulaBook.decode(data)
                 logs = book.logs
                 swipes = book.swipes
-                note("fabula book loaded logs=\(logs.count) swipes=\(swipes.count) path=\(file.path)")
+                unseen = book.unseen
+                note("fabula book loaded logs=\(logs.count) swipes=\(swipes.count) unseen=\(unseen.count) path=\(file.path)")
                 if FabulaBook.isLegacy(data) {
                     vault.keepAside(data, name: Self.name, reason: "before-fabula")
                     save()
@@ -318,7 +321,8 @@ final class OrtusStore: ObservableObject {
         if let (saved, snap) = vault.recover(Self.name, decode: FabulaBook.decode) {
             logs = saved.logs
             swipes = saved.swipes
-            note("fabula book recovered from=\(snap.url.path) logs=\(logs.count) swipes=\(swipes.count)")
+            unseen = saved.unseen
+            note("fabula book recovered from=\(snap.url.path) logs=\(logs.count) swipes=\(swipes.count) unseen=\(unseen.count)")
             save()
             return
         }
@@ -370,7 +374,7 @@ final class OrtusStore: ObservableObject {
         save()
     }
 
-    func saveLog(_ film: FabulaFilm, rating: Double, comment: String, source: String) {
+    func saveLog(_ film: FabulaFilm, rating: Double, comment: String, source: String, origin: String? = nil) {
         let now = FabulaClock.now()
         let id = String(film.tmdb)
         let existing = log(id)
@@ -381,9 +385,25 @@ final class OrtusStore: ObservableObject {
         raw["comment"] = comment.trimmingCharacters(in: .whitespacesAndNewlines)
         raw["logged"] = existing.map { $0.logged.isEmpty ? now : $0.logged } ?? now
         raw["updated"] = now
+        if let origin { raw["source"] = origin }
         guard let entry = FabulaEntry(raw) else { return }
         put(entry, in: &logs)
-        note("fabula log saved tmdb=\(film.tmdb) rating=\(FabulaFormat.rating(entry.rating)) commentLength=\(entry.comment.count) new=\(existing == nil) source=\(source) logs=\(logs.count)")
+        note("fabula log saved tmdb=\(film.tmdb) rating=\(FabulaFormat.rating(entry.rating)) commentLength=\(entry.comment.count) new=\(existing == nil) source=\(source) origin=\(origin ?? "none") logs=\(logs.count)")
+        save()
+    }
+
+    func markUnseen(_ films: [FabulaFilm], source: String) {
+        guard !films.isEmpty else { return }
+        let now = FabulaClock.now()
+        var added = 0
+        for film in films {
+            var raw: [String: Any] = ["id": String(film.tmdb), "tmdb": film.tmdb, "title": film.title, "at": now, "updated": now]
+            raw["year"] = FabulaFilm.orNull(film.year)
+            guard let entry = FabulaEntry(raw) else { continue }
+            if !unseen.contains(where: { $0.id == entry.id }) { added += 1 }
+            put(entry, in: &unseen)
+        }
+        note("fabula unseen saved films=\(films.count) new=\(added) source=\(source) unseen=\(unseen.count)")
         save()
     }
 
@@ -405,7 +425,7 @@ final class OrtusStore: ObservableObject {
     func merge(_ data: Data) {
         do {
             let incoming = try FabulaBook.decode(data)
-            if let current = try? FabulaBook(logs: logs, swipes: swipes).encode() {
+            if let current = try? FabulaBook(logs: logs, swipes: swipes, unseen: unseen).encode() {
                 DataVault.shared.keepAside(current, name: Self.name, reason: "before-merge")
             }
             var added = 0, replaced = 0
@@ -424,8 +444,9 @@ final class OrtusStore: ObservableObject {
             }
             fold(incoming.logs, into: &logs)
             fold(incoming.swipes, into: &swipes)
+            fold(incoming.unseen, into: &unseen)
             save()
-            note("fabula book merged added=\(added) replaced=\(replaced) logs=\(logs.count) swipes=\(swipes.count)")
+            note("fabula book merged added=\(added) replaced=\(replaced) logs=\(logs.count) swipes=\(swipes.count) unseen=\(unseen.count)")
         } catch {
             note("fabula book merge failed bytes=\(data.count) error=\(error.localizedDescription)")
         }
@@ -434,11 +455,12 @@ final class OrtusStore: ObservableObject {
     func adopt(_ data: Data) {
         do {
             let incoming = try FabulaBook.decode(data)
-            let before = (logs.count, swipes.count)
+            let before = (logs.count, swipes.count, unseen.count)
             logs = incoming.logs
             swipes = incoming.swipes
+            unseen = incoming.unseen
             save()
-            note("fabula book adopted cloud logsBefore=\(before.0) swipesBefore=\(before.1) logs=\(logs.count) swipes=\(swipes.count)")
+            note("fabula book adopted cloud logsBefore=\(before.0) swipesBefore=\(before.1) unseenBefore=\(before.2) logs=\(logs.count) swipes=\(swipes.count) unseen=\(unseen.count)")
         } catch {
             note("fabula book adopt failed bytes=\(data.count) error=\(error.localizedDescription)")
         }
@@ -446,12 +468,12 @@ final class OrtusStore: ObservableObject {
 
     private func save() {
         do {
-            let data = try FabulaBook(logs: logs, swipes: swipes).encode()
+            let data = try FabulaBook(logs: logs, swipes: swipes, unseen: unseen).encode()
             try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
             try data.write(to: file, options: .atomic)
-            DataVault.shared.snapshot(data, name: Self.name, count: logs.count + swipes.count)
+            DataVault.shared.snapshot(data, name: Self.name, count: logs.count + swipes.count + unseen.count)
         } catch {
-            note("fabula book save failed logs=\(logs.count) swipes=\(swipes.count) error=\(error.localizedDescription)")
+            note("fabula book save failed logs=\(logs.count) swipes=\(swipes.count) unseen=\(unseen.count) error=\(error.localizedDescription)")
         }
         onChange?()
     }
@@ -469,11 +491,11 @@ enum FabulaNet {
         post("/rest/v1/rpc/" + name, body: body, done: done)
     }
 
-    static func function(_ name: String, body: [String: Any], done: @escaping (Result<Any, Error>) -> Void) {
-        post("/functions/v1/" + name, body: body, done: done)
+    static func function(_ name: String, body: [String: Any], timeout: TimeInterval = 25, done: @escaping (Result<Any, Error>) -> Void) {
+        post("/functions/v1/" + name, body: body, timeout: timeout, done: done)
     }
 
-    private static func post(_ path: String, body: [String: Any], done: @escaping (Result<Any, Error>) -> Void) {
+    private static func post(_ path: String, body: [String: Any], timeout: TimeInterval = 25, done: @escaping (Result<Any, Error>) -> Void) {
         guard let base = CloudSync.shared.baseURL, let key = CloudSync.shared.key, let url = URL(string: base + path) else {
             DispatchQueue.main.async { done(.failure(FabulaFailure(message: "cloud not connected"))) }
             return
@@ -482,7 +504,7 @@ enum FabulaNet {
             DispatchQueue.main.async { done(.failure(FabulaFailure(message: "request body not valid"))) }
             return
         }
-        var request = URLRequest(url: url, timeoutInterval: 25)
+        var request = URLRequest(url: url, timeoutInterval: timeout)
         request.httpMethod = "POST"
         request.setValue(key, forHTTPHeaderField: "apikey")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -532,6 +554,7 @@ final class FabulaDeck: ObservableObject {
     @Published private(set) var genres: [String] = UserDefaults.standard.stringArray(forKey: FabulaDeck.genresKey) ?? []
 
     private var ticket = 0
+    private var stale = false
 
     private init() {}
 
@@ -555,12 +578,23 @@ final class FabulaDeck: ObservableObject {
     }
 
     func reload(source: String) {
+        stale = false
         cards = []
         loading = false
         fetch(source: source)
     }
 
+    func markStale(source: String) {
+        stale = true
+        note("fabula deck marked stale source=\(source) cards=\(cards.count)")
+    }
+
     func refill(source: String) {
+        if stale {
+            stale = false
+            reload(source: source + " stale")
+            return
+        }
         guard cards.count <= 5, !loading else { return }
         fetch(source: source)
     }
@@ -616,6 +650,14 @@ final class FabulaDeck: ObservableObject {
         refill(source: "swipe")
     }
 
+    func superlike(_ film: FabulaFilm, source: String) {
+        OrtusStore.shared.record(film, .superlike, source: source)
+        cards.removeAll { $0.tmdb == film.tmdb }
+        tonight.removeAll { $0.tmdb == film.tmdb }
+        tonight.insert(film, at: 0)
+        FabulaNav.shared.pick = film
+    }
+
     func undo(source: String) {
         guard let move = history.popLast() else { return }
         let id = String(move.film.tmdb)
@@ -641,15 +683,22 @@ final class FabulaDeck: ObservableObject {
 }
 
 enum FabulaTab: String, CaseIterable, Identifiable {
-    case recommend, watchlist, log
+    case recommend, watchlist, log, refiner, ai
 
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String {
+        switch self {
+        case .ai: return "AI Mode"
+        default: return rawValue.capitalized
+        }
+    }
     var symbol: String {
         switch self {
         case .recommend: return "rectangle.portrait"
         case .watchlist: return "bookmark"
         case .log: return "list.bullet"
+        case .refiner: return "slider.horizontal.3"
+        case .ai: return "sparkles"
         }
     }
 }
@@ -780,6 +829,330 @@ final class FabulaSearch: ObservableObject {
                 }
             case .failure(let error):
                 note("fabula add failed tmdb=\(hit.tmdb) error=\(error.localizedDescription)")
+            }
+        }
+    }
+}
+
+struct FabulaTaste {
+    let summary: String
+    let more: [String]
+    let less: [String]
+
+    init?(_ raw: [String: Any]) {
+        summary = FabulaLoose.text(raw["summary"]) ?? ""
+        more = Self.labels(raw["more"])
+        less = Self.labels(raw["less"])
+        if summary.isEmpty && more.isEmpty && less.isEmpty { return nil }
+    }
+
+    private static func labels(_ value: Any?) -> [String] {
+        (value as? [Any] ?? []).compactMap { item -> String? in
+            if let text = FabulaLoose.text(item) { return text }
+            guard let object = item as? [String: Any] else { return nil }
+            return FabulaLoose.text(object["label"]) ?? FabulaLoose.text(object["name"]) ?? FabulaLoose.text(object["text"])
+        }
+    }
+}
+
+final class FabulaRefiner: ObservableObject {
+    enum Stage { case pick, list, done }
+
+    static let shared = FabulaRefiner()
+    static let languages = ["English", "Hindi", "Telugu", "Tamil", "Malayalam", "Kannada", "Korean", "Japanese", "Spanish"]
+    static let genres = ["Action", "Animation", "Comedy", "Crime", "Drama", "Fantasy", "Horror", "Mystery", "Romance", "Sci-fi",
+                         "Thriller", "War"]
+
+    @Published private(set) var stage: Stage = .pick
+    @Published private(set) var langs: [String] = []
+    @Published private(set) var genres: [String] = []
+    @Published private(set) var films: [FabulaFilm] = []
+    @Published private(set) var scores: [Int: Int] = [:]
+    @Published private(set) var loading = false
+    @Published private(set) var problem: String?
+    @Published private(set) var rated = 0
+    @Published private(set) var skipped = 0
+    @Published private(set) var taste: FabulaTaste?
+    @Published private(set) var tasting = false
+    @Published private(set) var tasteProblem: String?
+
+    private var shown: [Int] = []
+    private var fresh: [Int] = []
+    private var ticket = 0
+    private var tasteTicket = 0
+
+    private init() {}
+
+    var total: Int { rated + scores.count }
+
+    var choice: String {
+        let lang = langs.isEmpty ? "Any language" : langs.joined(separator: ", ")
+        let genre = genres.isEmpty ? "Any genre" : genres.joined(separator: ", ")
+        return lang + " · " + genre
+    }
+
+    func toggleLang(_ name: String?) {
+        langs = Self.toggled(langs, name)
+    }
+
+    func toggleGenre(_ name: String?) {
+        genres = Self.toggled(genres, name)
+    }
+
+    private static func toggled(_ list: [String], _ name: String?) -> [String] {
+        guard let name else { return [] }
+        return list.contains(name) ? list.filter { $0 != name } : list + [name]
+    }
+
+    func score(_ tmdb: Int, _ value: Int) {
+        scores[tmdb] = min(10, max(1, value))
+    }
+
+    func begin() {
+        ticket += 1
+        tasteTicket += 1
+        shown = []
+        fresh = []
+        rated = 0
+        skipped = 0
+        taste = nil
+        tasting = false
+        tasteProblem = nil
+        films = []
+        scores = [:]
+        stage = .list
+        note("fabula refiner started langs=\(langs.joined(separator: ",")) genres=\(genres.joined(separator: ","))")
+        fetch(source: "start")
+    }
+
+    func next() {
+        guard !loading else { return }
+        let counts = saveBatch()
+        ticket += 1
+        let mine = ticket
+        loading = true
+        problem = nil
+        note("fabula refiner continue rated=\(counts.0) unseen=\(counts.1) total=\(rated)")
+        CloudSync.shared.syncNow { [weak self] ok in
+            guard let self, mine == self.ticket else { return }
+            note("fabula refiner pushed ok=\(ok) source=continue")
+            self.fetch(source: "continue")
+        }
+    }
+
+    func retry() {
+        guard !loading else { return }
+        fetch(source: "retry")
+    }
+
+    func stop() {
+        let counts = saveBatch()
+        ticket += 1
+        loading = false
+        stage = .done
+        FabulaDeck.shared.markStale(source: "refiner")
+        note("fabula refiner stopped rated=\(counts.0) unseen=\(counts.1) totalRated=\(rated) totalUnseen=\(skipped)")
+        guard !fresh.isEmpty else { return }
+        tasteTicket += 1
+        let mine = tasteTicket
+        tasting = true
+        tasteProblem = nil
+        let ids = fresh
+        CloudSync.shared.syncNow { [weak self] ok in
+            guard let self, mine == self.tasteTicket else { return }
+            note("fabula refiner pushed ok=\(ok) source=stop")
+            FabulaNet.function("fabula-ai", body: ["action": "taste", "fresh": ids], timeout: 90) { [weak self] result in
+                guard let self, mine == self.tasteTicket else { return }
+                self.tasting = false
+                switch result {
+                case .success(let json):
+                    let raw = (json as? [String: Any])?["taste"] as? [String: Any]
+                    if let taste = raw.flatMap(FabulaTaste.init) {
+                        self.taste = taste
+                        if FabulaNav.shared.tab != .recommend { FabulaDeck.shared.markStale(source: "taste") }
+                        note("fabula taste updated fresh=\(ids.count) more=\(taste.more.count) less=\(taste.less.count) summaryLength=\(taste.summary.count)")
+                    } else {
+                        self.tasteProblem = "No taste in the answer"
+                        note("fabula taste failed fresh=\(ids.count) error=no taste in answer")
+                    }
+                case .failure(let error):
+                    self.tasteProblem = error.localizedDescription
+                    note("fabula taste failed fresh=\(ids.count) error=\(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    func again() {
+        ticket += 1
+        loading = false
+        films = []
+        scores = [:]
+        stage = .pick
+        note("fabula refiner reset source=again")
+    }
+
+    private func saveBatch() -> (Int, Int) {
+        let store = OrtusStore.shared
+        var count = 0
+        var missed: [FabulaFilm] = []
+        for film in films {
+            if let value = scores[film.tmdb] {
+                store.saveLog(film, rating: Double(value), comment: "", source: "refiner", origin: "refiner")
+                fresh.append(film.tmdb)
+                count += 1
+            } else {
+                missed.append(film)
+            }
+        }
+        store.markUnseen(missed, source: "refiner")
+        rated += count
+        skipped += missed.count
+        films = []
+        scores = [:]
+        return (count, missed.count)
+    }
+
+    private func fetch(source: String) {
+        ticket += 1
+        let mine = ticket
+        guard FabulaNet.connected else {
+            loading = false
+            problem = "Cloud not connected"
+            note("fabula refiner fetch skipped reason=not connected source=\(source)")
+            return
+        }
+        loading = true
+        problem = nil
+        let body: [String: Any] = ["p_langs": langs.isEmpty ? NSNull() as Any : langs as Any,
+                                   "p_genres": genres.isEmpty ? NSNull() as Any : genres as Any,
+                                   "p_limit": 10, "p_exclude": shown]
+        FabulaNet.rpc("fabula_refine", body: body) { [weak self] result in
+            guard let self, mine == self.ticket else { return }
+            self.loading = false
+            switch result {
+            case .success(let json):
+                let list = (json as? [Any] ?? []).compactMap { ($0 as? [String: Any]).flatMap(FabulaFilm.init) }
+                var seen = Set(self.shown)
+                let batch = Array(list.filter { seen.insert($0.tmdb).inserted }.prefix(10))
+                self.shown.append(contentsOf: batch.map(\.tmdb))
+                self.films = batch
+                self.scores = [:]
+                self.problem = batch.isEmpty ? "No films left for this choice" : nil
+                note("fabula refiner fetched source=\(source) received=\(list.count) added=\(batch.count) shown=\(self.shown.count)")
+            case .failure(let error):
+                self.problem = error.localizedDescription
+                note("fabula refiner fetch failed source=\(source) error=\(error.localizedDescription) shown=\(self.shown.count)")
+            }
+        }
+    }
+}
+
+final class FabulaAI: ObservableObject {
+    static let shared = FabulaAI()
+    static let ideas = ["Cosy and clever", "Edge of my seat", "Make me cry", "Something weird"]
+
+    @Published var mood = ""
+    @Published var tune = ""
+    @Published private(set) var active = false
+    @Published private(set) var thread: [String] = []
+    @Published private(set) var films: [FabulaFilm] = []
+    @Published private(set) var chosen: Int?
+    @Published private(set) var loading = false
+    @Published private(set) var problem: String?
+    @Published private(set) var round = 0
+
+    private var text = ""
+    private var notes: [String] = []
+    private var shown: [Int] = []
+    private var ticket = 0
+
+    private init() {}
+
+    var pick: FabulaFilm? { films.first { $0.tmdb == chosen } }
+
+    func find() {
+        let value = mood.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+        text = value
+        notes = []
+        shown = []
+        thread = [value]
+        films = []
+        chosen = nil
+        round = 0
+        active = true
+        note("fabula ai started moodLength=\(value.count)")
+        run(source: "mood")
+    }
+
+    func send() {
+        let value = tune.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard active, !loading, !value.isEmpty else { return }
+        notes.append(value)
+        thread.append(value)
+        tune = ""
+        run(source: "note")
+    }
+
+    func reject() {
+        guard active, !loading else { return }
+        thread.append("None of these")
+        run(source: "none")
+    }
+
+    func choose(_ film: FabulaFilm) {
+        chosen = chosen == film.tmdb ? nil : film.tmdb
+    }
+
+    func watch(source: String) {
+        guard let film = pick else { return }
+        note("fabula ai watch tmdb=\(film.tmdb) round=\(round)")
+        FabulaDeck.shared.superlike(film, source: source)
+    }
+
+    func leave() {
+        ticket += 1
+        active = false
+        loading = false
+        problem = nil
+        note("fabula ai left round=\(round)")
+    }
+
+    private func run(source: String) {
+        ticket += 1
+        let mine = ticket
+        let before = (films, round)
+        round += 1
+        chosen = nil
+        films = []
+        problem = nil
+        guard FabulaNet.connected else {
+            films = before.0
+            round = before.1
+            problem = "Cloud not connected"
+            note("fabula ai skipped reason=not connected source=\(source)")
+            return
+        }
+        loading = true
+        let body: [String: Any] = ["action": "mood", "text": text, "notes": notes, "shown": shown]
+        FabulaNet.function("fabula-ai", body: body, timeout: 60) { [weak self] result in
+            guard let self, mine == self.ticket else { return }
+            self.loading = false
+            switch result {
+            case .success(let json):
+                let list = ((json as? [String: Any])?["films"] as? [Any] ?? []).compactMap { ($0 as? [String: Any]).flatMap(FabulaFilm.init) }
+                var seen = Set<Int>()
+                let picks = Array(list.filter { seen.insert($0.tmdb).inserted }.prefix(4))
+                for film in picks where !self.shown.contains(film.tmdb) { self.shown.append(film.tmdb) }
+                self.films = picks
+                self.problem = picks.isEmpty ? "No films this round" : nil
+                note("fabula ai round done source=\(source) round=\(self.round) films=\(picks.count) notes=\(self.notes.count) shown=\(self.shown.count)")
+            case .failure(let error):
+                self.films = before.0
+                self.round = before.1
+                self.problem = error.localizedDescription
+                note("fabula ai round failed source=\(source) round=\(self.round) error=\(error.localizedDescription)")
             }
         }
     }
