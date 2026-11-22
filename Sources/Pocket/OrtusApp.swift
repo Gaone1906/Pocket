@@ -20,6 +20,7 @@ enum Fab {
     static let onAccent = Color(hex: 0x1A0D07)
     static let yes = Color(hex: 0x4CC283)
     static let no = Color(hex: 0xF0785C)
+    static let mal = Color(hex: 0x5B8DEF)
 
     static func serif(_ size: CGFloat, _ weight: Font.Weight = .bold) -> Font { .system(size: size, weight: weight, design: .serif) }
     static func sans(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font { .system(size: size, weight: weight) }
@@ -417,9 +418,40 @@ struct FabulaFilters: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            FabulaPill(word: "Language", options: FabulaDeck.languages, chosen: deck.langs) { deck.setLangs($0) }
-            FabulaPill(word: "Genre", options: FabulaDeck.genres, chosen: deck.genres) { deck.setGenres($0) }
+            FabulaChoice(word: FabulaKind.movie.name, options: FabulaKind.allCases.map(\.name), chosen: deck.kind.name) {
+                if let kind = FabulaKind.named($0) { deck.setKind(kind) }
+            }
+            if deck.kind != .anime {
+                FabulaPill(word: "Language", options: deck.kind.languages, chosen: deck.langs) { deck.setLangs($0) }
+            }
+            FabulaPill(word: "Genre", options: deck.kind.genres, chosen: deck.genres) { deck.setGenres($0) }
         }
+    }
+}
+
+struct FabulaKindSeg: View {
+    @ObservedObject var deck: FabulaDeck
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(FabulaKind.allCases) { kind in
+                let on = deck.kind == kind
+                Button { deck.setKind(kind) } label: {
+                    Text(kind.name)
+                        .font(Fab.sans(12.5, .semibold))
+                        .foregroundStyle(on ? Fab.washText : Fab.muted)
+                        .padding(.horizontal, 16)
+                        .frame(height: 28)
+                        .background(Capsule().fill(on ? Fab.wash : Color.clear))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(3)
+        .background(Capsule().fill(Fab.surface))
+        .overlay(Capsule().stroke(Fab.line, lineWidth: 1))
+        .fixedSize()
     }
 }
 
@@ -528,7 +560,7 @@ struct FabulaCardFace: View {
             HStack(spacing: 8) {
                 Text(film.meta).font(Fab.sans(12)).foregroundStyle(Fab.muted).lineLimit(1)
                 Spacer(minLength: 0)
-                FabulaImdbLabel(rating: film.imdb, size: 12)
+                FabulaRatingLabel(film: film, size: 12)
             }
             if !film.overview.isEmpty {
                 Text(film.overview)
@@ -745,7 +777,7 @@ struct FabulaRecommend: View {
                 HStack(spacing: 8) {
                     Text(film.meta).font(Fab.sans(14)).foregroundStyle(Fab.muted)
                     Spacer(minLength: 0)
-                    FabulaImdbLabel(rating: film.imdb, size: 14)
+                    FabulaRatingLabel(film: film, size: 14)
                 }
                 if !film.overview.isEmpty {
                     Text(film.overview).font(Fab.sans(19)).lineSpacing(5).foregroundStyle(Fab.ink)
@@ -926,7 +958,7 @@ struct FabulaRateSheet: View {
                     .buttonStyle(.plain)
                 }
             }
-            TextField("Tell us about the movie!", text: $comment, axis: .vertical)
+            TextField("Tell us about the \(sheet.film.kind == .movie ? "movie" : sheet.film.kind.noun())!", text: $comment, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(Fab.sans(13.5))
                 .foregroundStyle(Fab.ink)
@@ -1077,13 +1109,14 @@ struct FabulaSmallButton: View {
 struct FabulaWatchlist: View {
     @ObservedObject var store: OrtusStore
     @ObservedObject var nav: FabulaNav
+    @ObservedObject private var deck = FabulaDeck.shared
     @State private var langs: [String] = []
     @State private var genres: [String] = []
     @State private var added = "Any time"
 
     private static let spans = ["Any time", "This week", "This month"]
 
-    private var all: [FabulaEntry] { store.watchlist }
+    private var all: [FabulaEntry] { store.watchlist(deck.kind) }
 
     private var list: [FabulaEntry] {
         let days: Double = added == "This week" ? 7 : added == "This month" ? 31 : 0
@@ -1114,9 +1147,10 @@ struct FabulaWatchlist: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text("Watchlist").font(Fab.serif(28))
-                Text("\(items.count) films").font(Fab.sans(13)).foregroundStyle(Fab.muted)
+                Text("\(items.count) \(deck.kind.noun(items.count))").font(Fab.sans(13)).foregroundStyle(Fab.muted)
                 Spacer()
             }
+            FabulaKindSeg(deck: deck)
             HStack(spacing: 8) {
                 FabulaPill(word: "Language", options: ranked(all.map(\.language)), chosen: langs) { langs = $0 }
                 FabulaPill(word: "Genre", options: ranked(all.flatMap(\.genres)), chosen: genres) { genres = $0 }
@@ -1141,6 +1175,10 @@ struct FabulaWatchlist: View {
         .padding(.top, 30)
         .frame(maxWidth: 820, maxHeight: .infinity, alignment: .topLeading)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onChange(of: deck.kind) { _, _ in
+            langs = []
+            genres = []
+        }
     }
 
     private func section(_ text: String, color: Color) -> some View {
@@ -1172,15 +1210,18 @@ enum FabulaSort: String, CaseIterable {
 struct FabulaLog: View {
     @ObservedObject var store: OrtusStore
     @ObservedObject var nav: FabulaNav
+    @ObservedObject private var deck = FabulaDeck.shared
     @StateObject private var search = FabulaSearch()
     @State private var query = ""
     @State private var sort: FabulaSort = FabulaSort(rawValue: UserDefaults.standard.string(forKey: "fabula.sort") ?? "") ?? .rating
     @State private var adding = false
     @FocusState private var focused: Bool
 
+    private var logs: [FabulaEntry] { store.logs.filter { $0.kind == deck.kind } }
+
     private var list: [FabulaEntry] {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let found = store.logs.filter { (entry: FabulaEntry) -> Bool in Self.matches(entry, text) }
+        let found = logs.filter { (entry: FabulaEntry) -> Bool in Self.matches(entry, text) }
         let order = sort
         return found.sorted { (a: FabulaEntry, b: FabulaEntry) -> Bool in Self.before(a, b, by: order) }
     }
@@ -1212,14 +1253,14 @@ struct FabulaLog: View {
     }
 
     private var average: String {
-        let rated = store.logs.compactMap(\.rating)
+        let rated = logs.compactMap(\.rating)
         guard !rated.isEmpty else { return "–" }
         return String(format: "%.1f", rated.reduce(0, +) / Double(rated.count))
     }
 
     private var decade: String {
         var groups: [Int: [Double]] = [:]
-        for entry in store.logs {
+        for entry in logs {
             guard let year = entry.year, let rating = entry.rating else { continue }
             groups[year / 10 * 10, default: []].append(rating)
         }
@@ -1240,29 +1281,31 @@ struct FabulaLog: View {
             HStack(alignment: .center) {
                 Text("Log").font(Fab.serif(28))
                 Spacer()
-                FabulaSmallButton(title: adding ? "Done" : "+ Add film", color: adding ? Fab.muted : Fab.accent) {
+                FabulaSmallButton(title: adding ? "Done" : "+ Add \(deck.kind == .movie ? "film" : deck.kind.noun())", color: adding ? Fab.muted : Fab.accent) {
                     adding.toggle()
                     search.reset()
                     focused = adding
                 }
             }
+            FabulaKindSeg(deck: deck)
             if adding { finder } else { logList }
         }
         .padding(.horizontal, 32)
         .padding(.top, 30)
         .frame(maxWidth: 820, maxHeight: .infinity, alignment: .topLeading)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onChange(of: deck.kind) { _, _ in search.reset() }
     }
 
     private var logList: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
-                stat("\(store.logs.count)", "films logged")
+                stat("\(logs.count)", "\(deck.kind.noun(logs.count)) logged")
                 stat(average, "your average")
                 stat(decade, "best decade")
             }
             HStack(spacing: 10) {
-                field(text: $query, prompt: "Search \(store.logs.count) films")
+                field(text: $query, prompt: "Search \(logs.count) \(deck.kind.noun(logs.count))")
                 Menu {
                     ForEach(FabulaSort.allCases, id: \.self) { option in
                         Button {
@@ -1318,7 +1361,7 @@ struct FabulaLog: View {
     private var finder: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                field(text: $search.query, prompt: "Search all films")
+                field(text: $search.query, prompt: "Search all \(deck.kind.noun(2))")
                 if search.busy { ProgressView().controlSize(.small) }
             }
             ScrollView {
@@ -1442,19 +1485,25 @@ struct FabulaGlance: View {
     }
 }
 
-struct FabulaImdbLabel: View {
-    let rating: Double?
+struct FabulaRatingLabel: View {
+    let film: FabulaFilm
     let size: CGFloat
 
     var body: some View {
-        if let rating {
-            HStack(spacing: 0) {
-                Text("IMDb: ").foregroundStyle(Fab.muted)
-                Text(String(format: "%.1f", rating)).fontWeight(.semibold).foregroundStyle(Fab.gold)
-                Text("/10").foregroundStyle(Fab.muted)
-            }
-            .font(Fab.sans(size))
-            .fixedSize()
+        if let mal = film.mal {
+            label("MAL: ", String(format: "%.2f", mal), Fab.mal)
+        } else if let imdb = film.imdb {
+            label("IMDb: ", String(format: "%.1f", imdb), Fab.gold)
         }
+    }
+
+    private func label(_ name: String, _ value: String, _ color: Color) -> some View {
+        HStack(spacing: 0) {
+            Text(name).foregroundStyle(Fab.muted)
+            Text(value).fontWeight(.semibold).foregroundStyle(color)
+            Text("/10").foregroundStyle(Fab.muted)
+        }
+        .font(Fab.sans(size))
+        .fixedSize()
     }
 }
