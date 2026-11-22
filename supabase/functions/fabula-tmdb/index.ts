@@ -16,6 +16,11 @@ const LANGS: Record<string, string> = {
   id: "Indonesian", pl: "Polish", nl: "Dutch", ar: "Arabic", he: "Hebrew",
 };
 const GENRE: Record<string, string> = { "Science Fiction": "Sci-fi" };
+const TV_GENRE: Record<string, string[]> = {
+  "Action & Adventure": ["Action", "Adventure"], "Sci-Fi & Fantasy": ["Sci-fi", "Fantasy"], "War & Politics": ["War"],
+  "Kids": ["Family"],
+};
+const SHOW = 100_000_000;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
@@ -67,6 +72,129 @@ function shape(d: any) {
     recs: (d.recommendations?.results || []).slice(0, 20).map((r: any) => r.id),
     updated: new Date().toISOString(),
   };
+}
+
+function shapeTv(d: any) {
+  const lang = d.original_language as string;
+  const india = d["watch/providers"]?.results?.IN;
+  const ended = ["Ended", "Canceled"].includes(d.status) ? year(d.last_air_date) : null;
+  const run = (d.episode_run_time || [])[0] || d.last_episode_to_air?.runtime || null;
+  return {
+    tmdb: SHOW + d.id,
+    kind: "show",
+    title: d.name,
+    original_title: d.original_name,
+    year: year(d.first_air_date),
+    released: d.first_air_date || null,
+    runtime: run,
+    lang,
+    language: LANGS[lang] || lang,
+    genres: [...new Set((d.genres || []).flatMap((g: any) => TV_GENRE[g.name] || [GENRE[g.name] || g.name]))],
+    keywords: (d.keywords?.results || []).slice(0, 25).map((k: any) => k.name),
+    director: (d.created_by || [])[0]?.name ?? null,
+    cast: (d.aggregate_credits?.cast || d.credits?.cast || []).slice(0, 6).map((c: any) => c.name),
+    overview: d.overview || null,
+    poster: d.poster_path || null,
+    backdrop: d.backdrop_path || null,
+    imdb_id: d.external_ids?.imdb_id || null,
+    vote: d.vote_average ?? null,
+    votes: d.vote_count ?? null,
+    popularity: d.popularity ?? null,
+    providers: (india?.flatrate || []).map((p: any) => p.provider_name),
+    recs: (d.recommendations?.results || []).slice(0, 20).map((r: any) => SHOW + r.id),
+    seasons: d.number_of_seasons ?? null,
+    episodes: d.number_of_episodes ?? null,
+    network: (d.networks || [])[0]?.name ?? null,
+    status: d.status || null,
+    ended,
+    updated: new Date().toISOString(),
+  };
+}
+
+async function tvDetails(id: number) {
+  const d = await tmdb(`/tv/${id}`, { append_to_response: "aggregate_credits,keywords,recommendations,watch/providers,external_ids", language: "en-US" });
+  return shapeTv(d);
+}
+
+async function addShows(ids: number[]) {
+  const out: any[] = [];
+  for (let i = 0; i < ids.length; i += 10) {
+    const batch = await Promise.all(ids.slice(i, i + 10).map((id) => tvDetails(id).catch(() => null)));
+    out.push(...batch.filter(Boolean));
+  }
+  if (out.length) {
+    const { error } = await db.from("movies").upsert(out, { onConflict: "tmdb" });
+    if (error) throw new Error(error.message);
+  }
+  return out;
+}
+
+function showPlans() {
+  const list: { y: number; lang: string; min: number }[] = [];
+  for (let y = 1990; y <= 2026; y++) {
+    list.push({ y, lang: "en", min: y >= 2025 ? 10 : 25 });
+    list.push({ y, lang: "ko", min: y >= 2025 ? 5 : 10 });
+    list.push({ y, lang: "hi", min: y >= 2025 ? 2 : 4 });
+  }
+  return list;
+}
+
+async function ingestShows() {
+  const start = Date.now();
+  const all = showPlans();
+  let cursor = (await admin("shows_cursor")) || { plan: 0, page: 1 };
+  let added = 0;
+  while (Date.now() - start < 110_000 && cursor.plan < all.length) {
+    const p = all[cursor.plan];
+    const res = await tmdb("/discover/tv", {
+      first_air_date_year: p.y, with_original_language: p.lang, "vote_count.gte": p.min, sort_by: "vote_count.desc",
+      include_adult: "false", without_genres: "10763,10764,10767", page: cursor.page,
+    });
+    const ids: number[] = (res.results || []).map((r: any) => r.id);
+    if (ids.length) {
+      const { data: have } = await db.from("movies").select("tmdb").in("tmdb", ids.map((id) => SHOW + id));
+      const known = new Set((have || []).map((h: any) => h.tmdb - SHOW));
+      added += (await addShows(ids.filter((id) => !known.has(id)))).length;
+    }
+    const last = Math.min(res.total_pages || 1, 40);
+    cursor = cursor.page >= last ? { plan: cursor.plan + 1, page: 1 } : { plan: cursor.plan, page: cursor.page + 1 };
+    await db.from("fabula_admin").upsert({ key: "shows_cursor", value: cursor, updated: new Date().toISOString() });
+  }
+  const { count } = await db.from("movies").select("tmdb", { count: "exact", head: true }).eq("kind", "show");
+  return { added, cursor, plans: all.length, done: cursor.plan >= all.length, shows: count };
+}
+
+async function imdbFill(kind: string, only: boolean) {
+  const ids = new Map<string, number[]>();
+  for (let from = 0; ; from += 1000) {
+    let q = db.from("movies").select("tmdb, imdb_id").eq("kind", kind).not("imdb_id", "is", null).range(from, from + 999);
+    if (only) q = q.is("imdb_rating", null);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    for (const r of data || []) ids.set(r.imdb_id, [...(ids.get(r.imdb_id) || []), r.tmdb]);
+    if (!data || data.length < 1000) break;
+  }
+  const res = await fetch("https://datasets.imdbws.com/title.ratings.tsv.gz");
+  if (!res.ok || !res.body) throw new Error(`imdb ${res.status}`);
+  const lines = res.body.pipeThrough(new DecompressionStream("gzip")).pipeThrough(new TextDecoderStream());
+  const rows: { tmdb: number; rating: number; votes: number }[] = [];
+  let rest = "";
+  for await (const chunk of lines) {
+    const parts = (rest + chunk).split("\n");
+    rest = parts.pop() || "";
+    for (const line of parts) {
+      const tab = line.indexOf("\t");
+      const hit = ids.get(line.slice(0, tab));
+      if (!hit) continue;
+      const [, r, v] = line.split("\t");
+      for (const tmdb of hit) rows.push({ tmdb, rating: Number(r), votes: Number(v) });
+    }
+  }
+  for (let i = 0; i < rows.length; i += 1000) {
+    const { error } = await db.rpc("fabula_set_imdb", { p_rows: rows.slice(i, i + 1000) });
+    if (error) throw new Error(error.message);
+  }
+  return { asked: ids.size, rated: rows.length };
 }
 
 async function details(id: number) {
@@ -205,6 +333,16 @@ Deno.serve(async (req) => {
         const q = String(body.q || "").trim();
         if (q.length < 2 || q.length > 100) return json({ error: "q must be 2-100 characters" }, 400);
         const params: Record<string, string | number> = { query: q, include_adult: "false", language: "en-US" };
+        if (body.kind === "show") {
+          const res = await tmdb("/search/tv", params);
+          const results = (res.results || [])
+            .filter((r: any) => !(r.original_language === "ja" && (r.genre_ids || []).includes(16)))
+            .slice(0, 12).map((r: any) => ({
+              tmdb: SHOW + r.id, kind: "show", title: r.name, original_title: r.original_name, year: year(r.first_air_date),
+              language: LANGS[r.original_language] || r.original_language, poster: r.poster_path, votes: r.vote_count,
+            }));
+          return json({ results });
+        }
         if (body.year) params.primary_release_year = Number(body.year);
         const res = await tmdb("/search/movie", params);
         const results = (res.results || []).slice(0, 12).map((r: any) => ({
@@ -215,16 +353,25 @@ Deno.serve(async (req) => {
       }
       case "add": {
         const id = Number(body.tmdb);
-        if (!Number.isInteger(id) || id <= 0) return json({ error: "tmdb must be a positive integer" }, 400);
+        if (!Number.isInteger(id) || id <= 0 || id >= 2 * SHOW) return json({ error: "tmdb must be a positive film or show id" }, 400);
         const { data: have } = await db.from("movies").select("*").eq("tmdb", id).maybeSingle();
         if (have && !body.refresh) return json({ movie: have });
-        const [m] = await addMovies([id]);
+        const [m] = id >= SHOW ? await addShows([id - SHOW]) : await addMovies([id]);
         if (!m) return json({ error: "Not found on TMDB" }, 404);
         return json({ movie: m });
       }
       case "ingest": {
         if (!(await authorised(body.token))) return json({ error: "Not allowed" }, 403);
         return json(await ingest());
+      }
+      case "ingest_shows": {
+        if (!(await authorised(body.token))) return json({ error: "Not allowed" }, 403);
+        return json(await ingestShows());
+      }
+      case "imdb": {
+        if (!(await authorised(body.token))) return json({ error: "Not allowed" }, 403);
+        const kind = ["movie", "show"].includes(body.kind) ? body.kind : "show";
+        return json(await imdbFill(kind, body.only !== false));
       }
       case "import": {
         if (!(await authorised(body.token))) return json({ error: "Not allowed" }, 403);

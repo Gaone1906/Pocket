@@ -81,7 +81,38 @@ select cron.schedule('fabula-match-purge', '*/15 * * * *', $$delete from public.
 
 select cron.schedule('fabula-ingest', '*/2 * * * *', $$select net.http_post(url := 'https://<project-ref>.supabase.co/functions/v1/fabula-tmdb', body := jsonb_build_object('action','ingest','token',(select value from public.fabula_admin where key='ingest_token')), headers := '{"Content-Type":"application/json"}'::jsonb, timeout_milliseconds := 150000) where coalesce((select (value->>'plan')::int from public.fabula_admin where key='ingest_cursor'), 0) < 222$$);
 
-create or replace function public.fabula_deck(p_langs text[] default null, p_genres text[] default null, p_limit integer default 20, p_exclude integer[] default '{}')
+alter table public.movies
+  add column if not exists kind text not null default 'movie',
+  add column if not exists seasons integer,
+  add column if not exists episodes integer,
+  add column if not exists network text,
+  add column if not exists status text,
+  add column if not exists format text,
+  add column if not exists season text,
+  add column if not exists ended integer,
+  add column if not exists mal_score numeric(4,2),
+  add column if not exists mal_members integer,
+  add column if not exists mal_scorers integer;
+create index if not exists movies_kind on public.movies(kind);
+insert into public.fabula_admin(key, value) values ('shows_cursor', '{"plan": 0, "page": 1}') on conflict do nothing;
+insert into public.fabula_admin(key, value) values ('anime_cursor', '{"offset": 0}') on conflict do nothing;
+
+create or replace function public.fabula_set_imdb(p_rows jsonb)
+returns integer
+language sql
+security definer
+set search_path = public
+as $$
+  with u as (
+    update movies m set imdb_rating = (r->>'rating')::numeric, imdb_votes = (r->>'votes')::int
+    from jsonb_array_elements(p_rows) r where m.tmdb = (r->>'tmdb')::int returning 1
+  ) select count(*)::int from u
+$$;
+revoke all on function public.fabula_set_imdb(jsonb) from public, anon, authenticated;
+grant execute on function public.fabula_set_imdb(jsonb) to service_role;
+
+drop function if exists public.fabula_deck(text[], text[], integer, integer[]);
+create or replace function public.fabula_deck(p_langs text[] default null, p_genres text[] default null, p_limit integer default 20, p_exclude integer[] default '{}', p_kind text default 'movie')
 returns jsonb
 language plpgsql
 stable
@@ -90,6 +121,8 @@ set search_path = public
 set work_mem = '32MB'
 set plan_cache_mode = force_custom_plan
 as $$
+declare
+  k text := case when p_kind in ('show', 'anime') then p_kind else 'movie' end;
 begin
 return (
 with recs_live as (
@@ -111,7 +144,8 @@ rated as (
   from swiped s where s.v in ('super', 'yes', 'no') and not exists (select 1 from logged l where l.tmdb = s.tmdb)
 ),
 r2 as (
-  select m.tmdb, m.title, m.director, m.genres, m.keywords, m."cast", m.recs, m.collection, rated.r, rated.r - 8.1 as c, rated.w
+  select m.tmdb, m.title, m.director, m.genres, m.keywords, m."cast", m.recs, m.collection, m.kind, rated.r, rated.r - 8.1 as c,
+    rated.w * case when m.kind = k then 1 else 0.25 end as w
   from rated join movies m using (tmdb) where rated.w > 0
 ),
 feat as (
@@ -128,21 +162,26 @@ seen as (
   union select tmdb from swiped where not (v = 'no' and at < now() - interval '180 days')
 ),
 seen_titles as (
-  select lower(m.title) as t from seen s join movies m using (tmdb)
+  select lower(m.title) as t from seen s join movies m using (tmdb) where m.kind = k
 ),
 loved as (
   select r2.tmdb, r2.title, r2.director, r2.recs, r2.r from r2 join logged using (tmdb) where r2.r >= 9
 ),
 cand as (
-  select m.tmdb, m.title, m.year, m.genres, m.keywords, m.director, m."cast", m.collection, m.vote, m.votes from movies m
-  where m.tmdb not in (select tmdb from seen where tmdb is not null)
+  select m.tmdb, m.title, m.year, m.genres, m.keywords, m.director, m."cast", m.collection,
+    case when k = 'show' then coalesce(m.imdb_rating, m.vote) else m.vote end as vote, m.votes from movies m
+  where m.kind = k
+    and m.tmdb not in (select tmdb from seen where tmdb is not null)
     and lower(m.title) not in (select t from seen_titles)
     and not (m.tmdb = any(coalesce(p_exclude, '{}')))
     and (p_langs is null or cardinality(p_langs) = 0 or m.language = any(p_langs))
     and (p_genres is null or cardinality(p_genres) = 0 or m.genres && p_genres)
     and m.year between 1990 and 2026
-    and coalesce(m.vote, 0) >= 5.5
-    and coalesce(m.runtime, 90) >= 60
+    and case k
+      when 'show' then coalesce(m.imdb_rating, m.vote, 0) >= 5 and coalesce(m.imdb_votes, 0) >= 500
+      when 'anime' then coalesce(m.mal_score, 0) >= 5 and coalesce(m.mal_scorers, 0) >= 500 and coalesce(m.format, '') <> 'Special'
+      else coalesce(m.vote, 0) >= 5.5 and coalesce(m.runtime, 90) >= 60 and not (m.language = 'Japanese' and 'Animation' = any(m.genres))
+    end
 ),
 cf as (
   select c.tmdb, 'g:' || x as f, 'g' as t from cand c, unnest(c.genres) x
@@ -222,7 +261,10 @@ picked as (
 select coalesce(jsonb_agg(jsonb_build_object(
   'tmdb', p.tmdb, 'title', p.title, 'year', p.year, 'runtime', p.runtime, 'language', p.language,
   'genres', p.genres, 'director', p.director, 'cast', p."cast"[1:3], 'overview', p.overview,
-  'poster', p.poster, 'backdrop', p.backdrop, 'vote', p.vote, 'imdb', case when p.imdb_votes >= 1000 then p.imdb_rating end, 'providers', p.providers,
+  'poster', p.poster, 'backdrop', p.backdrop, 'vote', p.vote, 'providers', p.providers,
+  'kind', p.kind, 'imdb', case when p.imdb_votes >= case p.kind when 'show' then 500 else 1000 end then p.imdb_rating end,
+  'mal', case when p.kind = 'anime' then p.mal_score end, 'seasons', p.seasons, 'episodes', p.episodes,
+  'format', p.format, 'season', p.season, 'network', p.network, 'status', p.status, 'ended', p.ended,
   'why', (
     select 'Because you loved ' || l.title from loved l
     where p.tmdb = any(l.recs) or (p.director is not null and l.director = p.director)
@@ -233,9 +275,10 @@ from picked p
 );
 end
 $$;
-grant execute on function public.fabula_deck(text[], text[], integer, integer[]) to anon, authenticated;
+grant execute on function public.fabula_deck(text[], text[], integer, integer[], text) to anon, authenticated;
 
-create or replace function public.fabula_refine(p_langs text[] default null, p_genres text[] default null, p_limit integer default 10, p_exclude integer[] default '{}')
+drop function if exists public.fabula_refine(text[], text[], integer, integer[]);
+create or replace function public.fabula_refine(p_langs text[] default null, p_genres text[] default null, p_limit integer default 10, p_exclude integer[] default '{}', p_kind text default 'movie')
 returns jsonb
 language plpgsql
 stable
@@ -243,6 +286,8 @@ security definer
 set search_path = public
 set plan_cache_mode = force_custom_plan
 as $$
+declare
+  k text := case when p_kind in ('show', 'anime') then p_kind else 'movie' end;
 begin
 return (
 with done as (
@@ -250,9 +295,13 @@ with done as (
   where user_id = '00000000-0000-0000-0000-000000000000' and kind in ('ortus.log', 'ortus.swipe', 'ortus.unseen') and not coalesce(deleted, false)
 ),
 pool as (
-  select m.tmdb, m.title, m.year, m.director, m.overview, m.poster, m.language, m.genres, m.runtime, m.votes
+  select m.tmdb, m.title, m.year, m.director, m.overview, m.poster, m.language, m.genres, m.runtime, m.votes,
+    m.kind, m.seasons, m.episodes, m.format
   from movies m
-  where m.tmdb::text not in (select id from done)
+  where m.kind = k
+    and (k <> 'movie' or not (m.language = 'Japanese' and 'Animation' = any(m.genres)))
+    and (k <> 'anime' or coalesce(m.format, '') <> 'Special')
+    and m.tmdb::text not in (select id from done)
     and not (m.tmdb = any(coalesce(p_exclude, '{}')))
     and (p_langs is null or cardinality(p_langs) = 0 or m.language = any(p_langs))
     and (p_genres is null or cardinality(p_genres) = 0 or m.genres && p_genres)
@@ -264,10 +313,11 @@ picked as (
 )
 select coalesce(jsonb_agg(jsonb_build_object(
   'tmdb', tmdb, 'title', title, 'year', year, 'director', director, 'overview', overview, 'poster', poster,
-  'language', language, 'genres', genres, 'runtime', runtime
+  'language', language, 'genres', genres, 'runtime', runtime, 'kind', kind, 'seasons', seasons, 'episodes', episodes,
+  'format', format
 ) order by votes desc nulls last), '[]'::jsonb)
 from picked
 );
 end
 $$;
-grant execute on function public.fabula_refine(text[], text[], integer, integer[]) to anon, authenticated;
+grant execute on function public.fabula_refine(text[], text[], integer, integer[], text) to anon, authenticated;
