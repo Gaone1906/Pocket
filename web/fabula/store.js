@@ -1,6 +1,6 @@
-const KEY = "ortus.cloud.v1";
-const OTHER_KEYS = ["luna.cloud.v1", "zenda.cloud.v1", "pocket.cloud.v1", "orario.cloud.v1", "runner.cloud.v1", "misura.cloud.v1", "aurelius.cloud.v1"];
-const KINDS = ["ortus.quote", "ortus.story", "ortus.reel", "ortus.video"];
+const KEY = "fabula.cloud.v1";
+const OTHER_KEYS = ["ortus.cloud.v1", "luna.cloud.v1", "zenda.cloud.v1", "pocket.cloud.v1", "orario.cloud.v1", "runner.cloud.v1", "misura.cloud.v1", "aurelius.cloud.v1"];
+const KINDS = ["ortus.swipe", "ortus.log"];
 const SHARED = "00000000-0000-0000-0000-000000000000";
 
 const listeners = new Set();
@@ -101,6 +101,16 @@ export function put(kind, id, data) {
   scheduleFlush();
 }
 
+export function remove(kind, id) {
+  const key = kind + "|" + id;
+  const r = state.records[key];
+  if (!r || r.deleted) return;
+  state.records[key] = { ...r, deleted: true, updated_at: new Date().toISOString() };
+  state.outbox[key] = true;
+  emit();
+  scheduleFlush();
+}
+
 export function pendingCount() {
   return Object.keys(state.outbox).length;
 }
@@ -125,10 +135,28 @@ export function signedIn() {
   return !!state.config;
 }
 
+export function projectUrl() {
+  return state.config ? state.config.url : "";
+}
+
+export function authHeaders() {
+  const key = state.config ? state.config.key : "";
+  const headers = { apikey: key };
+  if (key && !key.startsWith("sb_")) headers.Authorization = "Bearer " + key;
+  return headers;
+}
+
+export function rpc(name, body) {
+  return call("/rest/v1/rpc/" + name, { method: "POST", body: JSON.stringify(body) });
+}
+
+export function fn(name, body) {
+  return call("/functions/v1/" + name, { method: "POST", body: JSON.stringify(body) });
+}
+
 async function call(path, options = {}) {
-  const { url, key } = state.config;
-  const headers = { apikey: key, "Content-Type": "application/json", ...(options.headers || {}) };
-  if (!key.startsWith("sb_")) headers.Authorization = "Bearer " + key;
+  const { url } = state.config;
+  const headers = { ...authHeaders(), "Content-Type": "application/json", ...(options.headers || {}) };
   let res;
   try {
     res = await fetch(url + path, { ...options, headers });
@@ -244,6 +272,7 @@ async function runSync() {
     const quiet = !changed && before.problem === state.problem && before.pending === pendingCount() && before.minute === (state.lastSync || "").slice(0, 16);
     if (quiet) persist();
     else emit();
+    if (pendingCount() && !state.problem) scheduleFlush();
   }
 }
 
