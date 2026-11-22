@@ -58,6 +58,7 @@ function shape(d: any) {
     overview: d.overview || null,
     poster: d.poster_path || null,
     backdrop: d.backdrop_path || null,
+    imdb_id: d.imdb_id || null,
     vote: d.vote_average ?? null,
     votes: d.vote_count ?? null,
     popularity: d.popularity ?? null,

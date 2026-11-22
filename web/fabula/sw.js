@@ -1,4 +1,4 @@
-const CACHE = "fabula-web-v3";
+const CACHE = "fabula-web-v4";
 const SHELL = ["./", "index.html", "match.html", "style.css", "app.js", "match.js", "store.js", "films.js", "drag.js", "room.js", "util.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "logo-96.png"];
 
 self.addEventListener("install", (e) => {

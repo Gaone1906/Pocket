@@ -97,6 +97,7 @@ struct FabulaFilm: Identifiable, Equatable {
     let poster: String
     let backdrop: String
     let vote: Double?
+    let imdb: Double?
     let providers: [String]
     let why: String
 
@@ -116,6 +117,7 @@ struct FabulaFilm: Identifiable, Equatable {
         poster = FabulaLoose.text(raw["poster"]) ?? ""
         backdrop = FabulaLoose.text(raw["backdrop"]) ?? ""
         vote = FabulaLoose.number(raw["vote"])
+        imdb = FabulaLoose.number(raw["imdb"])
         providers = FabulaLoose.texts(raw["providers"])
         why = FabulaLoose.text(raw["why"]) ?? ""
     }

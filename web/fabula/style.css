@@ -105,6 +105,10 @@ h1, h2 { margin: 0; font-family: var(--serif); font-weight: 700; }
 .info { padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 8px; flex: none; background: var(--surface); transition: background-color .38s ease; min-height: 0; }
 .card.open .info { background: transparent; }
 .meta { font-size: 13px; color: var(--muted); }
+.metarow { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.metarow .meta, .metarow .muted { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.imdb { flex: none; font-size: 13px; color: var(--muted); }
+.imdb b { color: var(--gold); font-weight: 600; }
 .hook { font-size: 15px; line-height: 1.45; overflow: hidden; max-height: 4.35em; -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent); mask-image: linear-gradient(180deg, #000 60%, transparent); transition: max-height .38s cubic-bezier(.2, .8, .2, 1); }
 .card.top .hook { cursor: pointer; }
 .card.open .hook { -webkit-mask-image: none; mask-image: none; overflow-y: auto; }
