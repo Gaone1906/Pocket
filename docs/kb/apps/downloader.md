@@ -26,6 +26,12 @@ reloaded with `--input-file` on the next launch.
 - **Adopting a browser download:** when the link's last path component matches `~/Downloads/<name>.crdownload` and
   `<name>` doesn't exist yet, the partial file is copied to `<name>` (APFS clone) and aria2 continues from its end.
   Cancel the browser's copy afterwards.
+- **Copy as cURL:** a pasted `curl …` command (DevTools → Network → Copy as cURL) is parsed by `CurlCommand` and its
+  headers, cookies, user agent and referer go to aria2 as `header`, `user-agent` and `referer`; `range`,
+  `accept-encoding`, `content-length` and `host` are dropped. Needed for Cloudflare-challenged hosts (e.g. a host that
+  307s non-browser requests to a "Just a moment…" page, which aria2 sees as a 403). The clipboard prefill takes these too.
+- **Filename:** `out` is set to the link's decoded last path component when it has an extension, so redirects don't
+  rename the file.
 
 ## Local API
 `GET /downloader` lists downloads (`id, name, status, total, done, speed, error, path`), `percent` (or null) and
