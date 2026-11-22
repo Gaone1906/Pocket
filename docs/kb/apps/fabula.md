@@ -69,7 +69,7 @@ Base `https://oisplnonpwyvekcbwmhv.supabase.co/functions/v1/`, JSON `POST`, no J
   `leave {code, member}`. Every answer is the room state `{code, me, started, members: [{name, host, swiped, me}], deck, swiped,
   matched, total}`. Rooms live in locked tables `match_room`, `match_member`, `match_swipe` that only the function can touch; a
   `pg_cron` job deletes rooms 2 hours after a match or 12 hours after creation. Friend links are
-  `/Pocket/fabula/match.html#<code>` and never carry the anon key. Up to 8 people per room; joining closes when the host starts.
+  `/Pocket/fabula/match.html#<projectRef>.<code>` (the Supabase subdomain from the host's setup link, so no project URL is in the repo) and never carry the anon key. Up to 8 people per room; joining closes when the host starts.
 
 ## Catalogue
 
@@ -77,6 +77,14 @@ Loaded by `fabula-tmdb` `ingest` on a `pg_cron` job (`fabula-ingest`, every minu
 2026, the most-voted films with at least 200 votes (90 for 2024, 40 for 2025, 15 for 2026), plus Hindi, Telugu, Tamil,
 Malayalam and Kannada films with at least 20 votes (5 from 2025). Documentaries are skipped. Progress is `ingest_cursor` in
 `fabula_admin`. Any film logged through search is added on the fly.
+
+## Local state
+
+Web: `fabula.cloud.v1` (setup link, picked up from the other apps), `fabula.langs`, `fabula.genres`, `fabula.sort`,
+`fabula.tonight`, `fabula.name`, `fabula.match`; the friend page keeps `fabula.match.<code>` in sessionStorage. Cache prefix
+`fabula-web-`. Mac: UserDefaults `fabula.langs`, `fabula.genres`; `$ROOT/ortus.json` is `{"logs", "swipes"}` (git noun
+"film"). Both record kinds use `detachedId`: the row id is the TMDB id and `data` has no `id`. Mac code notes are in
+[ortus.md](ortus.md). Language filters send English names (the `language` column); empty filters are sent as null.
 
 ## Look
 
