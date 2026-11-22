@@ -34,10 +34,8 @@ Related: [web-pages.md](web-pages.md) (the three web apps side by side), [data-a
 | `calorie.weight` | `yyyy-MM-dd` | a weigh-in | `calorie.json` `weights` |
 | `sleep.sample` | `<v>\|<s>\|<source>` (opaque) | `{s, e, v, q?}`, one Health sample written by the Luna Sync Shortcut ([apps/luna.md](apps/luna.md)); no `id` inside `data` | `sleep.json` `samples` |
 | `sleep.settings` | `book` | `{bed, wake, hours, deep, rem, tolerance, updated}` | `sleep.json` `settings` |
-| `ortus.quote` | `q001`… | `{text, author, who, source?, theme, sure?}`, `sure: "moderate"` when the attribution is uncertain ([apps/ortus.md](apps/ortus.md)) | `ortus.json` `quotes` |
-| `ortus.story` | slug | `{name, kind, who, title, paras, line, source}` | `ortus.json` `stories` |
-| `ortus.reel` | slug | `{source, url, category, views, channel, title, start, end}`, a YouTube Short | `ortus.json` `reels` |
-| `ortus.video` | slug | `{url, title, channel, category, start, end}`, a long YouTube video | `ortus.json` `videos` |
+| `ortus.log` | TMDB id | `{tmdb, title, year, rating, comment, poster, language, genres, director, runtime, logged, updated}`, a Fabula log entry ([apps/fabula.md](apps/fabula.md)); no `id` inside `data` | `ortus.json` `logs` |
+| `ortus.swipe` | TMDB id | `{tmdb, verdict, at, title, year, poster, language, genres, runtime, director, updated}`, `verdict` `yes`, `no`, `super` or `seen`; no `id` inside `data` | `ortus.json` `swipes` |
 | `settings.prefs` | `prefs` | `{theme}` | web only (main app) |
 | `settings.prefs` | `orario` | `{theme}` | web only (`web/aqua/`, default Sky, stored in `aquaTheme`) |
 
@@ -59,6 +57,8 @@ Mac (`CloudSync.sync()`, on the `pocket.cloud` queue):
 2. Pull. Rows that aren't local changes and differ from `seen` are applied on main: the file is re-read, patched and handed to the store's `adopt(_:)` (board, schedule), which replaces its state and saves. A store that isn't loaded yet gets the file written directly plus a snapshot.
 3. Push every local record that still differs from `seen`, and a tombstone for every `seen` item missing locally.
 4. **Delete guard.** If a file is missing or unreadable it is skipped. If it is empty, or more than half of a large set (over 20) vanished at once, deletes are held and logged as `pocket cloud delete held`, never pushed.
+
+`cloud-state.json` also lists the known documents (`docs`) and record kinds (`kinds`). A new document or a new kind resets the cursor once, so rows written before the Mac knew about them still arrive; `seen` keys of kinds no document owns any more (the old `ortus.quote`, `ortus.story`, `ortus.reel`, `ortus.video`) are dropped.
 
 It runs 5 s after launch, 4 s after any vault save, and every 60 s.
 

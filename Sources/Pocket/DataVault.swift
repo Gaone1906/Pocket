@@ -37,7 +37,7 @@ private struct VaultFile {
          VaultFile(name: "calorie", source: PocketData.calorie, noun: "log"),
          VaultFile(name: "sleep", source: PocketData.sleep, noun: "sample"),
          VaultFile(name: "zenda", source: PocketData.zenda, noun: "project"),
-         VaultFile(name: "ortus", source: PocketData.ortus, noun: "library item")]
+         VaultFile(name: "ortus", source: PocketData.ortus, noun: "film")]
     }
 
     static func noun(_ name: String) -> String { all.first { $0.name == name }?.noun ?? "item" }
@@ -356,7 +356,7 @@ final class DataVault: ObservableObject {
         case "calorie": list = (object?["entries"] as? [Any] ?? []) + (object?["weights"] as? [Any] ?? [])
         case "sleep": list = object?["samples"] as? [Any] ?? []
         case "zenda": list = object?["projects"] as? [Any] ?? []
-        case "ortus": list = OrtusStore.collections.flatMap { object?[$0] as? [Any] ?? [] }
+        case "ortus": list = (object?["logs"] as? [Any] ?? []) + (object?["swipes"] as? [Any] ?? [])
         default: list = json as? [Any] ?? []
         }
         return Set(list.compactMap { ($0 as? [String: Any])?["id"] as? String })
