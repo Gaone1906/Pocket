@@ -51,6 +51,7 @@ const ui = {
   setupError: "",
   toast: "",
   dragging: false,
+  openHook: null,
   stale: false,
   name: readLocal("fabula.name", ""),
   nameDraft: readLocal("fabula.name", ""),
@@ -767,6 +768,7 @@ function render() {
   const active = document.activeElement;
   const keep = active && active.dataset && active.dataset.input ? { key: active.dataset.input, v: active.dataset.v, start: active.selectionStart, end: active.selectionEnd } : null;
   app.innerHTML = html;
+  restoreHooks();
   if (keep) {
     const el = $(`[data-input="${keep.key}"]${keep.v ? `[data-v="${CSS.escape(keep.v)}"]` : ""}`);
     if (el) {
@@ -1116,6 +1118,41 @@ function aiWatch() {
   render();
 }
 
+function setHook(card, el, open) {
+  const face = card.querySelector(".face");
+  const room = face ? el.getBoundingClientRect().top - face.getBoundingClientRect().top - 130 : 300;
+  const full = el.scrollHeight;
+  const cap = Math.max(65, Math.min(full, 65 + room));
+  card.classList.toggle("open", open);
+  el.classList.toggle("scroll", open && full > cap);
+  el.style.maxHeight = open ? `${cap}px` : "";
+  if (!open) el.scrollTop = 0;
+  el.setAttribute("aria-expanded", String(open));
+  el.setAttribute("aria-label", open ? "Collapse description" : "Show full description");
+}
+
+function toggleHook(el) {
+  const card = el.closest(".card");
+  if (!card || el.classList.contains("short")) return;
+  const open = !card.classList.contains("open");
+  ui.openHook = open ? card.dataset.card || null : null;
+  setHook(card, el, open);
+}
+
+function restoreHooks() {
+  document.querySelectorAll(".card .hook").forEach((h) => h.classList.toggle("short", h.scrollHeight <= h.clientHeight + 1));
+  if (!ui.openHook) return;
+  const card = document.querySelector(`.card.top[data-card="${CSS.escape(String(ui.openHook))}"]`);
+  const hook = card && card.querySelector(".hook");
+  if (!hook || hook.classList.contains("short")) {
+    ui.openHook = null;
+    return;
+  }
+  card.classList.add("still");
+  setHook(card, hook, true);
+  requestAnimationFrame(() => card.classList.remove("still"));
+}
+
 document.addEventListener("click", (e) => {
   if (e.target.dataset && e.target.dataset.input === "ref-score") return refScore(e.target);
   const el = e.target.closest("[data-act]");
@@ -1133,6 +1170,8 @@ document.addEventListener("click", (e) => {
       return go(v);
     case "undo":
       return undo();
+    case "hook":
+      return toggleHook(el);
     case "retry":
       ui.deckError = "";
       return refill();

@@ -86,14 +86,15 @@ export function card(film, { top = false, undo = false, canUndo = false, superli
     <div class="face">
       <div class="poster" style="${posterStyle(film, "w780")}">
         <div class="shade"></div>
+        <div class="dim"></div>
         ${undo ? `<button class="undo" data-act="undo" aria-label="Undo last swipe" ${canUndo ? "" : "disabled"}>${ICONS.undo}</button>` : ""}
         <span class="badge">Superlike</span>
         ${top ? stamps() : ""}
-        <span class="ctitle">${esc(film.title)}</span>
       </div>
+      <span class="ctitle">${esc(film.title)}</span>
       <div class="info">
         <span class="meta">${esc(meta(film))}</span>
-        ${overview ? `<span class="hook">${esc(overview)}</span>` : ""}
+        ${overview ? `<button class="hook" data-act="hook" aria-expanded="false" aria-label="Show full description">${esc(overview)}</button>` : ""}
         ${why && film.why ? `<span class="why">${esc(film.why)}</span>` : ""}
       </div>
     </div>
