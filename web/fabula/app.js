@@ -3,19 +3,21 @@ import { $, esc, ICONS, isoNow, readJSON, readLocal, writeLocal, reduceMotion, b
 import { LANGUAGES, GENRES, KINDS, KIND_NAMES, KIND_LANGS, KIND_GENRES, kindOf, noun, card, meta, metaRow, posterStyle, thumb, ratingText, ratingClass, genreList } from "./films.js";
 import { attach, fly, springBack } from "./drag.js";
 import { caller, createRoom, lobbyView, swipeView, matchedView, notice, nameSheet, bindSwipe } from "./room.js";
+import { P, lk } from "./profile.js";
 
-const SWIPE = "ortus.swipe";
-const LOG = "ortus.log";
-const UNSEEN = "ortus.unseen";
+const SWIPE = `${P.pre}.swipe`;
+const LOG = `${P.pre}.log`;
+const UNSEEN = `${P.pre}.unseen`;
+const GUIDE = `${P.pre}.guide`;
 const VIEWS = ["recommend", "watchlist", "log", "match", "refiner", "ai"];
 const REF_LANGS = ["English", "Hindi", "Telugu", "Tamil", "Malayalam", "Kannada", "Korean", "Japanese", "Spanish"];
 const REF_GENRES = ["Action", "Animation", "Comedy", "Crime", "Drama", "Fantasy", "Horror", "Mystery", "Romance", "Sci-fi", "Thriller", "War"];
 const REF_KIND_LANGS = { movie: REF_LANGS, show: KIND_LANGS.show, anime: [] };
 const REF_KIND_GENRES = { movie: REF_GENRES, show: KIND_GENRES.show, anime: KIND_GENRES.anime };
-const START_KIND = KINDS.includes(readLocal("fabula.kind", "")) ? readLocal("fabula.kind", "") : "movie";
+const START_KIND = KINDS.includes(readLocal(lk("kind"), "")) ? readLocal(lk("kind"), "") : "movie";
 
 function filterKey(name, kind) {
-  return kind === "movie" ? `fabula.${name}` : `fabula.${name}.${kind}`;
+  return kind === "movie" ? lk(name) : lk(`${name}.${kind}`);
 }
 const IDEAS = ["Cosy and clever", "Edge of my seat", "Make me cry", "Something weird"];
 const ADDED = ["Any time", "This week", "This month"];
@@ -55,24 +57,24 @@ const ui = {
   wlGenre: [],
   wlAdded: "Any time",
   logQuery: "",
-  logSort: SORTS.includes(readLocal("fabula.sort", "")) ? readLocal("fabula.sort", "") : "Rating",
+  logSort: SORTS.includes(readLocal(lk("sort"), "")) ? readLocal(lk("sort"), "") : "Rating",
   setupError: "",
   toast: "",
   dragging: false,
   stale: false,
-  name: readLocal("fabula.name", ""),
-  nameDraft: readLocal("fabula.name", ""),
+  name: readLocal(lk("name"), ""),
+  nameDraft: readLocal(lk("name"), ""),
   askName: false,
   ref: freshRef(),
   ai: freshAi(),
 };
 
-const savedRoom = readJSON("fabula.match", null);
+const savedRoom = readJSON(lk("match"), null);
 const room = createRoom({
   call: (body) => caller(store.projectUrl() + "/functions/v1/fabula-match", store.authHeaders())(body),
   code: savedRoom && savedRoom.code,
   member: savedRoom && savedRoom.member,
-  save: (code, member) => writeLocal("fabula.match", code && member ? JSON.stringify({ code, member }) : null),
+  save: (code, member) => writeLocal(lk("match"), code && member ? JSON.stringify({ code, member }) : null),
   onChange: () => {
     if (ui.view === "match") render();
   },
@@ -167,7 +169,7 @@ function extras(film) {
 function setKind(kind) {
   if (!KINDS.includes(kind) || kind === ui.kind) return;
   ui.kind = kind;
-  writeLocal("fabula.kind", kind);
+  writeLocal(lk("kind"), kind);
   ui.langs = list(filterKey("langs", kind), KIND_LANGS[kind]);
   ui.genres = list(filterKey("genres", kind), KIND_GENRES[kind]);
   ui.wlLang = [];
@@ -188,7 +190,7 @@ function putSwipe(film, verdict) {
 }
 
 function tonight() {
-  const t = readJSON("fabula.tonight", null);
+  const t = readJSON(lk("tonight"), null);
   return t && t.tmdb ? Number(t.tmdb) : null;
 }
 
@@ -217,6 +219,7 @@ async function refill() {
   try {
     const exclude = [...new Set([...ui.swiped, ...ui.queue.map((f) => f.tmdb)])];
     const rows = await store.rpc("fabula_deck", {
+      p_who: P.who,
       p_kind: ui.kind,
       p_langs: ui.langs.length && ui.kind !== "anime" ? ui.langs : null,
       p_genres: ui.genres.length ? ui.genres : null,
@@ -306,7 +309,7 @@ function undo() {
   const id = String(last.film.tmdb);
   store.remove(SWIPE, id);
   if (last.logged) store.remove(LOG, id);
-  if (tonight() === last.film.tmdb) writeLocal("fabula.tonight", null);
+  if (tonight() === last.film.tmdb) writeLocal(lk("tonight"), null);
   ui.swiped.delete(last.film.tmdb);
   ui.queue = [last.film, ...ui.queue.filter((f) => f.tmdb !== last.film.tmdb)];
   if (ui.sheet && ui.sheet.film && ui.sheet.film.tmdb === last.film.tmdb) ui.sheet = null;
@@ -325,7 +328,7 @@ function pill(label, on, act, v) {
 
 function header() {
   return `<header class="head">
-    <button class="brand" data-act="nav" aria-label="Open menu"><img src="logo-96.png" alt=""><span>Fabula</span>${ICONS.chevron}</button>
+    <button class="brand" data-act="nav" aria-label="Open menu"><img src="logo-96.png" alt=""><span>${esc(P.name)}</span>${ICONS.chevron}</button>
     <div class="acts">
       <button class="round" data-act="go" data-v="watchlist" aria-label="Watchlist" title="Watchlist">${ICONS.bookmark}</button>
       <button class="round accent" data-act="go" data-v="match" aria-label="Match" title="Match">${ICONS.people}</button>
@@ -768,8 +771,8 @@ function sidebar() {
   const item = (v, icon, label) =>
     `<button class="navitem ${ui.view === v ? "on" : ""}" data-act="go" data-v="${v}">${icon}${label}</button>`;
   return `<div class="scrim" data-act="nav-close"></div>
-  <nav class="side" aria-label="Fabula">
-    <div class="sidebrand"><img src="logo-96.png" alt=""><span>Fabula</span></div>
+  <nav class="side" aria-label="${esc(P.name)}">
+    <div class="sidebrand"><img src="logo-96.png" alt=""><span>${esc(P.name)}</span></div>
     ${item("recommend", ICONS.cards, "Recommend")}${item("log", ICONS.list, "Log")}${item("refiner", ICONS.sliders, "Refiner")}${item("ai", ICONS.sparkle, "AI Mode")}
     <div class="credit">Film and show data from TMDB · Anime data from MyAnimeList · Streaming data from JustWatch</div>
   </nav>`;
@@ -778,13 +781,254 @@ function sidebar() {
 function viewConnect() {
   return `<main class="connect">
     <img class="bigtile" src="icon-512.png" alt="">
-    <div class="name">Fabula</div>
+    <div class="name">${esc(P.name)}</div>
     <form data-form="connect" class="col">
       <input class="field" name="link" placeholder="Setup link" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Setup link">
       <button class="btn big">Connect</button>
       ${ui.setupError ? `<div class="warn">${esc(ui.setupError)}</div>` : ""}
     </form>
   </main>`;
+}
+
+const guide = { cache: {}, scores: {}, loading: false, error: "", batch: null, ready: false, dropping: false, taste: null, tasteLoading: false, tasteError: "", seq: 0, short: {} };
+
+function guideList() {
+  const d = store.get(GUIDE, "list");
+  if (!d || !Array.isArray(d.langs)) return null;
+  return d.langs.map((l) => ({ name: String(l.name || ""), per: Number(l.per) || 40, seed: (Array.isArray(l.seed) ? l.seed : []).map(Number).filter(Boolean) }));
+}
+
+function guideDone() {
+  return !!store.get(GUIDE, "done");
+}
+
+function guideAnswered(id) {
+  return !!(store.get(LOG, String(id)) || store.get(UNSEEN, String(id)));
+}
+
+function guideRecords() {
+  return [...store.all(LOG), ...store.all(UNSEEN)].filter((d) => d && d.guide);
+}
+
+function guideState() {
+  const langs = guideList();
+  if (!langs) return null;
+  const mine = guideRecords();
+  const counts = langs.map((l) => Math.min(l.per, mine.filter((d) => d.guide === l.name).length));
+  const stage = langs.findIndex((l, i) => counts[i] < l.per && !guide.short[l.name]);
+  const total = counts.reduce((a, b) => a + b, 0);
+  const all = langs.reduce((a, l) => a + l.per, 0);
+  let next = [];
+  let need = 0;
+  if (stage >= 0) {
+    const l = langs[stage];
+    need = Math.min(10, l.per - counts[stage]);
+    const seedLeft = l.seed.filter((id) => !guideAnswered(id));
+    if (seedLeft.length) next = seedLeft.slice(0, need);
+    else if (guide.batch && guide.batch.lang === l.name) next = guide.batch.ids.filter((id) => !guideAnswered(id)).slice(0, need);
+  }
+  return { langs, counts, stage, total, all, next, need };
+}
+
+function guideGated() {
+  return P.guided && store.signedIn() && (guide.ready || !guideDone());
+}
+
+async function guideLoad(ids) {
+  const want = ids.filter((id) => !guide.cache[id]);
+  if (!want.length || guide.loading) return;
+  guide.loading = true;
+  guide.error = "";
+  const seq = ++guide.seq;
+  try {
+    const rows = await store.rpc("fabula_films", { p_ids: want });
+    for (const f of Array.isArray(rows) ? rows : []) if (f && f.tmdb) guide.cache[f.tmdb] = f;
+  } catch (e) {
+    guide.error = e.message || "Can't load movies";
+  }
+  if (seq !== guide.seq) return;
+  guide.loading = false;
+  render();
+}
+
+async function guidePick(st) {
+  if (guide.loading) return;
+  const l = st.langs[st.stage];
+  guide.loading = true;
+  guide.error = "";
+  const seq = ++guide.seq;
+  try {
+    await store.pushNow();
+    const exclude = guideRecords().map((d) => Number(d.tmdb)).filter(Boolean);
+    const rows = await store.rpc("fabula_guide", { p_who: P.who, p_lang: l.name, p_limit: st.need, p_exclude: exclude });
+    const films = (Array.isArray(rows) ? rows : []).filter((f) => f && f.tmdb && !guideAnswered(f.tmdb));
+    for (const f of films) guide.cache[f.tmdb] = f;
+    if (seq === guide.seq) {
+      guide.batch = { lang: l.name, ids: films.map((f) => f.tmdb) };
+      if (!films.length) guide.short[l.name] = true;
+    }
+  } catch (e) {
+    guide.error = e.message || "Can't load movies";
+  }
+  if (seq !== guide.seq) return;
+  guide.loading = false;
+  if (guideState() && guideState().stage < 0) return guideFinish();
+  render();
+}
+
+function guideRow(f) {
+  const id = String(f.tmdb);
+  const s = guide.scores[id];
+  return `<div class="rf-row">
+    <div class="rf-poster" style="${posterStyle(f, "w342")}"></div>
+    <div class="rf-body">
+      <b class="rf-title">${esc(f.title)}</b>
+      <span class="muted">${esc(kindOf(f) === "movie" ? [f.year, f.director].filter(Boolean).join(" · ") : meta(f, { genres: 1 }))}
+      ${f.overview ? `<span class="rf-blurb">${esc(f.overview)}</span>` : ""}
+      <div class="rf-rate"><input type="range" min="1" max="10" step="1" value="${s || 5}" class="range ${s ? "" : "untouched"}" data-input="guide-score" data-v="${esc(id)}" aria-label="Rate ${esc(f.title)}"><span class="rf-val ${s ? "on" : ""}">${s ? `${s} / 10` : "Not seen"}</span></div>
+    </div>
+  </div>`;
+}
+
+function guideHead(st) {
+  const bars = st
+    ? st.langs
+        .map((l, i) => {
+          const c = st.counts[i];
+          const n = l.per || 1;
+          return `<div class="gd-stage ${i === st.stage ? "on" : ""}"><div class="gd-bar"><i style="width:${Math.round((c / n) * 100)}%" class="${c >= n ? "full" : ""}"></i></div><span>${esc(l.name)} ${c}/${l.per}</span></div>`;
+        })
+        .join("")
+    : "";
+  return `<header class="gd-head">
+    <div class="gd-top"><div class="brand still"><img src="logo-96.png" alt=""><span>${esc(P.name)}</span></div>${st ? `<span class="rf-count" id="guide-count">${st.total} / ${st.all}</span>` : ""}</div>
+    ${bars ? `<div class="gd-stages">${bars}</div>` : ""}
+  </header>`;
+}
+
+function viewGuide() {
+  if (guide.ready) return viewGuideReady();
+  const st = guideState();
+  let body;
+  if (!st || st.stage < 0) body = [0, 1, 2].map(() => rowSkeleton("rf-row")).join("");
+  else {
+    const films = st.next.map((id) => guide.cache[id]).filter(Boolean);
+    if (guide.error) {
+      body = `<div class="done quiet"><b>Can't load movies</b><span>${esc(guide.error)}</span><button class="btn" data-act="guide-retry">Try again</button></div>`;
+    } else if (!st.next.length || films.length < st.next.length) {
+      if (!guide.loading) queueMicrotask(() => (st.next.length ? guideLoad(st.next) : guidePick(st)));
+      body = [0, 1, 2, 3].map(() => rowSkeleton("rf-row")).join("");
+    } else {
+      const l = st.langs[st.stage];
+      const from = st.counts[st.stage] + 1;
+      const last = st.counts[st.stage] + films.length >= l.per;
+      const after = st.langs.slice(st.stage + 1).find((x, j) => st.counts[st.stage + 1 + j] < x.per && !guide.short[x.name]);
+      const label = !last ? "Next 10" : after ? `On to ${after.name}` : "Finish";
+      body = `<h2 class="gd-title">${esc(l.name)} · ${from}–${from + films.length - 1}</h2>${films.map(guideRow).join("")}<button class="btn big gd-next" data-act="guide-next">${esc(label)}</button>`;
+      if (after && last) {
+        const pre = after.seed.filter((id) => !guideAnswered(id) && !guide.cache[id]).slice(0, 10);
+        if (pre.length && !guide.loading) queueMicrotask(() => guideLoad(pre));
+      }
+    }
+  }
+  const welcome = !readLocal(lk("welcomed"), "") || guide.dropping;
+  return `<main class="screen rf-list gd">
+    ${guideHead(st)}
+    <div class="rf-rows">${body}</div>
+  </main>${welcome ? `<div class="gd-wrap ${guide.dropping ? "drop" : ""}"><div class="gd-scrim"></div><div class="gd-sheet" role="dialog" aria-modal="true" aria-labelledby="gd-hi">
+    <div class="grip"></div>
+    <img class="gd-logo" src="icon-512.png" alt="">
+    <h2 id="gd-hi">Hi ${esc(P.nick || P.name)}!</h2>
+    <p>${esc(P.welcome || "")}</p>
+    <button class="btn big" data-act="guide-ok">Okay</button>
+  </div></div>` : ""}`;
+}
+
+function guideSave(st) {
+  const now = isoNow();
+  const lang = st.langs[st.stage].name;
+  for (const id of st.next) {
+    const f = guide.cache[id];
+    if (!f) continue;
+    const s = guide.scores[String(id)];
+    if (s) store.put(LOG, String(id), { ...logRecord(f, s, ""), source: "guide", guide: lang });
+    else store.put(UNSEEN, String(id), { tmdb: f.tmdb, kind: kindOf(f), title: f.title || "", year: f.year ?? null, at: now, updated: now, source: "guide", guide: lang });
+  }
+  guide.scores = {};
+}
+
+function guideFinish() {
+  const now = isoNow();
+  store.put(GUIDE, "done", { at: now, updated: now });
+  guide.ready = true;
+  render();
+  guideTaste();
+}
+
+async function guideNext() {
+  const st = guideState();
+  if (!st || st.stage < 0) return;
+  guideSave(st);
+  guide.batch = null;
+  window.scrollTo(0, 0);
+  const after = guideState();
+  if (after && after.stage < 0) return guideFinish();
+  render();
+}
+
+function guideRated() {
+  const langs = guideList() || [];
+  const logs = store.all(LOG).filter((d) => d && d.guide);
+  return langs.map((l) => ({ name: l.name, ids: logs.filter((d) => d.guide === l.name).map((d) => d.tmdb) }));
+}
+
+async function guideTaste() {
+  guide.tasteLoading = true;
+  guide.tasteError = "";
+  render();
+  try {
+    await store.pushNow();
+    const fresh = guideRated().flatMap((l) => l.ids);
+    const res = await store.fn("fabula-ai", { action: "taste", who: P.who, fresh });
+    guide.taste = (res && res.taste) || {};
+  } catch (e) {
+    guide.tasteError = e.message || "Can't read your taste yet";
+  }
+  guide.tasteLoading = false;
+  render();
+}
+
+function viewGuideReady() {
+  const rated = guideRated();
+  const total = rated.reduce((a, l) => a + l.ids.length, 0);
+  const t = guide.taste || {};
+  const more = (Array.isArray(t.more) ? t.more : []).map(label).filter(Boolean);
+  const tasteBox = guide.tasteLoading || (!guide.taste && !guide.tasteError)
+    ? `<div class="tcard skeleton"><span class="bar w80"></span><span class="bar w60"></span></div>`
+    : guide.tasteError
+    ? ""
+    : `${t.summary ? `<div class="tcard wash"><span class="tsum">${esc(t.summary)}</span></div>` : ""}${more.length ? `<div class="gd-chips">${more.map((m) => `<span class="chip on">${esc(m)}</span>`).join("")}</div>` : ""}`;
+  return `<main class="screen gd-ready">
+    <img class="gd-logo big" src="icon-512.png" alt="">
+    <h1>Got it, ${esc(P.nick || P.name)}!</h1>
+    <span class="muted">${total} movies rated</span>
+    <div class="gd-counts">${rated.map((l) => `<div><b>${l.ids.length}</b><span>${esc(l.name)}</span></div>`).join("")}</div>
+    ${tasteBox}
+    <div class="grow"></div>
+    <button class="btn big" data-act="guide-go">Start swiping</button>
+  </main>`;
+}
+
+function guideScore(el) {
+  const id = el.dataset.v;
+  const v = Number(el.value);
+  guide.scores[id] = v;
+  el.classList.remove("untouched");
+  const lab = el.nextElementSibling;
+  if (lab) {
+    lab.textContent = `${v} / 10`;
+    lab.classList.add("on");
+  }
 }
 
 function render() {
@@ -798,6 +1042,12 @@ function render() {
     return;
   }
   ui.stale = false;
+  if (guideGated()) {
+    let gh = viewGuide();
+    if (ui.toast) gh += `<div class="toast">${esc(ui.toast)}</div>`;
+    app.innerHTML = gh;
+    return;
+  }
   const views = { recommend: viewRecommend, watchlist: viewWatchlist, log: viewLog, match: viewMatch, refiner: viewRefiner, ai: viewAi };
   let html = views[ui.view]();
   if (ui.sheet) {
@@ -1010,7 +1260,7 @@ async function pickResult(id) {
 function shareRoom() {
   const link = shareLink();
   if (navigator.share) {
-    navigator.share({ title: "Fabula", url: link }).catch(() => {});
+    navigator.share({ title: P.name, url: link }).catch(() => {});
     return;
   }
   copyRoom();
@@ -1027,7 +1277,7 @@ function watchMatched() {
   const f = room.state && room.state.matched;
   if (!f) return;
   if (!store.get(LOG, String(f.tmdb))) putSwipe(f, "super");
-  writeLocal("fabula.tonight", JSON.stringify({ tmdb: f.tmdb, at: isoNow() }));
+  writeLocal(lk("tonight"), JSON.stringify({ tmdb: f.tmdb, at: isoNow() }));
   room.leave();
   go("watchlist");
 }
@@ -1051,6 +1301,7 @@ async function refLoad() {
   try {
     await store.pushNow();
     const rows = await store.rpc("fabula_refine", {
+      p_who: P.who,
       p_kind: r.kind,
       p_langs: r.langs.length && r.kind !== "anime" ? r.langs : null,
       p_genres: r.genres.length ? r.genres : null,
@@ -1109,7 +1360,7 @@ async function refTaste() {
   let error = "";
   try {
     await store.pushNow();
-    const res = await store.fn("fabula-ai", { action: "taste", fresh: r.fresh });
+    const res = await store.fn("fabula-ai", { action: "taste", who: P.who, fresh: r.fresh });
     taste = (res && res.taste) || {};
   } catch (e) {
     error = e.message || "Can't update your taste";
@@ -1160,7 +1411,7 @@ async function aiRound(entry = "", note = "") {
   let films = null;
   let error = "";
   try {
-    const res = await store.fn("fabula-ai", { action: "mood", kind: a.kind, text: a.mood, notes: a.notes, shown: a.shown });
+    const res = await store.fn("fabula-ai", { action: "mood", who: P.who, kind: a.kind, text: a.mood, notes: a.notes, shown: a.shown });
     films = (res && Array.isArray(res.films) ? res.films : []).filter((f) => f && f.tmdb).slice(0, 4);
   } catch (e) {
     error = e.message || `Can't find ${noun(a.kind, 2)}`;
@@ -1206,11 +1457,31 @@ function aiWatch() {
 
 document.addEventListener("click", (e) => {
   if (e.target.dataset && e.target.dataset.input === "ref-score") return refScore(e.target);
+  if (e.target.dataset && e.target.dataset.input === "guide-score") return guideScore(e.target);
   const el = e.target.closest("[data-act]");
   if (!el) return;
   if (el.classList.contains("sheet") && e.target.closest("[data-stop]")) return;
   const v = el.dataset.v;
   switch (el.dataset.act) {
+    case "guide-ok":
+      writeLocal(lk("welcomed"), "1");
+      guide.dropping = true;
+      render();
+      setTimeout(() => {
+        guide.dropping = false;
+        render();
+      }, reduceMotion() ? 0 : 420);
+      return;
+    case "guide-next":
+      return guideNext();
+    case "guide-retry":
+      guide.error = "";
+      guide.loading = false;
+      break;
+    case "guide-go":
+      guide.ready = false;
+      resetDeck();
+      return go("recommend");
     case "nav":
       ui.nav = true;
       break;
@@ -1285,7 +1556,7 @@ document.addEventListener("click", (e) => {
       break;
     case "sort":
       ui.logSort = v;
-      writeLocal("fabula.sort", v);
+      writeLocal(lk("sort"), v);
       ui.sheet = null;
       break;
     case "wl-open": {
@@ -1295,14 +1566,14 @@ document.addEventListener("click", (e) => {
     }
     case "wl-remove":
       store.remove(SWIPE, String(ui.sheet.film.tmdb));
-      if (tonight() === Number(ui.sheet.film.tmdb)) writeLocal("fabula.tonight", null);
+      if (tonight() === Number(ui.sheet.film.tmdb)) writeLocal(lk("tonight"), null);
       ui.sheet = null;
       break;
     case "wl-seen":
       ui.sheet = { type: "rate", mode: "wl", film: ui.sheet.film, rating: null, comment: "" };
       break;
     case "pick-watch":
-      writeLocal("fabula.tonight", JSON.stringify({ tmdb: ui.pick.tmdb, at: isoNow() }));
+      writeLocal(lk("tonight"), JSON.stringify({ tmdb: ui.pick.tmdb, at: isoNow() }));
       ui.pick = null;
       break;
     case "pick-keep":
@@ -1390,6 +1661,7 @@ document.addEventListener("input", (e) => {
   const kind = t.dataset && t.dataset.input;
   if (kind === "comment" && ui.sheet) ui.sheet.comment = t.value;
   if (kind === "ref-score") refScore(t);
+  if (kind === "guide-score") guideScore(t);
   if (kind === "ai-note") ui.ai.note = t.value;
   if (kind === "ai-mood") {
     ui.ai.draft = t.value;
@@ -1428,7 +1700,7 @@ document.addEventListener("submit", (e) => {
     const name = String(new FormData(form).get("name") || "").trim().slice(0, 20);
     if (!name) return;
     ui.name = name;
-    writeLocal("fabula.name", name);
+    writeLocal(lk("name"), name);
     createRoom_();
     return render();
   }

@@ -1,6 +1,7 @@
 import { esc, ICONS } from "./util.js";
 import { avatar, card, posterStyle, meta } from "./films.js";
 import { attach, fly } from "./drag.js";
+import { P } from "./profile.js";
 
 export const MAX_MEMBERS = 8;
 
@@ -10,7 +11,7 @@ export function caller(base, headers = {}) {
     try {
       res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
     } catch (e) {
-      const err = new Error(navigator.onLine ? "Can't reach Fabula right now" : "You're offline");
+      const err = new Error(navigator.onLine ? `Can't reach ${P.name} right now` : "You're offline");
       err.status = 0;
       throw err;
     }
@@ -66,7 +67,7 @@ export function createRoom({ call, code = null, member = null, save = () => {}, 
 
   room.create = async (name, langs, genres, kind) => {
     set({ busy: true, error: null, state: null });
-    await run({ action: "create", name, langs, genres, kind });
+    await run({ action: "create", who: P.who, name, langs, genres, kind });
     room.busy = false;
     onChange();
     if (room.member) poll();

@@ -152,7 +152,7 @@ session here still syncs normally. So on a new Mac the shortest path is: install
 
 Ignis and Aqua (Schedule) reach every device through a Supabase table (`cloud/schema.sql`, one row per item,
 open to the app's anon key, no sign-in), synced by `Sources/Pocket/CloudSync.swift` on the Mac and by the installable web app in `web/`
-everywhere else. The main web app shows only the Hair routine; `web/aqua/` has all of Aqua, `web/ignis/` a view-only Ignis (no timer), `web/ventus/` the Ventus runner, `web/terra/` Terra and `web/fabula/` Fabula (friend Match pages at `web/fabula/match.html`; `web/ortus/` redirects there). To-do, Calendar and Matinee stay
+everywhere else. The main web app shows only the Hair routine; `web/aqua/` has all of Aqua, `web/ignis/` a view-only Ignis (no timer), `web/ventus/` the Ventus runner, `web/terra/` Terra and `web/fabula/` Fabula (friend Match pages at `web/fabula/match.html`; `web/ortus/` redirects there) and `web/momoflix/` MomoFlix, Momo's own Fabula. To-do, Calendar and Matinee stay
 Mac-only. Setup, the record
 kinds and the sync rules are in [docs/kb/cloud-sync.md](docs/kb/cloud-sync.md); the five web apps side by side are in
 [docs/kb/web-pages.md](docs/kb/web-pages.md). Rules to keep true:
@@ -263,6 +263,17 @@ data file and record kinds still say `ortus`. Details in [docs/kb/apps/fabula.md
 - The TMDB token is the `TMDB_TOKEN` edge-function secret and the Anthropic key is `ANT_KEY`; neither lives anywhere else. Friend Match links never carry the anon key: friends
   reach the locked `match_*` tables only through `fabula-match`.
 - Keep the UI free of instructional or hint text (the owner's rule).
+- MomoFlix (`web/momoflix/`) is a web-only second Fabula for Harshi ("Momo") that reuses the `web/fabula/` code; only its
+  `profile.js` (`window.FABULA_PROFILE`), `momo.css`, icons and service worker are its own. Spell it "MomoFlix" and never use
+  Netflix-style red N branding.
+- Never mix profiles: each person's records carry their own `user_id` and their own kind prefix (Pranav `ortus.*` under the
+  zero uuid, Momo `momo.*` under `6d6f6d6f-0000-4000-8000-000000000001`), and every pull, RPC and edge-function call names
+  the person. The Mac app pulls by kind, so it never sees `momo.*`.
+- A new person gets a row in `fabula_user` and `fabula_prefix` (`cloud/fabula.sql`) and a folder with its own `profile.js`;
+  never fork the app code.
+- MomoFlix's guided refiner is data: the `momo.guide` record id `list` holds each language's 10 seed films and its count (40); every
+  later batch of 10 comes from `rpc/fabula_guide`, which adapts to her ratings. Change seeds with a db edit and the picker in
+  `cloud/fabula.sql`, never in app code.
 
 ## Rollin app
 

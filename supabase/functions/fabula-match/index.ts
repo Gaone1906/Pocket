@@ -97,7 +97,8 @@ Deno.serve(async (req) => {
         const langs = Array.isArray(body.langs) ? body.langs.map(String).slice(0, 12) : null;
         const genres = Array.isArray(body.genres) ? body.genres.map(String).slice(0, 14) : null;
         const kind = ["show", "anime"].includes(body.kind) ? body.kind : "movie";
-        const { data: deck, error } = await db.rpc("fabula_deck", { p_kind: kind, p_langs: langs, p_genres: genres, p_limit: 40, p_exclude: [] });
+        const who = ["pranav", "momo"].includes(body.who) ? body.who : "pranav";
+        const { data: deck, error } = await db.rpc("fabula_deck", { p_who: who, p_kind: kind, p_langs: langs, p_genres: genres, p_limit: 40, p_exclude: [] });
         if (error) return json({ error: error.message }, 502);
         const ids = (deck || []).map((m: any) => m.tmdb);
         if (!ids.length) return json({ error: "Nothing matches those filters" }, 400);

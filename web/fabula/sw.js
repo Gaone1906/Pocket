@@ -1,5 +1,5 @@
-const CACHE = "fabula-web-v5";
-const SHELL = ["./", "index.html", "match.html", "style.css", "app.js", "match.js", "store.js", "films.js", "drag.js", "room.js", "util.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "logo-96.png"];
+const CACHE = "fabula-web-v8";
+const SHELL = ["./", "index.html", "match.html", "style.css", "app.js", "match.js", "store.js", "films.js", "drag.js", "room.js", "util.js", "profile.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "logo-96.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

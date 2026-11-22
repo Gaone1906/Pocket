@@ -111,7 +111,39 @@ $$;
 revoke all on function public.fabula_set_imdb(jsonb) from public, anon, authenticated;
 grant execute on function public.fabula_set_imdb(jsonb) to service_role;
 
-create or replace function public.fabula_deck(p_kind text, p_langs text[] default null, p_genres text[] default null, p_limit integer default 20, p_exclude integer[] default '{}')
+create or replace function public.fabula_user(p_who text)
+returns uuid
+language plpgsql
+immutable
+set search_path = public
+as $$
+begin
+  case p_who
+    when 'pranav' then return '00000000-0000-0000-0000-000000000000'::uuid;
+    when 'momo' then return '6d6f6d6f-0000-4000-8000-000000000001'::uuid;
+    else raise exception 'Unknown profile %', p_who;
+  end case;
+end
+$$;
+grant execute on function public.fabula_user(text) to anon, authenticated;
+
+create or replace function public.fabula_prefix(p_who text)
+returns text
+language plpgsql
+immutable
+set search_path = public
+as $$
+begin
+  case p_who
+    when 'pranav' then return 'ortus';
+    when 'momo' then return 'momo';
+    else raise exception 'Unknown profile %', p_who;
+  end case;
+end
+$$;
+grant execute on function public.fabula_prefix(text) to anon, authenticated;
+
+create or replace function public.fabula_deck(p_who text, p_kind text, p_langs text[] default null, p_genres text[] default null, p_limit integer default 20, p_exclude integer[] default '{}')
 returns jsonb
 language plpgsql
 stable
@@ -122,17 +154,19 @@ set plan_cache_mode = force_custom_plan
 as $$
 declare
   k text := case when p_kind in ('show', 'anime') then p_kind else 'movie' end;
+  u uuid := public.fabula_user(p_who);
+  pre text := public.fabula_prefix(p_who);
 begin
 return (
 with recs_live as (
   select kind, data from records
-  where user_id = '00000000-0000-0000-0000-000000000000' and kind in ('ortus.log', 'ortus.swipe') and not coalesce(deleted, false)
+  where user_id = u and kind in (pre || '.log', pre || '.swipe') and not coalesce(deleted, false)
 ),
 logged as (
-  select (data->>'tmdb')::int as tmdb, (data->>'rating')::numeric as r from recs_live where kind = 'ortus.log' and data ? 'tmdb'
+  select (data->>'tmdb')::int as tmdb, (data->>'rating')::numeric as r from recs_live where kind = pre || '.log' and data ? 'tmdb'
 ),
 swiped as (
-  select (data->>'tmdb')::int as tmdb, data->>'verdict' as v, coalesce((data->>'at')::timestamptz, now()) as at from recs_live where kind = 'ortus.swipe' and data ? 'tmdb'
+  select (data->>'tmdb')::int as tmdb, data->>'verdict' as v, coalesce((data->>'at')::timestamptz, now()) as at from recs_live where kind = pre || '.swipe' and data ? 'tmdb'
 ),
 rated as (
   select tmdb, r, 1.0::numeric as w from logged where r is not null
@@ -190,7 +224,7 @@ cf as (
 ),
 taste as (
   select data from records
-  where user_id = '00000000-0000-0000-0000-000000000000' and kind = 'ortus.taste' and id = 'book' and not coalesce(deleted, false)
+  where user_id = u and kind = pre || '.taste' and id = 'book' and not coalesce(deleted, false)
 ),
 taste_f as (
   select f, sum(w) as w from (
@@ -274,6 +308,15 @@ from picked p
 );
 end
 $$;
+grant execute on function public.fabula_deck(text, text, text[], text[], integer, integer[]) to anon, authenticated;
+
+create or replace function public.fabula_deck(p_kind text, p_langs text[] default null, p_genres text[] default null, p_limit integer default 20, p_exclude integer[] default '{}')
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$ select public.fabula_deck('pranav', p_kind, p_langs, p_genres, p_limit, p_exclude) $$;
 grant execute on function public.fabula_deck(text, text[], text[], integer, integer[]) to anon, authenticated;
 
 create or replace function public.fabula_deck(p_langs text[] default null, p_genres text[] default null, p_limit integer default 20, p_exclude integer[] default '{}')
@@ -285,7 +328,7 @@ set search_path = public
 as $$ select public.fabula_deck('movie', p_langs, p_genres, p_limit, p_exclude) $$;
 grant execute on function public.fabula_deck(text[], text[], integer, integer[]) to anon, authenticated;
 
-create or replace function public.fabula_refine(p_kind text, p_langs text[] default null, p_genres text[] default null, p_limit integer default 10, p_exclude integer[] default '{}')
+create or replace function public.fabula_refine(p_who text, p_kind text, p_langs text[] default null, p_genres text[] default null, p_limit integer default 10, p_exclude integer[] default '{}')
 returns jsonb
 language plpgsql
 stable
@@ -295,11 +338,13 @@ set plan_cache_mode = force_custom_plan
 as $$
 declare
   k text := case when p_kind in ('show', 'anime') then p_kind else 'movie' end;
+  u uuid := public.fabula_user(p_who);
+  pre text := public.fabula_prefix(p_who);
 begin
 return (
 with done as (
   select id from records
-  where user_id = '00000000-0000-0000-0000-000000000000' and kind in ('ortus.log', 'ortus.swipe', 'ortus.unseen') and not coalesce(deleted, false)
+  where user_id = u and kind in (pre || '.log', pre || '.swipe', pre || '.unseen') and not coalesce(deleted, false)
 ),
 pool as (
   select m.tmdb, m.title, m.year, m.director, m.overview, m.poster, m.language, m.genres, m.runtime, m.votes,
@@ -327,7 +372,32 @@ from picked
 );
 end
 $$;
+grant execute on function public.fabula_refine(text, text, text[], text[], integer, integer[]) to anon, authenticated;
+
+create or replace function public.fabula_refine(p_kind text, p_langs text[] default null, p_genres text[] default null, p_limit integer default 10, p_exclude integer[] default '{}')
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$ select public.fabula_refine('pranav', p_kind, p_langs, p_genres, p_limit, p_exclude) $$;
 grant execute on function public.fabula_refine(text, text[], text[], integer, integer[]) to anon, authenticated;
+
+create or replace function public.fabula_films(p_ids integer[])
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'tmdb', m.tmdb, 'title', m.title, 'year', m.year, 'director', m.director, 'overview', m.overview, 'poster', m.poster,
+    'language', m.language, 'genres', m.genres, 'runtime', m.runtime, 'kind', m.kind, 'seasons', m.seasons, 'episodes', m.episodes,
+    'format', m.format
+  ) order by array_position(p_ids, m.tmdb)), '[]'::jsonb)
+  from movies m where m.tmdb = any(coalesce(p_ids, '{}')) and cardinality(p_ids) <= 200
+$$;
+grant execute on function public.fabula_films(integer[]) to anon, authenticated;
 
 create or replace function public.fabula_refine(p_langs text[] default null, p_genres text[] default null, p_limit integer default 10, p_exclude integer[] default '{}')
 returns jsonb
@@ -337,3 +407,105 @@ security definer
 set search_path = public
 as $$ select public.fabula_refine('movie', p_langs, p_genres, p_limit, p_exclude) $$;
 grant execute on function public.fabula_refine(text[], text[], integer, integer[]) to anon, authenticated;
+
+create or replace function public.fabula_guide(p_who text, p_lang text, p_limit integer default 10, p_exclude integer[] default '{}')
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+set plan_cache_mode = force_custom_plan
+as $$
+declare
+  u uuid := public.fabula_user(p_who);
+  pre text := public.fabula_prefix(p_who);
+  cfg jsonb;
+  sh jsonb;
+  share numeric;
+begin
+select l into cfg from records r, jsonb_array_elements(r.data->'langs') l
+where r.user_id = u and r.kind = pre || '.guide' and r.id = 'list' and l->>'name' = p_lang limit 1;
+sh := cfg->'shows';
+share := case when sh is null then 0 else least(0.8, greatest(0, coalesce((sh->>'share')::numeric, 0.3))) end;
+return (
+with recs as (
+  select kind, id, data from records
+  where user_id = u and kind in (pre || '.log', pre || '.swipe', pre || '.unseen') and not coalesce(deleted, false)
+),
+rated as (
+  select (data->>'tmdb')::int as tmdb, (data->>'rating')::numeric as r from recs where kind = pre || '.log' and data ? 'rating'
+),
+base as (
+  select coalesce(avg(r), 7.5) as mean from rated
+),
+r2 as (
+  select m.genres, m.keywords, m.director, rated.r - (select mean from base) as c from rated join movies m using (tmdb)
+),
+feat as (
+  select 'g:' || x as f, c from r2, unnest(genres) x
+  union all select 'k:' || x, c from r2, unnest(keywords) x
+  union all select 'd:' || director, c from r2 where director is not null
+),
+aff as (
+  select f, sum(c) / (count(*) + case left(f, 1) when 'g' then 2 when 'k' then 1.5 else 1 end) as a from feat group by f
+),
+films as (
+  select m.tmdb, m.kind, m.year, m.genres, m.keywords, m.director, m.votes from movies m
+  where m.kind = 'movie' and m.language = p_lang
+    and m.year between 1990 and 2026
+    and coalesce(m.runtime, 90) >= 60
+    and m.tmdb::text not in (select id from recs)
+    and not (m.tmdb = any(coalesce(p_exclude, '{}')))
+  order by m.votes desc nulls last
+  limit round(300 * (1 - share))
+),
+shows as (
+  select m.tmdb, m.kind, m.year, m.genres, m.keywords, m.director, m.votes from movies m
+  where share > 0 and m.kind = 'show'
+    and m.language in (select jsonb_array_elements_text(coalesce(sh->'langs', jsonb_build_array(p_lang))))
+    and (sh->'networks' is null or m.network in (select jsonb_array_elements_text(sh->'networks')))
+    and m.year >= coalesce((sh->>'since')::int, 1990)
+    and m.tmdb::text not in (select id from recs)
+    and not (m.tmdb = any(coalesce(p_exclude, '{}')))
+  order by m.votes desc nulls last
+  limit round(300 * share)
+),
+pool as (
+  select * from films union all select * from shows
+),
+pop as (
+  select tmdb, percent_rank() over (partition by kind order by votes nulls first) as pr from pool
+),
+cf as (
+  select p.tmdb, 'g:' || x as f, 'g' as t from pool p, unnest(p.genres) x
+  union all select p.tmdb, 'k:' || x, 'k' from pool p, unnest(p.keywords) x
+  union all select p.tmdb, 'd:' || p.director, 'd' from pool p where p.director is not null
+),
+agg as (
+  select cf.tmdb,
+    avg(a.a) filter (where cf.t = 'g') as ga,
+    sum(a.a) filter (where cf.t = 'k') as ka,
+    max(a.a) filter (where cf.t = 'd') as da
+  from cf join aff a using (f) group by cf.tmdb
+),
+scored as (
+  select p.tmdb,
+    0.9 * coalesce(g.ga, 0) + 0.4 * tanh(coalesce(g.ka, 0)) + 0.5 * coalesce(g.da, 0)
+    + 1.2 * pop.pr
+    + case when p.kind = 'movie' and p.year >= coalesce((cfg->'recent'->>'since')::int, 9999) then coalesce((cfg->'recent'->>'boost')::numeric, 0) else 0 end
+    + random() * 0.6 as score
+  from pool p join pop using (tmdb) left join agg g on g.tmdb = p.tmdb
+),
+picked as (
+  select tmdb, score from scored order by score desc limit greatest(1, least(p_limit, 20))
+)
+select coalesce(jsonb_agg(jsonb_build_object(
+  'tmdb', m.tmdb, 'title', m.title, 'year', m.year, 'director', m.director, 'overview', m.overview, 'poster', m.poster,
+  'language', m.language, 'genres', m.genres, 'runtime', m.runtime, 'kind', m.kind, 'seasons', m.seasons, 'episodes', m.episodes,
+  'format', m.format
+) order by p.score desc), '[]'::jsonb)
+from picked p join movies m using (tmdb)
+);
+end
+$$;
+grant execute on function public.fabula_guide(text, text, integer, integer[]) to anon, authenticated;

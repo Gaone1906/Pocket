@@ -104,6 +104,45 @@ other kinds counts at a quarter weight. Records keep the `ortus.*` kinds with a 
 `MAL: x.xx/10` (MAL blue). Refills: `fabula-tmdb` actions `ingest_shows` and `imdb` (kind `show` or `movie`), and
 `fabula-anime` action `ingest`, all with the ingest token.
 
+## MomoFlix (second profile)
+
+MomoFlix (`web/momoflix/`, https://gaone1906.github.io/Pocket/momoflix/) is a web-only second Fabula for Pranav's girlfriend
+Harshi ("Momo"). It has no Mac half. It uses the same setup link as the other web apps.
+
+- **Code.** It reuses every file in `web/fabula/`. Its own files are `profile.js`, `momo.css`, `index.html`, `match.html`,
+  `sw.js`, `manifest.webmanifest` and the icons. `profile.js` sets `window.FABULA_PROFILE` before the app loads: `who`
+  `momo`, `user` `6d6f6d6f-0000-4000-8000-000000000001`, record prefix `pre` `momo`, `name` `MomoFlix`, `localStorage`
+  prefix `store` `momoflix`, `guided` true, `nick` `Momo` and the `welcome` text. `web/fabula/profile.js` exports `P` from it,
+  falling back to Pranav's defaults (`who` `pranav`, `user` `00000000-0000-0000-0000-000000000000`, `pre` `ortus`, `store`
+  `fabula`), and `lk(name)` builds local keys from `store`.
+- **Separation.** Each person's records carry both their own `user_id` and their own kind prefix. Pranav's are `ortus.log`,
+  `ortus.swipe`, `ortus.unseen` and `ortus.taste` under the zero uuid; Momo's are `momo.log`, `momo.swipe`, `momo.unseen`,
+  `momo.taste` and `momo.guide` under her uuid. The web store pulls with `user_id=eq.<their id>` plus their kinds. The Mac
+  `CloudSync` pulls by kind, so it never sees `momo.*` and needs no change. Never mix the two.
+- **SQL** (`cloud/fabula.sql`). `fabula_user(p_who)` and `fabula_prefix(p_who)` map `pranav` and `momo` to the user id and the
+  kind prefix; any other name raises. `fabula_deck(p_who, p_kind, ...)` and `fabula_refine(p_who, p_kind, ...)` read that
+  person's records; the older five-argument versions call them with `pranav`. `fabula_films(p_ids)` returns refiner-shaped
+  rows for up to 200 TMDB ids. A new person needs a row in both mapping functions and a folder with its own `profile.js`.
+- **Edge functions.** `fabula-ai` takes `body.who` (`pranav` by default, or `momo`) for `taste` and `mood`, and saves the taste
+  as `<prefix>.taste`. `fabula-match` `create` takes `who`.
+- **Guided refiner.** On first launch MomoFlix opens the guide: a bottom sheet "Hi Momo!" with the welcome text, which Okay
+  drops. Each language (English, Hindi, Telugu) takes 40 answers. The `momo.guide` record id `list` under her user id holds
+  only the start: `{"langs": [{"name", "per": 40, "seed": [10 TMDB ids]}], "batch": 10}`; change it with a db edit, never in code.
+  Seed films load through `fabula_films`. Every later batch of 10 comes live from `rpc/fabula_guide(p_who, p_lang, p_limit,
+  p_exclude)`: from the 300 most-voted films in that language she hasn't answered, it ranks by affinity to her ratings so far
+  (genres, keywords, director, centred on her mean) plus popularity (ranked within movies and within shows) and some
+  randomness. A language entry may add `shows` (`share` of the pool, `since`, `networks`, `langs`) to mix series into
+  it, and `recent` (`since`, `boost`) to favour newer movies; English uses 35% Netflix and Prime Video shows since 2019
+  (English, Korean, Spanish) and a boost for movies since 2019. Seeds may be show ids too. She rates with sliders; an untouched
+  slider is Not seen, saved as `momo.unseen`, and still counts toward the 40. Guide answers carry `guide: <language>`. If a
+  language runs out of films it is skipped. Finishing writes `momo.guide` id `done`, calls `fabula-ai`
+  `taste` with `who` `momo`, shows "Got it, Momo!", and then the full app unlocks.
+- **Look.** Pastel rose in `momo.css` over `../fabula/style.css`: ground #F9D9DF, cards #FFF4F5, ink #4A1520, red accent
+  #D6334A, Fredoka for headings. The logo is Momo's chibi sticker on a pastel rose-to-red background. The name is spelled
+  "MomoFlix"; never use Netflix-style red N branding.
+- **Local state.** `momoflix.cloud.v1` and the other keys with the `momoflix.` prefix; cache prefix `momoflix-web-`
+  (`momoflix-web-v1`), which also caches the shared `../fabula/` files.
+
 ## Local state
 
 Web: `fabula.cloud.v1` (setup link, picked up from the other apps), `fabula.kind`, `fabula.langs`, `fabula.genres` (with `.show` and `.anime` suffixes for those types), `fabula.sort`,

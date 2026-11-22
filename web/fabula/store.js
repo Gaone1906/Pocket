@@ -1,7 +1,9 @@
-const KEY = "fabula.cloud.v1";
-const OTHER_KEYS = ["ortus.cloud.v1", "luna.cloud.v1", "zenda.cloud.v1", "pocket.cloud.v1", "orario.cloud.v1", "runner.cloud.v1", "misura.cloud.v1", "aurelius.cloud.v1"];
-const KINDS = ["ortus.swipe", "ortus.log", "ortus.unseen"];
-const SHARED = "00000000-0000-0000-0000-000000000000";
+import { P } from "./profile.js";
+
+const KEY = `${P.store}.cloud.v1`;
+const OTHER_KEYS = ["fabula.cloud.v1", "ortus.cloud.v1", "luna.cloud.v1", "zenda.cloud.v1", "pocket.cloud.v1", "orario.cloud.v1", "runner.cloud.v1", "misura.cloud.v1", "aurelius.cloud.v1"].filter((k) => k !== KEY);
+const KINDS = ["swipe", "log", "unseen", ...(P.guided ? ["guide"] : [])].map((k) => `${P.pre}.${k}`);
+const SHARED = P.user;
 
 const listeners = new Set();
 let state = load();
@@ -217,7 +219,9 @@ async function pull() {
   let changed = false;
   for (;;) {
     const rows = await call(
-      "/rest/v1/records?select=kind,id,data,deleted,updated_at&kind=in." +
+      "/rest/v1/records?select=kind,id,data,deleted,updated_at&user_id=eq." +
+        SHARED +
+        "&kind=in." +
         encodeURIComponent("(" + KINDS.map((k) => `"${k}"`).join(",") + ")") +
         "&updated_at=gt." +
         encodeURIComponent(overlap) +
