@@ -155,7 +155,7 @@ function hostName(s) {
 }
 
 export function nightTitle(s, host) {
-  if (host || !s) return "Match night";
+  if (host || !s) return "Watch Party";
   const name = hostName(s);
   return name ? `${name}'s movie night` : "Movie night";
 }

@@ -331,7 +331,6 @@ function header() {
     <button class="brand" data-act="nav" aria-label="Open menu"><img src="logo-96.png" alt=""><span>${esc(P.name)}</span>${ICONS.chevron}</button>
     <div class="acts">
       <button class="round" data-act="go" data-v="watchlist" aria-label="Watchlist" title="Watchlist">${ICONS.bookmark}</button>
-      <button class="round accent" data-act="go" data-v="match" aria-label="Match" title="Match">${ICONS.people}</button>
     </div>
   </header>`;
 }
@@ -613,13 +612,13 @@ function shareLink() {
 function viewMatch() {
   const top = `<div class="mbar"><button class="link" data-act="go" data-v="recommend">‹ Back</button>${room.code ? `<button class="link" data-act="match-leave">Leave</button>` : ""}</div>`;
   if (ui.askName && !room.code) {
-    return `<main class="screen match">${top}<div class="mhead"><h1>Match night</h1></div></main>${nameSheet(ui.nameDraft, room.busy)}`;
+    return `<main class="screen match">${top}<div class="mhead"><h1>Watch Party</h1></div></main>${nameSheet(ui.nameDraft, room.busy)}`;
   }
   if (room.error && !room.state) {
     const again = `<button class="btn" data-act="match-new">${room.code ? "Try again" : "New match night"}</button>`;
     return `<main class="screen match">${top}${notice(room.error.message, "", again)}</main>`;
   }
-  if (!room.state) return `<main class="screen match">${top}<div class="mhead"><h1>Match night</h1></div><div class="spin"></div></main>`;
+  if (!room.state) return `<main class="screen match">${top}<div class="mhead"><h1>Watch Party</h1></div><div class="spin"></div></main>`;
   const s = room.state;
   if (s.matched) return matchedView(room, { host: true });
   if (s.started) return swipeView(room, { host: true, top });
@@ -774,7 +773,7 @@ function sidebar() {
   <nav class="side" aria-label="${esc(P.name)}">
     <div class="sidebrand"><img src="logo-96.png" alt=""><span>${esc(P.name)}</span></div>
     ${item("recommend", ICONS.cards, "Recommend")}${item("log", ICONS.list, "Log")}${item("refiner", ICONS.sliders, "Refiner")}${item("ai", ICONS.sparkle, "AI Mode")}
-    <div class="credit">Film and show data from TMDB · Anime data from MyAnimeList · Streaming data from JustWatch</div>
+    <button class="navitem party ${ui.view === "match" ? "on" : ""}" data-act="go" data-v="match">${ICONS.people}Watch Party</button>
   </nav>`;
 }
 
