@@ -75,6 +75,26 @@ select cron.schedule('fabula-match-purge', '*/15 * * * *', $$delete from public.
 
 select cron.schedule('fabula-ingest', '*/2 * * * *', $$select net.http_post(url := 'https://<project-ref>.supabase.co/functions/v1/fabula-tmdb', body := jsonb_build_object('action','ingest','token',(select value from public.fabula_admin where key='ingest_token')), headers := '{"Content-Type":"application/json"}'::jsonb, timeout_milliseconds := 150000) where coalesce((select (value->>'plan')::int from public.fabula_admin where key='ingest_cursor'), 0) < 222$$);
 
+create table if not exists public.fabula_refined (
+  tmdb integer primary key,
+  at timestamptz not null default now()
+);
+create table if not exists public.fabula_taste (
+  id integer primary key default 1 check (id = 1),
+  summary text,
+  changes jsonb,
+  weights jsonb,
+  updated timestamptz not null default now()
+);
+alter table public.fabula_refined enable row level security;
+alter table public.fabula_taste enable row level security;
+drop policy if exists fabula_refined_read on public.fabula_refined;
+create policy fabula_refined_read on public.fabula_refined for select to anon, authenticated using (true);
+drop policy if exists fabula_taste_read on public.fabula_taste;
+create policy fabula_taste_read on public.fabula_taste for select to anon, authenticated using (true);
+revoke all on public.fabula_refined, public.fabula_taste from anon, authenticated;
+grant select on public.fabula_refined, public.fabula_taste to anon, authenticated;
+
 create or replace function public.fabula_deck(p_langs text[] default null, p_genres text[] default null, p_limit integer default 20, p_exclude integer[] default '{}')
 returns jsonb
 language sql
@@ -134,6 +154,9 @@ cand as (
     and coalesce(m.vote, 0) >= 5.5
     and coalesce(m.runtime, 90) >= 60
 ),
+tw as (
+  select e.key as f, e.value::numeric as w from fabula_taste t, jsonb_each_text(t.weights) e where t.id = 1
+),
 cf as (
   select c.tmdb, 'g:' || x as f, 'g' as t from cand c, unnest(c.genres) x
   union all select c.tmdb, 'k:' || x, 'k' from cand c, unnest(c.keywords) x
@@ -148,6 +171,12 @@ agg as (
     avg(a.a) filter (where cf.t = 'c') as ca
   from cf join aff a using (f) group by cf.tmdb
 ),
+tws as (
+  select x.tmdb, sum(tw.w) as w from (
+    select tmdb, f from cf where t in ('g', 'k', 'd')
+    union all select tmdb, 'l:' || language from cand where language is not null
+  ) x join tw on tw.f = x.f group by x.tmdb
+),
 rb as (
   select x as tmdb, count(*) as n from loved, unnest(recs) x group by x
 ),
@@ -161,6 +190,7 @@ scored as (
   select c.*,
     1.2 * coalesce(g.ga, 0) + 0.6 * tanh(coalesce(g.ka, 0)) + 1.0 * coalesce(g.da, 0) + 0.6 * coalesce(g.ca, 0)
     + 0.35 * least(coalesce(rb.n, 0), 4)
+    + 0.8 * greatest(-1, least(1, coalesce(tws.w, 0)))
     + 0.3 * (coalesce(c.vote, 6.5) - 7)
     + 0.04 * ln(1 + coalesce(c.votes, 0))
     - case when seq.tmdb is not null then 0.4 else 0 end
@@ -168,6 +198,7 @@ scored as (
   from cand c
   left join agg g on g.tmdb = c.tmdb
   left join rb on rb.tmdb = c.tmdb
+  left join tws on tws.tmdb = c.tmdb
   left join seq on seq.tmdb = c.tmdb
 ),
 dedup as (
@@ -201,3 +232,46 @@ select coalesce(jsonb_agg(jsonb_build_object(
 from picked p
 $$;
 grant execute on function public.fabula_deck(text[], text[], integer, integer[]) to anon, authenticated;
+
+create index if not exists movies_votes_desc on public.movies(votes desc nulls last);
+
+create or replace function public.fabula_refine(p_langs text[] default null, p_genres text[] default null, p_exclude integer[] default '{}', p_limit integer default 10)
+returns jsonb
+language sql
+volatile
+security definer
+set search_path = public
+as $$
+with seen as (
+  select (data->>'tmdb')::int as tmdb from records
+  where user_id = '00000000-0000-0000-0000-000000000000' and kind in ('ortus.log', 'ortus.swipe') and not coalesce(deleted, false) and data ? 'tmdb'
+  union select tmdb from fabula_refined
+),
+seen_titles as (
+  select lower(m.title) as t from seen s join movies m using (tmdb)
+),
+pool as (
+  select m.* from movies m
+  where not (m.tmdb = any(coalesce(p_exclude, '{}')))
+    and (p_langs is null or cardinality(p_langs) = 0 or m.language = any(p_langs))
+    and (p_genres is null or cardinality(p_genres) = 0 or m.genres && p_genres)
+    and m.year between 1990 and 2026
+    and coalesce(m.vote, 0) >= 5.5
+    and coalesce(m.runtime, 90) >= 60
+    and not exists (select 1 from seen s where s.tmdb = m.tmdb)
+    and lower(m.title) not in (select t from seen_titles)
+  order by m.votes desc nulls last
+  limit 300
+),
+picked as (
+  select * from pool order by random() limit greatest(1, least(coalesce(p_limit, 10), 50))
+)
+select coalesce(jsonb_agg(jsonb_build_object(
+  'tmdb', p.tmdb, 'title', p.title, 'year', p.year, 'runtime', p.runtime, 'language', p.language,
+  'genres', p.genres, 'director', p.director, 'cast', p."cast"[1:3], 'overview', p.overview,
+  'poster', p.poster, 'backdrop', p.backdrop, 'vote', p.vote, 'providers', p.providers,
+  'why', null
+)), '[]'::jsonb)
+from picked p
+$$;
+grant execute on function public.fabula_refine(text[], text[], integer[], integer) to anon, authenticated;
