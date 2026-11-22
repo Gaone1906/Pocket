@@ -888,7 +888,13 @@ final class FabulaNav: ObservableObject {
     }
 
     func watch(_ film: FabulaFilm, source: String) {
-        if let url = URL(string: "https://www.themoviedb.org/movie/\(film.tmdb)/watch?locale=IN") { NSWorkspace.shared.open(url) }
+        let link: String
+        switch film.kind {
+        case .anime: link = "https://myanimelist.net/anime/\(film.tmdb - 200_000_000)"
+        case .show: link = "https://www.themoviedb.org/tv/\(film.tmdb - 100_000_000)/watch?locale=IN"
+        case .movie: link = "https://www.themoviedb.org/movie/\(film.tmdb)/watch?locale=IN"
+        }
+        if let url = URL(string: link) { NSWorkspace.shared.open(url) }
         note("fabula watch tonight tmdb=\(film.tmdb) providers=\(film.providers.count) source=\(source)")
         pick = nil
     }
