@@ -79,22 +79,25 @@ export function stamps() {
   return `<span class="stamp yes" data-stamp="yes">YES</span><span class="stamp no" data-stamp="no">NOPE</span><span class="stamp seen" data-stamp="seen">SEEN IT</span>`;
 }
 
-export function card(film, { top = false, undo = false, canUndo = false, superlike = false, why = true } = {}) {
+export function card(film, { top = false, undo = false, canUndo = false, superlike = false, why = true, open = false } = {}) {
   if (!film) return "";
   const overview = film.overview || "";
-  return `<div class="card ${top ? "top" : "under"} ${superlike ? "gold" : ""}" ${top ? `data-card="${esc(film.tmdb)}"` : ""}>
+  return `<div class="card ${top ? "top" : "under"} ${superlike ? "gold" : ""} ${open ? "open" : ""}" ${top ? `data-card="${esc(film.tmdb)}"` : ""}>
     <div class="face">
       <div class="poster" style="${posterStyle(film, "w780")}">
         <div class="shade"></div>
-        ${undo ? `<button class="undo" data-act="undo" aria-label="Undo last swipe" ${canUndo ? "" : "disabled"}>${ICONS.undo}</button>` : ""}
-        <span class="badge">Superlike</span>
-        ${top ? stamps() : ""}
-        <span class="ctitle">${esc(film.title)}</span>
       </div>
-      <div class="info">
-        <span class="meta">${esc(meta(film))}</span>
-        ${overview ? `<span class="hook">${esc(overview)}</span>` : ""}
-        ${why && film.why ? `<span class="why">${esc(film.why)}</span>` : ""}
+      <div class="dim"></div>
+      ${undo ? `<button class="undo" data-act="undo" aria-label="Undo last swipe" ${canUndo ? "" : "disabled"}>${ICONS.undo}</button>` : ""}
+      <span class="badge">Superlike</span>
+      ${top ? stamps() : ""}
+      <div class="lower">
+        <span class="ctitle">${esc(film.title)}</span>
+        <div class="info">
+          <span class="meta">${esc(meta(film))}</span>
+          ${overview ? `<span class="hook" ${top ? `data-act="hook" role="button" tabindex="0" aria-expanded="${open}"` : ""}>${esc(overview)}</span>` : ""}
+          ${why && film.why ? `<span class="why">${esc(film.why)}</span>` : ""}
+        </div>
       </div>
     </div>
   </div>`;

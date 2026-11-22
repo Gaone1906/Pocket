@@ -13,6 +13,8 @@ Related: [../cloud-sync.md](../cloud-sync.md), [../web-pages.md](../web-pages.md
   stamps SEEN IT; release past 110 px to commit, otherwise the card springs back. Swipe up opens the rating sheet (1 to 10 grid,
   a comments box hinted "Tell us about the movie!", Skip rating, Save to Log). Hold still 0.6 s: the card shakes (0.5 s
   side-to-side wobble) and turns gold = superlike, which opens Tonight's pick. An undo arrow sits at the top left of every card.
+  The description shows three lines; tapping it opens it upward over the poster in 0.38 s while the poster dims to 72% black
+  (web `toggleHook`, Mac menu-bar card `open`); tapping again folds it, and a new card starts folded. The tap never starts a drag.
   Header: logo + "Fabula" + chevron (tap opens the sidebar), then round icon buttons for Watchlist (bookmark) and Match (people).
   Under the header two dropdown pills, Language and Genre, each opening a multi-select sheet. No other chips, no bottom bar,
   no instructional text anywhere.
