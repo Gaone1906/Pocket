@@ -960,6 +960,8 @@ struct FabulaRoot: View {
                 case .recommend: FabulaRecommend(deck: deck, nav: nav)
                 case .watchlist: FabulaWatchlist(store: store, nav: nav)
                 case .log: FabulaLog(store: store, nav: nav)
+                case .refiner: FabulaRefinerView(nav: nav)
+                case .ai: FabulaAIView(nav: nav)
                 }
                 FabulaOverlays(deck: deck, nav: nav, compact: false)
             }

@@ -634,6 +634,11 @@ final class FabulaDeck: ObservableObject {
         note("fabula undo tmdb=\(move.film.tmdb) verdict=\(move.verdict.rawValue) logged=\(move.logged) source=\(source)")
     }
 
+    func addTonight(_ film: FabulaFilm) {
+        tonight.removeAll { $0.tmdb == film.tmdb }
+        tonight.insert(film, at: 0)
+    }
+
     func markLogged(_ tmdb: Int) {
         guard let index = history.lastIndex(where: { $0.film.tmdb == tmdb }) else { return }
         history[index].logged = true
@@ -641,15 +646,23 @@ final class FabulaDeck: ObservableObject {
 }
 
 enum FabulaTab: String, CaseIterable, Identifiable {
-    case recommend, watchlist, log
+    case recommend, watchlist, log, refiner, ai
 
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String {
+        switch self {
+        case .refiner: return "Refiner"
+        case .ai: return "AI Mode"
+        default: return rawValue.capitalized
+        }
+    }
     var symbol: String {
         switch self {
         case .recommend: return "rectangle.portrait"
         case .watchlist: return "bookmark"
         case .log: return "list.bullet"
+        case .refiner: return "slider.horizontal.3"
+        case .ai: return "sparkles"
         }
     }
 }
