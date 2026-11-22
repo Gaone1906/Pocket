@@ -419,7 +419,14 @@ as $$
 declare
   u uuid := public.fabula_user(p_who);
   pre text := public.fabula_prefix(p_who);
+  cfg jsonb;
+  sh jsonb;
+  share numeric;
 begin
+select l into cfg from records r, jsonb_array_elements(r.data->'langs') l
+where r.user_id = u and r.kind = pre || '.guide' and r.id = 'list' and l->>'name' = p_lang limit 1;
+sh := cfg->'shows';
+share := case when sh is null then 0 else least(0.8, greatest(0, coalesce((sh->>'share')::numeric, 0.3))) end;
 return (
 with recs as (
   select kind, id, data from records
@@ -442,18 +449,32 @@ feat as (
 aff as (
   select f, sum(c) / (count(*) + case left(f, 1) when 'g' then 2 when 'k' then 1.5 else 1 end) as a from feat group by f
 ),
-pool as (
-  select m.tmdb, m.genres, m.keywords, m.director, m.votes from movies m
+films as (
+  select m.tmdb, m.kind, m.year, m.genres, m.keywords, m.director, m.votes from movies m
   where m.kind = 'movie' and m.language = p_lang
     and m.year between 1990 and 2026
     and coalesce(m.runtime, 90) >= 60
     and m.tmdb::text not in (select id from recs)
     and not (m.tmdb = any(coalesce(p_exclude, '{}')))
   order by m.votes desc nulls last
-  limit 300
+  limit round(300 * (1 - share))
 ),
-top as (
-  select max(votes) as v from pool
+shows as (
+  select m.tmdb, m.kind, m.year, m.genres, m.keywords, m.director, m.votes from movies m
+  where share > 0 and m.kind = 'show'
+    and m.language in (select jsonb_array_elements_text(coalesce(sh->'langs', jsonb_build_array(p_lang))))
+    and (sh->'networks' is null or m.network in (select jsonb_array_elements_text(sh->'networks')))
+    and m.year >= coalesce((sh->>'since')::int, 1990)
+    and m.tmdb::text not in (select id from recs)
+    and not (m.tmdb = any(coalesce(p_exclude, '{}')))
+  order by m.votes desc nulls last
+  limit round(300 * share)
+),
+pool as (
+  select * from films union all select * from shows
+),
+pop as (
+  select tmdb, percent_rank() over (partition by kind order by votes nulls first) as pr from pool
 ),
 cf as (
   select p.tmdb, 'g:' || x as f, 'g' as t from pool p, unnest(p.genres) x
@@ -470,16 +491,18 @@ agg as (
 scored as (
   select p.tmdb,
     0.9 * coalesce(g.ga, 0) + 0.4 * tanh(coalesce(g.ka, 0)) + 0.5 * coalesce(g.da, 0)
-    + 1.2 * ln(1 + coalesce(p.votes, 0)) / ln(2 + coalesce((select v from top), 1))
+    + 1.2 * pop.pr
+    + case when p.kind = 'movie' and p.year >= coalesce((cfg->'recent'->>'since')::int, 9999) then coalesce((cfg->'recent'->>'boost')::numeric, 0) else 0 end
     + random() * 0.6 as score
-  from pool p left join agg g on g.tmdb = p.tmdb
+  from pool p join pop using (tmdb) left join agg g on g.tmdb = p.tmdb
 ),
 picked as (
   select tmdb, score from scored order by score desc limit greatest(1, least(p_limit, 20))
 )
 select coalesce(jsonb_agg(jsonb_build_object(
   'tmdb', m.tmdb, 'title', m.title, 'year', m.year, 'director', m.director, 'overview', m.overview, 'poster', m.poster,
-  'language', m.language, 'genres', m.genres, 'runtime', m.runtime, 'kind', m.kind
+  'language', m.language, 'genres', m.genres, 'runtime', m.runtime, 'kind', m.kind, 'seasons', m.seasons, 'episodes', m.episodes,
+  'format', m.format
 ) order by p.score desc), '[]'::jsonb)
 from picked p join movies m using (tmdb)
 );

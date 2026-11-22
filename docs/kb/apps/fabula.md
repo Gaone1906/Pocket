@@ -130,7 +130,10 @@ Harshi ("Momo"). It has no Mac half. It uses the same setup link as the other we
   only the start: `{"langs": [{"name", "per": 40, "seed": [10 TMDB ids]}], "batch": 10}`; change it with a db edit, never in code.
   Seed films load through `fabula_films`. Every later batch of 10 comes live from `rpc/fabula_guide(p_who, p_lang, p_limit,
   p_exclude)`: from the 300 most-voted films in that language she hasn't answered, it ranks by affinity to her ratings so far
-  (genres, keywords, director, centred on her mean) plus popularity and some randomness. She rates with sliders; an untouched
+  (genres, keywords, director, centred on her mean) plus popularity (ranked within movies and within shows) and some
+  randomness. A language entry may add `shows` (`share` of the pool, `since`, `networks`, `langs`) to mix series into
+  it, and `recent` (`since`, `boost`) to favour newer movies; English uses 35% Netflix and Prime Video shows since 2019
+  (English, Korean, Spanish) and a boost for movies since 2019. Seeds may be show ids too. She rates with sliders; an untouched
   slider is Not seen, saved as `momo.unseen`, and still counts toward the 40. Guide answers carry `guide: <language>`. If a
   language runs out of films it is skipped. Finishing writes `momo.guide` id `done`, calls `fabula-ai`
   `taste` with `who` `momo`, shows "Got it, Momo!", and then the full app unlocks.

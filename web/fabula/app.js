@@ -883,7 +883,7 @@ function guideRow(f) {
     <div class="rf-poster" style="${posterStyle(f, "w342")}"></div>
     <div class="rf-body">
       <b class="rf-title">${esc(f.title)}</b>
-      <span class="muted">${esc([f.year, f.director].filter(Boolean).join(" · "))}</span>
+      <span class="muted">${esc(kindOf(f) === "movie" ? [f.year, f.director].filter(Boolean).join(" · ") : meta(f, { genres: 1 }))}
       ${f.overview ? `<span class="rf-blurb">${esc(f.overview)}</span>` : ""}
       <div class="rf-rate"><input type="range" min="1" max="10" step="1" value="${s || 5}" class="range ${s ? "" : "untouched"}" data-input="guide-score" data-v="${esc(id)}" aria-label="Rate ${esc(f.title)}"><span class="rf-val ${s ? "on" : ""}">${s ? `${s} / 10` : "Not seen"}</span></div>
     </div>
