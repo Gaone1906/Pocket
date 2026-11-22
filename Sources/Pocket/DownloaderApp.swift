@@ -15,7 +15,7 @@ struct DownloaderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                TextField("Paste a link", text: $draft.link)
+                TextField("Paste a link or a Copy as cURL command", text: $draft.link)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13))
                     .foregroundStyle(Board.ink)
@@ -187,6 +187,11 @@ final class DownloaderApp: PocketApp {
         }
         guard let clip = NSPasteboard.general.string(forType: .string)?.trimmingCharacters(in: .whitespacesAndNewlines), !clip.isEmpty else {
             note("downloader prefill skipped reason=clipboard-empty")
+            return
+        }
+        if clip.hasPrefix("curl "), let curl = CurlCommand.parse(clip) {
+            draft.link = clip
+            note("downloader prefilled curl from clipboard host=\(URL(string: curl.url)?.host ?? "?")")
             return
         }
         guard !clip.contains(" "), !clip.contains("\n"), let url = URL(string: clip), let scheme = url.scheme?.lowercased(),

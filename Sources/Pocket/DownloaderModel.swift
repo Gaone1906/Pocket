@@ -116,25 +116,50 @@ final class DownloaderModel: ObservableObject {
     @discardableResult
     func add(_ raw: String) -> Bool {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: text), let scheme = url.scheme?.lowercased(), ["http", "https", "ftp", "sftp", "magnet"].contains(scheme) else {
+        let curl = text.hasPrefix("curl ") ? CurlCommand.parse(text) : nil
+        if text.hasPrefix("curl "), curl == nil {
+            problem = "Couldn't find a link in that cURL command."
+            note("downloader add rejected reason=curl-without-url length=\(text.count)")
+            return false
+        }
+        let link = curl?.url ?? text
+        guard let url = URL(string: link), let scheme = url.scheme?.lowercased(), ["http", "https", "ftp", "sftp", "magnet"].contains(scheme) else {
             problem = "That doesn't look like a download link."
             note("downloader add rejected reason=not-a-url length=\(text.count)")
             return false
         }
         ensureRunning()
-        var options: [String: String] = [:]
-        if let adopted = adoptPartial(for: url) { options["out"] = adopted }
-        submit(text, options: options, host: url.host ?? scheme, attempt: 1)
+        var options: [String: Any] = [:]
+        if let adopted = adoptPartial(for: url) {
+            options["out"] = adopted
+        } else if let name = fileName(of: url) {
+            options["out"] = name
+        }
+        if let curl {
+            if !curl.headers.isEmpty { options["header"] = curl.headers }
+            if let agent = curl.userAgent { options["user-agent"] = agent }
+            if let referer = curl.referer { options["referer"] = referer }
+            let cookies = curl.headers.contains { $0.lowercased().hasPrefix("cookie:") }
+            note("downloader add from curl host=\(url.host ?? scheme) headers=\(curl.headers.count) cookies=\(cookies) agent=\(curl.userAgent != nil) referer=\(curl.referer != nil)")
+        }
+        submit(link, options: options, host: url.host ?? scheme, attempt: 1)
         return true
     }
 
-    private func submit(_ link: String, options: [String: String], host: String, attempt: Int) {
+    private func fileName(of url: URL) -> String? {
+        guard url.scheme?.lowercased() != "magnet" else { return nil }
+        let name = url.lastPathComponent.removingPercentEncoding ?? url.lastPathComponent
+        guard name.contains("."), !name.hasPrefix("."), !name.contains("/") else { return nil }
+        return name
+    }
+
+    private func submit(_ link: String, options: [String: Any], host: String, attempt: Int) {
         call("aria2.addUri", [[link], options]) { [weak self] result in
             guard let self else { return }
             switch result {
             case .success(let value):
                 self.problem = nil
-                note("downloader added gid=\(value as? String ?? "?") host=\(host) out=\(options["out"] ?? "auto") attempt=\(attempt)")
+                note("downloader added gid=\(value as? String ?? "?") host=\(host) out=\(options["out"] as? String ?? "auto") attempt=\(attempt)")
                 self.poll()
             case .failure(let error):
                 if attempt < 5 {
