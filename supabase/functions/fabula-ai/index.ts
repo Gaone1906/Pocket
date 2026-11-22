@@ -29,30 +29,61 @@ function antKey() {
   return (Deno.env.get("ANT_KEY") || "").trim().replace(/^["']|["']$/g, "").trim();
 }
 
-async function haiku(system: string, user: string, maxTokens: number) {
+const TASTE_SCHEMA = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    more: { type: "array", items: { type: "string" } },
+    less: { type: "array", items: { type: "string" } },
+    likes: { type: "object", properties: { genres: { type: "array", items: { type: "string" } }, directors: { type: "array", items: { type: "string" } }, keywords: { type: "array", items: { type: "string" } } } },
+    dislikes: { type: "object", properties: { genres: { type: "array", items: { type: "string" } }, directors: { type: "array", items: { type: "string" } }, keywords: { type: "array", items: { type: "string" } } } },
+  },
+  required: ["summary", "more", "less", "likes", "dislikes"],
+};
+
+const MOOD_SCHEMA = {
+  type: "object",
+  properties: {
+    films: {
+      type: "array",
+      items: { type: "object", properties: { title: { type: "string" }, year: { type: "integer" }, why: { type: "string" } }, required: ["title", "year", "why"] },
+    },
+  },
+  required: ["films"],
+};
+
+async function haikuOnce(task: string, system: string, user: string, maxTokens: number, schema: unknown) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": antKey(), "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, system, messages: [{ role: "user", content: user }] }),
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: maxTokens,
+      system,
+      tools: [{ name: "answer", description: "Return the answer.", input_schema: schema }],
+      tool_choice: { type: "tool", name: "answer" },
+      messages: [{ role: "user", content: user }],
+    }),
   });
   if (res.status === 401) throw new Error(`The ANT_KEY secret was refused (length ${antKey().length}, starts ${antKey().slice(0, 7)})`);
   if (!res.ok) throw new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const out = await res.json();
+  const call = (out.content || []).find((c: any) => c.type === "tool_use" && c.name === "answer");
+  if (call && call.input && typeof call.input === "object") return call.input;
   const text = (out.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
-  const start = text.search(/[\[{]/);
-  const end = Math.max(text.lastIndexOf("}"), text.lastIndexOf("]"));
-  if (start < 0 || end < start) throw new Error("Model gave no JSON");
-  const raw = text.slice(start, end + 1);
-  try { return JSON.parse(raw); } catch { }
-  try { return JSON.parse(raw.replace(/,\s*([\]}])/g, "$1").replace(/[“”]/g, '"')); } catch { }
-  const films = [...text.matchAll(/\{[^{}]*?"title"\s*:\s*"((?:[^"\\]|\\.)*)"[^{}]*?\}/g)].map((m) => {
-    const block = m[0];
-    const year = block.match(/"year"\s*:\s*"?(\d{4})/);
-    const why = block.match(/"why"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-    return { title: m[1], year: year ? Number(year[1]) : null, why: why ? why[1] : "" };
-  });
-  if (films.length) return { films };
-  throw new Error(`Model gave broken JSON: ${text.slice(0, 300)}`);
+  console.warn(JSON.stringify({ event: "fabula_ai_no_answer", task, model: MODEL, stop_reason: out.stop_reason, usage: out.usage, text: text.slice(0, 300) }));
+  throw new Error(`Model gave no answer (${out.stop_reason || "unknown"})`);
+}
+
+async function haiku(task: string, system: string, user: string, maxTokens: number, schema: unknown) {
+  try {
+    return await haikuOnce(task, system, user, maxTokens, schema);
+  } catch (e) {
+    const msg = String((e as Error).message || e);
+    if (msg.startsWith("The ANT_KEY") || /anthropic 4\d\d/.test(msg)) throw e;
+    console.warn(JSON.stringify({ event: "fabula_ai_retry", task, error: msg }));
+    return await haikuOnce(task, system, user, maxTokens, schema);
+  }
 }
 
 async function records(kinds: string[]) {
@@ -72,14 +103,14 @@ async function taste(fresh: number[]) {
   const freshSet = new Set(fresh);
   const sorted = [...logs].sort((a: any, b: any) => b.rating - a.rating);
   const recent = sorted.filter((l: any) => freshSet.has(l.tmdb));
-  const system = "You profile one person's film taste from their ratings. Scores are 1-10; their average sits near 8, so 7 is a soft no and 9+ is love. Answer with JSON only.";
+  const system = "You profile one person's film taste from their ratings. Scores are 1-10; their average sits near 8, so 7 is a soft no and 9+ is love. Answer by calling the answer tool.";
   const user = [
     `All ratings (${logs.length}):`,
     sorted.map(line).join("\n"),
     recent.length ? `\nJust rated in this session:\n${recent.map(line).join("\n")}` : "",
-    `\nReturn JSON: {"summary": one sentence under 22 words in second person describing their taste, "more": up to 4 short labels (2-4 words) for what they should get more of, weighted toward this session, "less": up to 3 short labels for what to show less, "likes": {"genres": up to 3 from ${JSON.stringify(GENRES)}, "directors": up to 5 exact names, "keywords": up to 8 lowercase TMDB-style keywords like "twist ending"}, "dislikes": {"genres": up to 2 from the same list, "directors": up to 3, "keywords": up to 5}}`,
+    `\nFill the answer: {"summary": one sentence under 22 words in second person describing their taste, "more": up to 4 short labels (2-4 words) for what they should get more of, weighted toward this session, "less": up to 3 short labels for what to show less, "likes": {"genres": up to 3 from ${JSON.stringify(GENRES)}, "directors": up to 5 exact names, "keywords": up to 8 lowercase TMDB-style keywords like "twist ending"}, "dislikes": {"genres": up to 2 from the same list, "directors": up to 3, "keywords": up to 5}}`,
   ].join("\n");
-  const t = await haiku(system, user, 1400);
+  const t = await haiku("taste", system, user, 1400, TASTE_SCHEMA);
   const arr = (v: any, n: number, allow?: string[]) => (Array.isArray(v) ? v : []).map((x) => clean(x, 60)).filter((x) => x && (!allow || allow.includes(x))).slice(0, n);
   const now = new Date().toISOString();
   const data = {
@@ -135,7 +166,7 @@ async function mood(text: string, notes: string[], shown: number[]) {
   const loved = logs.filter((l: any) => l.rating >= 9).sort((a: any, b: any) => b.rating - a.rating).slice(0, 40);
   const disliked = logs.filter((l: any) => l.rating <= 6.5).slice(0, 15);
   const { data: shownRows } = shown.length ? await db.from("movies").select("title,year").in("tmdb", shown) : { data: [] };
-  const system = "You recommend films to one person for tonight. Match their mood first, their taste second. Prefer films that are easy to stream in India. Never suggest a film they have already seen or were already shown. Answer with JSON only.";
+  const system = "You recommend films to one person for tonight. Match their mood first, their taste second. Prefer films that are easy to stream in India. Never suggest a film they have already seen or were already shown. Answer by calling the answer tool.";
   const user = [
     `Mood: ${text}`,
     notes.length ? `Follow-up notes, newest last:\n${notes.map((n) => `- ${n}`).join("\n")}` : "",
@@ -144,9 +175,9 @@ async function mood(text: string, notes: string[], shown: number[]) {
     disliked.length ? `Disliked:\n${disliked.map(line).join("\n")}` : "",
     `Already seen or swiped (never suggest): ${[...logs, ...swipes].map((d: any) => d.title).filter(Boolean).join("; ")}`,
     (shownRows || []).length ? `Already shown tonight (never suggest again): ${(shownRows || []).map((m: any) => `${m.title} (${m.year})`).join("; ")}` : "",
-    `Return JSON: {"films": [8 items of {"title": exact English release title, "year": release year, "why": one sentence under 18 words tying it to the mood}]}`,
+    `Fill the answer: {"films": [8 items of {"title": exact English release title, "year": release year, "why": one sentence under 18 words tying it to the mood}]}`,
   ].filter(Boolean).join("\n\n");
-  const out = await haiku(system, user, 1800);
+  const out = await haiku("mood", system, user, 1800, MOOD_SCHEMA);
   const ideas = (Array.isArray(out.films) ? out.films : Array.isArray(out) ? out : []).slice(0, 10);
   const resolved = await Promise.all(ideas.map(async (f: any) => {
     const title = clean(f.title, 120);
