@@ -1,6 +1,6 @@
 import * as store from "./store.js";
 import { $, esc, ICONS, isoNow, readJSON, readLocal, writeLocal, reduceMotion, buzz } from "./util.js";
-import { LANGUAGES, GENRES, card, meta, posterStyle, thumb, ratingText, ratingClass, genreList } from "./films.js";
+import { LANGUAGES, GENRES, card, meta, metaRow, posterStyle, thumb, ratingText, ratingClass, genreList } from "./films.js";
 import { attach, fly, springBack } from "./drag.js";
 import { caller, createRoom, lobbyView, swipeView, matchedView, notice, nameSheet, bindSwipe } from "./room.js";
 
@@ -386,7 +386,7 @@ function rateSheet() {
 
 function wlFilmSheet() {
   const f = ui.sheet.film;
-  return sheet(`<div class="wlhead">${thumb(f, "thumb lg")}<div class="titles"><h2>${esc(f.title)}</h2><span class="muted">${esc(meta(f))}</span></div></div>
+  return sheet(`<div class="wlhead">${thumb(f, "thumb lg")}<div class="titles"><h2>${esc(f.title)}</h2>${metaRow(f, undefined, "muted")}</div></div>
     <div class="two"><button class="btn ghost danger" data-act="wl-remove">Remove</button><button class="btn wide" data-act="wl-seen">Seen it</button></div>`);
 }
 
@@ -427,7 +427,7 @@ function pickView(fresh) {
   return `<div class="pick ${fresh ? "fresh" : ""}">
     <span class="kicker">Tonight's pick</span>
     <div class="pposter" style="${posterStyle(f, "w500")}"><span>${esc(f.title)}</span></div>
-    <div class="ptext"><h2>${esc(f.title)}</h2><span class="muted">${esc(meta(f, { director: true }))}</span>${
+    <div class="ptext"><h2>${esc(f.title)}</h2>${metaRow(f, { director: true }, "muted")}${
       providers.length ? `<span class="stream">Streaming on ${esc(providers.slice(0, 2).join(" and "))} in India</span>` : ""
     }</div>
     ${
@@ -670,7 +670,7 @@ function aiCard(f) {
     <div class="ai-poster" style="${posterStyle(f, "w342")}"></div>
     <div class="rf-body">
       <b class="rf-title">${esc(f.title)}</b>
-      <span class="muted">${esc(meta(f, { director: true }))}</span>
+      ${metaRow(f, { director: true }, "muted")}
       ${f.why ? `<span class="ai-why">${esc(f.why)}</span>` : ""}
       <button class="ai-pick ${on ? "on" : ""}" data-act="ai-choose" data-v="${esc(f.tmdb)}" aria-pressed="${on}">${on ? "Chosen" : "This one"}</button>
     </div>

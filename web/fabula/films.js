@@ -55,6 +55,16 @@ export function meta(film, { genres = 2, director = false } = {}) {
   return parts.filter(Boolean).join(" · ");
 }
 
+export function imdbTag(film) {
+  const n = film && film.imdb != null && film.imdb !== "" ? Number(film.imdb) : NaN;
+  if (!Number.isFinite(n)) return "";
+  return `<span class="imdb">IMDb: <b>${n.toFixed(1)}</b>/10</span>`;
+}
+
+export function metaRow(film, opts, cls = "meta") {
+  return `<div class="metarow"><span class="${cls}">${esc(meta(film, opts))}</span>${imdbTag(film)}</div>`;
+}
+
 export function initial(name) {
   return (String(name || "?").trim()[0] || "?").toUpperCase();
 }
@@ -94,7 +104,7 @@ export function card(film, { top = false, undo = false, canUndo = false, superli
       <div class="lower">
         <span class="ctitle">${esc(film.title)}</span>
         <div class="info">
-          <span class="meta">${esc(meta(film))}</span>
+          ${metaRow(film)}
           ${overview ? `<span class="hook" ${top ? `data-act="hook" role="button" tabindex="0" aria-expanded="${open}"` : ""}>${esc(overview)}</span>` : ""}
           ${why && film.why ? `<span class="why">${esc(film.why)}</span>` : ""}
         </div>
