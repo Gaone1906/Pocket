@@ -449,6 +449,8 @@ struct FabulaCardFace: View {
     let film: FabulaFilm
     let compact: Bool
     @ObservedObject var motion: FabulaMotion
+    @State private var expanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var vertical: Bool { motion.offset.height < 0 && abs(motion.offset.height) > abs(motion.offset.width) }
     private var yesOpacity: Double { vertical ? 0 : Double(min(1, max(0, motion.offset.width / 90))) }
@@ -456,9 +458,14 @@ struct FabulaCardFace: View {
     private var seenOpacity: Double { vertical ? Double(min(1, max(0, -motion.offset.height / 90))) : 0 }
 
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack(alignment: .bottomLeading) {
             poster
-            if compact { info }
+            if compact {
+                VStack(alignment: .leading, spacing: 0) {
+                    title.padding(.horizontal, 18).padding(.bottom, 12)
+                    info.background(Fab.surface.opacity(expanded ? 0 : 1))
+                }
+            }
         }
         .background(Fab.surface)
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -470,12 +477,8 @@ struct FabulaCardFace: View {
         ZStack(alignment: .bottomLeading) {
             FabulaPoster(url: film.posterURL, radius: 0)
             LinearGradient(colors: [Color.clear, Color.black.opacity(0.75)], startPoint: .center, endPoint: .bottom)
-            Text(film.title)
-                .font(Fab.serif(compact ? 26 : 32))
-                .foregroundStyle(Color.white)
-                .lineLimit(3)
-                .shadow(color: Color.black.opacity(0.5), radius: 8, y: 2)
-                .padding(18)
+            Color(red: 0.05, green: 0.03, blue: 0.02).opacity(expanded ? 0.72 : 0).allowsHitTesting(false)
+            if !compact { title.padding(18) }
             stamps
             if motion.gold {
                 Text("Superlike")
@@ -490,6 +493,14 @@ struct FabulaCardFace: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
+    }
+
+    private var title: some View {
+        Text(film.title)
+            .font(Fab.serif(compact ? 26 : 32))
+            .foregroundStyle(Color.white)
+            .lineLimit(expanded ? 2 : 3)
+            .shadow(color: Color.black.opacity(0.5), radius: 8, y: 2)
     }
 
     private var stamps: some View {
@@ -516,7 +527,22 @@ struct FabulaCardFace: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(film.meta).font(Fab.sans(12)).foregroundStyle(Fab.muted).lineLimit(1)
             if !film.overview.isEmpty {
-                Text(film.overview).font(Fab.sans(13)).foregroundStyle(Fab.ink).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                Button {
+                    withAnimation(reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.9)) { expanded.toggle() }
+                } label: {
+                    Text(film.overview)
+                        .font(Fab.sans(13))
+                        .lineSpacing(expanded ? 2 : 0)
+                        .foregroundStyle(Fab.ink)
+                        .lineLimit(expanded ? 18 : 2)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(expanded ? "Collapse description" : "Show full description")
+                .accessibilityLabel(expanded ? "Collapse description" : "Show full description")
             }
             if !film.why.isEmpty {
                 Text(film.why).font(Fab.sans(12, .semibold)).foregroundStyle(motion.gold ? Fab.gold : Fab.accent).lineLimit(1)
