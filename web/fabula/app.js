@@ -2,11 +2,13 @@ import * as store from "./store.js";
 import { $, esc, ICONS, isoNow, readJSON, readLocal, writeLocal, reduceMotion, buzz } from "./util.js";
 import { LANGUAGES, GENRES, card, meta, posterStyle, thumb, ratingText, ratingClass, genreList } from "./films.js";
 import { attach, fly, springBack } from "./drag.js";
+import { createRefiner } from "./refiner.js";
+import { createAI } from "./ai.js";
 import { caller, createRoom, lobbyView, swipeView, matchedView, notice, nameSheet, bindSwipe } from "./room.js";
 
 const SWIPE = "ortus.swipe";
 const LOG = "ortus.log";
-const VIEWS = ["recommend", "watchlist", "log", "match"];
+const VIEWS = ["recommend", "watchlist", "log", "match", "refiner", "ai"];
 const ADDED = ["Any time", "This week", "This month"];
 const SORTS = ["Rating", "Recently logged", "Title", "Year"];
 
@@ -134,6 +136,29 @@ function logRecord(film, rating, comment) {
 function putSwipe(film, verdict) {
   store.put(SWIPE, String(film.tmdb), swipeRecord(film, verdict));
 }
+
+function openTonight(film) {
+  go("recommend");
+  putSwipe(film, "super");
+  ui.swiped.add(film.tmdb);
+  ui.queue = ui.queue.filter((f) => f.tmdb !== film.tmdb);
+  ui.pick = film;
+  render();
+}
+
+const refiner = createRefiner({
+  render: () => render(),
+  toast: (text) => toast(text),
+  saveLog: (film, rating) => store.put(LOG, String(film.tmdb), logRecord(film, rating, "")),
+  resetDeck: () => resetDeck(),
+  go: (view) => go(view),
+});
+
+const ai = createAI({
+  render: () => render(),
+  toast: (text) => toast(text),
+  superlike: (film) => openTonight(film),
+});
 
 function tonight() {
   const t = readJSON("fabula.tonight", null);
@@ -570,7 +595,7 @@ function sidebar() {
   return `<div class="scrim" data-act="nav-close"></div>
   <nav class="side" aria-label="Fabula">
     <div class="sidebrand"><img src="logo-96.png" alt=""><span>Fabula</span></div>
-    ${item("recommend", ICONS.cards, "Recommend")}${item("watchlist", ICONS.bookmark, "Watchlist")}${item("log", ICONS.list, "Log")}${item("match", ICONS.people, "Match")}
+    ${item("recommend", ICONS.cards, "Recommend")}${item("log", ICONS.list, "Log")}${item("refiner", ICONS.sliders, "Refiner")}${item("ai", ICONS.sparkle, "AI Mode")}
     <div class="credit">Film data from TMDB · Streaming data from JustWatch</div>
   </nav>`;
 }
@@ -589,6 +614,7 @@ function viewConnect() {
 
 function render() {
   const app = $("#app");
+  const focused = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.act ? document.activeElement.dataset : null;
   if (!store.signedIn()) {
     app.innerHTML = viewConnect();
     return;
@@ -598,7 +624,7 @@ function render() {
     return;
   }
   ui.stale = false;
-  const views = { recommend: viewRecommend, watchlist: viewWatchlist, log: viewLog, match: viewMatch };
+  const views = { recommend: viewRecommend, watchlist: viewWatchlist, log: viewLog, match: viewMatch, refiner: refiner.view, ai: ai.view };
   let html = views[ui.view]();
   if (ui.sheet) {
     const t = ui.sheet.type;
@@ -618,6 +644,10 @@ function render() {
     requestAnimationFrame(() => wrap.classList.toggle("open", ui.nav));
   }
   bind();
+  if (focused && document.activeElement === document.body) {
+    const again = [...document.querySelectorAll("[data-act]")].find((n) => n.dataset.act === focused.act && n.dataset.v === focused.v && !n.disabled);
+    if (again) again.focus({ preventScroll: true });
+  }
 }
 
 function bind() {
@@ -783,9 +813,10 @@ function watchMatched() {
 
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]");
-  if (!el) return;
+  if (!el) return refiner.tap(e.target);
   if (el.classList.contains("sheet") && e.target.closest("[data-stop]")) return;
   const v = el.dataset.v;
+  if (refiner.act(el.dataset.act, v) || ai.act(el.dataset.act, v)) return;
   switch (el.dataset.act) {
     case "nav":
       ui.nav = true;
@@ -903,6 +934,7 @@ document.addEventListener("click", (e) => {
 document.addEventListener("input", (e) => {
   const t = e.target;
   const kind = t.dataset && t.dataset.input;
+  if (refiner.input(t) || ai.input(t)) return;
   if (kind === "comment" && ui.sheet) ui.sheet.comment = t.value;
   if (kind === "add-q" && ui.sheet && ui.sheet.type === "add") searchFilms(t.value);
   if (kind === "log-q") {
@@ -927,6 +959,7 @@ document.addEventListener("focusout", () => {
 document.addEventListener("submit", (e) => {
   e.preventDefault();
   const form = e.target;
+  if (ai.submit(form)) return;
   if (form.dataset.form === "name") {
     const name = String(new FormData(form).get("name") || "").trim().slice(0, 20);
     if (!name) return;
