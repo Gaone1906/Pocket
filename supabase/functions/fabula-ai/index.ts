@@ -175,23 +175,44 @@ async function mood(text: string, notes: string[], shown: number[]) {
     disliked.length ? `Disliked:\n${disliked.map(line).join("\n")}` : "",
     `Already seen or swiped (never suggest): ${[...logs, ...swipes].map((d: any) => d.title).filter(Boolean).join("; ")}`,
     (shownRows || []).length ? `Already shown tonight (never suggest again): ${(shownRows || []).map((m: any) => `${m.title} (${m.year})`).join("; ")}` : "",
-    `Fill the answer: {"films": [8 items of {"title": exact English release title, "year": release year, "why": one sentence under 18 words tying it to the mood}]}`,
+    `Fill the answer: {"films": [12 items of {"title": exact English release title, "year": release year, "why": one sentence under 18 words tying it to the mood}]}`,
   ].filter(Boolean).join("\n\n");
-  const out = await haiku("mood", system, user, 1800, MOOD_SCHEMA);
-  const ideas = (Array.isArray(out.films) ? out.films : Array.isArray(out) ? out : []).slice(0, 10);
-  const resolved = await Promise.all(ideas.map(async (f: any) => {
-    const title = clean(f.title, 120);
-    if (!title || seenTitles.has(norm(title))) return null;
-    try {
-      const m = await find(title, Number(f.year) || null);
-      if (!m || seenIds.has(m.tmdb) || shownSet.has(m.tmdb)) return null;
-      const { imdb_rating, imdb_votes, ...rest } = m;
-      return { ...rest, imdb: (imdb_votes ?? 0) >= 1000 ? imdb_rating : null, cast: (m.cast || []).slice(0, 3), why: clean(f.why, 200) };
-    } catch { return null; }
-  }));
   const films: any[] = [];
   const ids = new Set<number>();
-  for (const m of resolved) if (m && !ids.has(m.tmdb)) { ids.add(m.tmdb); films.push(m); }
+  const ruledOut: string[] = [];
+  for (let round = 1; round <= 3 && films.length < 4; round++) {
+    const ask = round === 1 ? user : `${user}\n\nThese were already ruled out, so suggest different films: ${ruledOut.join("; ")}`;
+    const out = await haiku("mood", system, ask, 2200, MOOD_SCHEMA);
+    const ideas = (Array.isArray(out.films) ? out.films : []).slice(0, 12);
+    let seen = 0, missing = 0, dup = 0;
+    const resolved = await Promise.all(ideas.map(async (f: any) => {
+      const title = clean(f.title, 120);
+      if (!title) return null;
+      const label = `${title} (${Number(f.year) || "?"})`;
+      if (seenTitles.has(norm(title))) { seen++; ruledOut.push(label); return null; }
+      try {
+        const m = await find(title, Number(f.year) || null);
+        if (!m) { missing++; ruledOut.push(label); return null; }
+        if (seenIds.has(m.tmdb) || shownSet.has(m.tmdb)) { seen++; ruledOut.push(label); return null; }
+        const { imdb_rating, imdb_votes, ...rest } = m;
+        return { ...rest, imdb: (imdb_votes ?? 0) >= 1000 ? imdb_rating : null, cast: (m.cast || []).slice(0, 3), why: clean(f.why, 200) };
+      } catch (e) {
+        missing++;
+        ruledOut.push(label);
+        console.warn(JSON.stringify({ event: "fabula_ai_mood_find_failed", title, year: f.year, error: String((e as Error).message || e) }));
+        return null;
+      }
+    }));
+    for (const m of resolved) {
+      if (!m) continue;
+      if (ids.has(m.tmdb)) { dup++; continue; }
+      ids.add(m.tmdb);
+      films.push(m);
+      ruledOut.push(`${m.title} (${m.year})`);
+    }
+    console.log(JSON.stringify({ event: "fabula_ai_mood_round", round, mood: text.slice(0, 80), ideas: ideas.length, seen, missing, dup, kept: films.length }));
+  }
+  if (films.length < 4) console.warn(JSON.stringify({ event: "fabula_ai_mood_short", mood: text.slice(0, 80), kept: films.length }));
   return { films: films.slice(0, 4) };
 }
 
