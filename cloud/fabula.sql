@@ -27,6 +27,7 @@ create table if not exists public.movies (
 );
 create index if not exists movies_year on public.movies(year);
 create index if not exists movies_language on public.movies(language);
+create index if not exists movies_collection on public.movies(collection) where collection is not null;
 alter table public.movies enable row level security;
 create policy movies_read on public.movies for select to anon, authenticated using (true);
 grant select on public.movies to anon, authenticated;
@@ -77,11 +78,15 @@ select cron.schedule('fabula-ingest', '*/2 * * * *', $$select net.http_post(url 
 
 create or replace function public.fabula_deck(p_langs text[] default null, p_genres text[] default null, p_limit integer default 20, p_exclude integer[] default '{}')
 returns jsonb
-language sql
+language plpgsql
 stable
 security definer
 set search_path = public
+set work_mem = '32MB'
+set plan_cache_mode = force_custom_plan
 as $$
+begin
+return (
 with recs_live as (
   select kind, data from records
   where user_id = '00000000-0000-0000-0000-000000000000' and kind in ('ortus.log', 'ortus.swipe') and not coalesce(deleted, false)
@@ -124,7 +129,7 @@ loved as (
   select r2.tmdb, r2.title, r2.director, r2.recs, r2.r from r2 join logged using (tmdb) where r2.r >= 9
 ),
 cand as (
-  select m.* from movies m
+  select m.tmdb, m.title, m.year, m.genres, m.keywords, m.director, m."cast", m.collection, m.vote, m.votes from movies m
   where m.tmdb not in (select tmdb from seen where tmdb is not null)
     and lower(m.title) not in (select t from seen_titles)
     and not (m.tmdb = any(coalesce(p_exclude, '{}')))
@@ -140,6 +145,23 @@ cf as (
   union all select c.tmdb, 'd:' || c.director, 'd' from cand c where c.director is not null
   union all select c.tmdb, 'c:' || x, 'c' from cand c, unnest(c."cast"[1:4]) x
 ),
+taste as (
+  select data from records
+  where user_id = '00000000-0000-0000-0000-000000000000' and kind = 'ortus.taste' and id = 'book' and not coalesce(deleted, false)
+),
+taste_f as (
+  select f, sum(w) as w from (
+    select 'g:' || x as f, 1.0 as w from taste, jsonb_array_elements_text(coalesce(data->'likes'->'genres', '[]')) x
+    union all select 'd:' || x, 1.0 from taste, jsonb_array_elements_text(coalesce(data->'likes'->'directors', '[]')) x
+    union all select 'k:' || lower(x), 1.0 from taste, jsonb_array_elements_text(coalesce(data->'likes'->'keywords', '[]')) x
+    union all select 'g:' || x, -1.0 from taste, jsonb_array_elements_text(coalesce(data->'dislikes'->'genres', '[]')) x
+    union all select 'd:' || x, -1.0 from taste, jsonb_array_elements_text(coalesce(data->'dislikes'->'directors', '[]')) x
+    union all select 'k:' || lower(x), -1.0 from taste, jsonb_array_elements_text(coalesce(data->'dislikes'->'keywords', '[]')) x
+  ) t group by f
+),
+tb as (
+  select cf.tmdb, greatest(-3, least(3, sum(t.w))) as n from cf join taste_f t using (f) group by cf.tmdb
+),
 agg as (
   select cf.tmdb,
     avg(a.a) filter (where cf.t = 'g') as ga,
@@ -151,11 +173,13 @@ agg as (
 rb as (
   select x as tmdb, count(*) as n from loved, unnest(recs) x group by x
 ),
+first_part as (
+  select collection, min(year) as y from movies where collection is not null group by collection
+),
 seq as (
-  select c.tmdb from cand c
-  where c.collection is not null
-    and not exists (select 1 from r2 where r2.collection = c.collection)
-    and exists (select 1 from movies o where o.collection = c.collection and o.year < c.year)
+  select c.tmdb from cand c join first_part f on f.collection = c.collection
+  where c.year > f.y
+    and c.collection not in (select collection from r2 where collection is not null)
 ),
 scored as (
   select c.*,
@@ -164,11 +188,13 @@ scored as (
     + 0.3 * (coalesce(c.vote, 6.5) - 7)
     + 0.04 * ln(1 + coalesce(c.votes, 0))
     - case when seq.tmdb is not null then 0.4 else 0 end
+    + 0.25 * coalesce(tb.n, 0)
     + random() * 0.25 as score
   from cand c
   left join agg g on g.tmdb = c.tmdb
   left join rb on rb.tmdb = c.tmdb
   left join seq on seq.tmdb = c.tmdb
+  left join tb on tb.tmdb = c.tmdb
 ),
 dedup as (
   select distinct on (lower(title)) * from scored order by lower(title), score desc
@@ -185,8 +211,8 @@ explore as (
   order by random() limit greatest(0, p_limit - (select count(*) from top))
 ),
 picked as (
-  select *, rk::float as pos from top
-  union all select *, random() * greatest(1, round(p_limit * 0.8)) + 0.5 from explore
+  select m.*, t.rk::float as pos from top t join movies m using (tmdb)
+  union all select m.*, random() * greatest(1, round(p_limit * 0.8)) + 0.5 from explore e join movies m using (tmdb)
 )
 select coalesce(jsonb_agg(jsonb_build_object(
   'tmdb', p.tmdb, 'title', p.title, 'year', p.year, 'runtime', p.runtime, 'language', p.language,
@@ -199,5 +225,44 @@ select coalesce(jsonb_agg(jsonb_build_object(
   )
 ) order by p.pos), '[]'::jsonb)
 from picked p
+);
+end
 $$;
 grant execute on function public.fabula_deck(text[], text[], integer, integer[]) to anon, authenticated;
+
+create or replace function public.fabula_refine(p_langs text[] default null, p_genres text[] default null, p_limit integer default 10, p_exclude integer[] default '{}')
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+set plan_cache_mode = force_custom_plan
+as $$
+begin
+return (
+with done as (
+  select id from records
+  where user_id = '00000000-0000-0000-0000-000000000000' and kind in ('ortus.log', 'ortus.swipe', 'ortus.unseen') and not coalesce(deleted, false)
+),
+pool as (
+  select m.tmdb, m.title, m.year, m.director, m.overview, m.poster, m.language, m.genres, m.runtime, m.votes
+  from movies m
+  where m.tmdb::text not in (select id from done)
+    and not (m.tmdb = any(coalesce(p_exclude, '{}')))
+    and (p_langs is null or cardinality(p_langs) = 0 or m.language = any(p_langs))
+    and (p_genres is null or cardinality(p_genres) = 0 or m.genres && p_genres)
+  order by m.votes desc nulls last
+  limit 300
+),
+picked as (
+  select * from pool order by random() * ln(2 + coalesce(votes, 0)) desc limit greatest(1, least(p_limit, 30))
+)
+select coalesce(jsonb_agg(jsonb_build_object(
+  'tmdb', tmdb, 'title', title, 'year', year, 'director', director, 'overview', overview, 'poster', poster,
+  'language', language, 'genres', genres, 'runtime', runtime
+) order by votes desc nulls last), '[]'::jsonb)
+from picked
+);
+end
+$$;
+grant execute on function public.fabula_refine(text[], text[], integer, integer[]) to anon, authenticated;

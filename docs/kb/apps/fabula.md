@@ -24,9 +24,11 @@ Related: [../cloud-sync.md](../cloud-sync.md), [../web-pages.md](../web-pages.md
   all of TMDB (any language) through `fabula-tmdb` `search`, then `add`, then a rating sheet.
 - **Match** (web only): host creates a room and shares the link; friends open it, see a "What's your name?" sheet, then swipe the
   same 40 films. When every member has said yes to one film: "It's a match!".
-- **Sidebar** (from the logo): Recommend, Watchlist, Log, Match.
-- Mac: same Recommend card (drag with the mouse, or ← no, → yes, ↑ seen it, hold Space superlike, ⌘Z undo), Watchlist and Log in
-  the window rail. No Match on the Mac.
+- **Refiner**: pick Language and Genre chips (Any allowed), then rate 10 films at a time with 1-10 sliders; an untouched slider means not seen. "Continue: 10 more" saves the batch and loads 10 more; Stop saves it, asks `fabula-ai` `taste` for a new taste profile and shows Taste updated (counts, what changed, the one-line summary).
+- **AI Mode**: a mood box with four idea chips; `fabula-ai` `mood` returns up to 4 films with a `why` line. Fine-tune notes and "None of these, try again" start new rounds that never repeat a film; "This one" then "Watch X tonight" superlikes it and opens Tonight's pick.
+- **Sidebar** (from the logo): Recommend, Log, Refiner, AI Mode. Watchlist and Match are the round header buttons.
+- Mac: same Recommend card (drag with the mouse, or ← no, → yes, ↑ seen it, hold Space superlike, ⌘Z undo); the window rail
+  has Recommend, Watchlist, Log, Refiner and AI Mode. No Match on the Mac.
 
 ## Data
 
@@ -42,7 +44,10 @@ Personal data lives in the shared `records` table (fixed user, one row per item)
 | `ortus.log` | tmdb id | `{tmdb, title, year, rating (1-10, halves allowed), comment, poster, language, genres, director, runtime, logged, updated}` |
 | `ortus.swipe` | tmdb id | `{tmdb, verdict: yes \| no \| super \| seen, at, title, year, poster, language, genres, runtime, director, updated}` |
 
-Undo deletes the swipe row (`deleted: true`). Seen with a rating writes both a `seen` swipe and an `ortus.log`; Skip rating writes
+| `ortus.unseen` | tmdb id | `{tmdb, title, year, at, updated}`: Refiner sliders left untouched, so Refiner never shows them again; Recommend ignores them |
+| `ortus.taste` | `book` | `{summary, more, less, likes: {genres, directors, keywords}, dislikes: {...}, ratings, updated}`, written only by `fabula-ai` |
+
+Refiner ratings are ordinary `ortus.log` rows with `source: "refiner"`. Undo deletes the swipe row (`deleted: true`). Seen with a rating writes both a `seen` swipe and an `ortus.log`; Skip rating writes
 only the swipe. Watchlist = swipes `yes`/`super` with no log. The old `ortus.quote`, `ortus.story`, `ortus.reel` and `ortus.video`
 rows were deleted on 2026-11-22.
 
@@ -53,7 +58,10 @@ rows were deleted on 2026-11-22.
 soft no), treats swipes as pseudo-ratings (super 10, yes 8.8, no 7.0 fading over 90 days) at half weight, learns shrunk
 affinities for genres, keywords, director and top cast, boosts films TMDB recommends from films rated 9+, adds a quality prior,
 penalises sequels whose earlier parts are unseen, excludes everything logged or swiped (a no comes back after 180 days), and
-mixes about 20% exploration from ranks 40 to 400. Clients pass the ids already on screen as `p_exclude` and fetch more when 5
+mixes about 20% exploration from ranks 40 to 400. The `ortus.taste` likes and dislikes add or take 0.25 per matching genre,
+director or keyword (capped at 3 matches). It is plpgsql with custom plans and runs in about 0.6 s (the anon role times out at 3 s).
+`rpc/fabula_refine` (same filters, `p_limit`, `p_exclude`) picks Refiner films: the 300 most-voted matches not logged, swiped or
+unseen, sampled with a bias to more votes. Clients pass the ids already on screen as `p_exclude` and fetch more when 5
 cards are left.
 
 ## Edge functions
@@ -64,6 +72,10 @@ Base `https://oisplnonpwyvekcbwmhv.supabase.co/functions/v1/`, JSON `POST`, no J
   `{action: "add", tmdb}` → `{movie}` (fetches from TMDB and stores it in `movies` if missing). `ingest` and `import` need the
   admin token in `fabula_admin` and are run from the database only. The TMDB token is the `TMDB_TOKEN` function secret and is never
   stored anywhere else.
+- `fabula-ai` (needs the app's `apikey` header, checked against the REST API; calls Haiku with the `ANT_KEY` secret):
+  `{action: "mood", text, notes?, shown?}` → `{films: [deck-shaped film + why]}` (Haiku names films, matched to `movies` or
+  added through `fabula-tmdb`, minus anything logged, swiped or shown); `{action: "taste", fresh?}` → `{taste}` and saves
+  `ortus.taste`.
 - `fabula-match`: `create {name, langs?, genres?}` (needs the app's own `apikey` header; the function checks it against the REST
   API), `join {code, name}`, `state {code, member}`, `start {code, member}` (host only), `swipe {code, member, tmdb, yes}`,
   `leave {code, member}`. Every answer is the room state `{code, me, started, members: [{name, host, swiped, me}], deck, swiped,

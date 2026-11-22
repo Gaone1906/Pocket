@@ -1,0 +1,191 @@
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+const URL_ = Deno.env.get("SUPABASE_URL")!;
+const db = createClient(URL_, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+const USER = "00000000-0000-0000-0000-000000000000";
+const MODEL = "claude-haiku-5-5";
+const GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Family", "Fantasy", "History", "Horror", "Music", "Mystery", "Romance", "Sci-fi", "Thriller", "War", "Western"];
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-pocket-source",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+}
+
+async function keyValid(key: string | null) {
+  if (!key) return false;
+  const res = await fetch(`${URL_}/rest/v1/movies?select=tmdb&limit=1`, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+  return res.ok;
+}
+
+function clean(s: unknown, max: number) {
+  return String(s ?? "").replace(/[\u0000-\u001f]/g, " ").trim().slice(0, max);
+}
+
+function antKey() {
+  return (Deno.env.get("ANT_KEY") || "").trim().replace(/^["']|["']$/g, "").trim();
+}
+
+async function haiku(system: string, user: string, maxTokens: number) {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": antKey(), "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, system, messages: [{ role: "user", content: user }] }),
+  });
+  if (res.status === 401) throw new Error(`The ANT_KEY secret was refused (length ${antKey().length}, starts ${antKey().slice(0, 7)})`);
+  if (!res.ok) throw new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const out = await res.json();
+  const text = (out.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
+  const start = text.search(/[\[{]/);
+  const end = Math.max(text.lastIndexOf("}"), text.lastIndexOf("]"));
+  if (start < 0 || end < start) throw new Error("Model gave no JSON");
+  const raw = text.slice(start, end + 1);
+  try { return JSON.parse(raw); } catch { }
+  try { return JSON.parse(raw.replace(/,\s*([\]}])/g, "$1").replace(/[“”]/g, '"')); } catch { }
+  const films = [...text.matchAll(/\{[^{}]*?"title"\s*:\s*"((?:[^"\\]|\\.)*)"[^{}]*?\}/g)].map((m) => {
+    const block = m[0];
+    const year = block.match(/"year"\s*:\s*"?(\d{4})/);
+    const why = block.match(/"why"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    return { title: m[1], year: year ? Number(year[1]) : null, why: why ? why[1] : "" };
+  });
+  if (films.length) return { films };
+  throw new Error(`Model gave broken JSON: ${text.slice(0, 300)}`);
+}
+
+async function records(kinds: string[]) {
+  const { data, error } = await db.from("records").select("kind,id,data").eq("user_id", USER).in("kind", kinds).or("deleted.is.null,deleted.eq.false");
+  if (error) throw new Error(error.message);
+  return data || [];
+}
+
+function line(l: any) {
+  return `${l.title} (${l.year ?? "?"}) ${l.rating}/10${l.director ? `, ${l.director}` : ""}${l.genres?.length ? `, ${l.genres.slice(0, 3).join("/")}` : ""}`;
+}
+
+async function taste(fresh: number[]) {
+  const rows = await records(["ortus.log"]);
+  const logs = rows.map((r: any) => r.data).filter((d: any) => d && d.rating != null);
+  if (!logs.length) throw new Error("No ratings yet");
+  const freshSet = new Set(fresh);
+  const sorted = [...logs].sort((a: any, b: any) => b.rating - a.rating);
+  const recent = sorted.filter((l: any) => freshSet.has(l.tmdb));
+  const system = "You profile one person's film taste from their ratings. Scores are 1-10; their average sits near 8, so 7 is a soft no and 9+ is love. Answer with JSON only.";
+  const user = [
+    `All ratings (${logs.length}):`,
+    sorted.map(line).join("\n"),
+    recent.length ? `\nJust rated in this session:\n${recent.map(line).join("\n")}` : "",
+    `\nReturn JSON: {"summary": one sentence under 22 words in second person describing their taste, "more": up to 4 short labels (2-4 words) for what they should get more of, weighted toward this session, "less": up to 3 short labels for what to show less, "likes": {"genres": up to 3 from ${JSON.stringify(GENRES)}, "directors": up to 5 exact names, "keywords": up to 8 lowercase TMDB-style keywords like "twist ending"}, "dislikes": {"genres": up to 2 from the same list, "directors": up to 3, "keywords": up to 5}}`,
+  ].join("\n");
+  const t = await haiku(system, user, 1400);
+  const arr = (v: any, n: number, allow?: string[]) => (Array.isArray(v) ? v : []).map((x) => clean(x, 60)).filter((x) => x && (!allow || allow.includes(x))).slice(0, n);
+  const now = new Date().toISOString();
+  const data = {
+    summary: clean(t.summary, 220),
+    more: arr(t.more, 4),
+    less: arr(t.less, 3),
+    likes: { genres: arr(t.likes?.genres, 3, GENRES), directors: arr(t.likes?.directors, 5), keywords: arr(t.likes?.keywords, 8).map((k) => k.toLowerCase()) },
+    dislikes: { genres: arr(t.dislikes?.genres, 2, GENRES), directors: arr(t.dislikes?.directors, 3), keywords: arr(t.dislikes?.keywords, 5).map((k) => k.toLowerCase()) },
+    ratings: logs.length,
+    updated: now,
+  };
+  const { error } = await db.from("records").upsert({ user_id: USER, kind: "ortus.taste", id: "book", data, deleted: false, device: "fabula-ai" }, { onConflict: "user_id,kind,id" });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+function norm(s: string) {
+  return s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+async function tmdbFn(body: unknown) {
+  const res = await fetch(`${URL_}/functions/v1/fabula-tmdb`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  if (!res.ok) return null;
+  return await res.json();
+}
+
+const FIELDS = "tmdb,title,year,runtime,language,genres,director,cast,overview,poster,backdrop,vote,providers";
+
+async function find(title: string, y: number | null) {
+  const { data } = await db.from("movies").select(FIELDS).ilike("title", title.replace(/[%_]/g, "")).limit(5);
+  const hits = (data || []).filter((m: any) => norm(m.title) === norm(title));
+  const best = hits.sort((a: any, b: any) => Math.abs((a.year ?? 0) - (y ?? 0)) - Math.abs((b.year ?? 0) - (y ?? 0)))[0];
+  if (best && (!y || !best.year || Math.abs(best.year - y) <= 1)) return best;
+  const s = await tmdbFn({ action: "search", q: title, year: y || undefined });
+  const r = (s?.results || []).find((x: any) => norm(x.title) === norm(title) || norm(x.original_title || "") === norm(title)) || (s?.results || [])[0];
+  if (!r) return null;
+  const added = await tmdbFn({ action: "add", tmdb: r.tmdb });
+  const m = added?.movie;
+  if (!m) return null;
+  const out: any = {};
+  for (const k of FIELDS.split(",")) out[k] = m[k];
+  return out;
+}
+
+async function mood(text: string, notes: string[], shown: number[]) {
+  const rows = await records(["ortus.log", "ortus.swipe", "ortus.taste"]);
+  const logs = rows.filter((r: any) => r.kind === "ortus.log").map((r: any) => r.data).filter(Boolean);
+  const swipes = rows.filter((r: any) => r.kind === "ortus.swipe").map((r: any) => r.data).filter(Boolean);
+  const profile = rows.find((r: any) => r.kind === "ortus.taste" && r.id === "book")?.data;
+  const seenIds = new Set<number>([...logs, ...swipes].map((d: any) => Number(d.tmdb)).filter(Boolean));
+  const seenTitles = new Set<string>([...logs, ...swipes].map((d: any) => norm(String(d.title || ""))).filter(Boolean));
+  const shownSet = new Set(shown);
+  const loved = logs.filter((l: any) => l.rating >= 9).sort((a: any, b: any) => b.rating - a.rating).slice(0, 40);
+  const disliked = logs.filter((l: any) => l.rating <= 6.5).slice(0, 15);
+  const { data: shownRows } = shown.length ? await db.from("movies").select("title,year").in("tmdb", shown) : { data: [] };
+  const system = "You recommend films to one person for tonight. Match their mood first, their taste second. Prefer films that are easy to stream in India. Never suggest a film they have already seen or were already shown. Answer with JSON only.";
+  const user = [
+    `Mood: ${text}`,
+    notes.length ? `Follow-up notes, newest last:\n${notes.map((n) => `- ${n}`).join("\n")}` : "",
+    profile?.summary ? `Taste profile: ${profile.summary}` : "",
+    `Loved (9+):\n${loved.map(line).join("\n")}`,
+    disliked.length ? `Disliked:\n${disliked.map(line).join("\n")}` : "",
+    `Already seen or swiped (never suggest): ${[...logs, ...swipes].map((d: any) => d.title).filter(Boolean).join("; ")}`,
+    (shownRows || []).length ? `Already shown tonight (never suggest again): ${(shownRows || []).map((m: any) => `${m.title} (${m.year})`).join("; ")}` : "",
+    `Return JSON: {"films": [8 items of {"title": exact English release title, "year": release year, "why": one sentence under 18 words tying it to the mood}]}`,
+  ].filter(Boolean).join("\n\n");
+  const out = await haiku(system, user, 1800);
+  const ideas = (Array.isArray(out.films) ? out.films : Array.isArray(out) ? out : []).slice(0, 10);
+  const resolved = await Promise.all(ideas.map(async (f: any) => {
+    const title = clean(f.title, 120);
+    if (!title || seenTitles.has(norm(title))) return null;
+    try {
+      const m = await find(title, Number(f.year) || null);
+      if (!m || seenIds.has(m.tmdb) || shownSet.has(m.tmdb)) return null;
+      return { ...m, cast: (m.cast || []).slice(0, 3), why: clean(f.why, 200) };
+    } catch { return null; }
+  }));
+  const films: any[] = [];
+  const ids = new Set<number>();
+  for (const m of resolved) if (m && !ids.has(m.tmdb)) { ids.add(m.tmdb); films.push(m); }
+  return { films: films.slice(0, 4) };
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return json({ error: "POST only" }, 405);
+  let body: any;
+  try { body = await req.json(); } catch { return json({ error: "Body must be JSON" }, 400); }
+  if (!(await keyValid(req.headers.get("apikey")))) return json({ error: "Not allowed" }, 403);
+  try {
+    switch (body?.action) {
+      case "mood": {
+        const text = clean(body.text, 600);
+        if (text.length < 2) return json({ error: "Tell me the mood first" }, 400);
+        const notes = (Array.isArray(body.notes) ? body.notes : []).map((n: unknown) => clean(n, 300)).filter(Boolean).slice(-8);
+        const shown = (Array.isArray(body.shown) ? body.shown : []).map(Number).filter((n: number) => Number.isInteger(n) && n > 0).slice(-80);
+        return json(await mood(text, notes, shown));
+      }
+      case "taste": {
+        const fresh = (Array.isArray(body.fresh) ? body.fresh : []).map(Number).filter((n: number) => Number.isInteger(n) && n > 0).slice(0, 400);
+        return json({ taste: await taste(fresh) });
+      }
+      default:
+        return json({ error: "Unknown action" }, 400);
+    }
+  } catch (e) {
+    return json({ error: String((e as Error).message || e) }, 502);
+  }
+});

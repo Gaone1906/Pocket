@@ -40,7 +40,8 @@ struct CloudDocument {
                        metaKind: nil),
          CloudDocument(name: "ortus", file: PocketData.ortus,
                        collections: [CloudCollection(kind: "ortus.log", key: "logs", sortKey: nil, detachedId: true),
-                                     CloudCollection(kind: "ortus.swipe", key: "swipes", sortKey: nil, detachedId: true)],
+                                     CloudCollection(kind: "ortus.swipe", key: "swipes", sortKey: nil, detachedId: true),
+                                     CloudCollection(kind: "ortus.unseen", key: "unseen", sortKey: nil, detachedId: true)],
                        metaKind: nil)]
     }
 }
@@ -115,6 +116,17 @@ final class CloudSync: ObservableObject {
 
     func syncNow() {
         queue.async { [self] in sync() }
+    }
+
+    func syncNow(then done: @escaping (Bool) -> Void) {
+        guard signedIn else {
+            DispatchQueue.main.async { done(false) }
+            return
+        }
+        queue.async { [self] in
+            let ok = sync()
+            DispatchQueue.main.async { done(ok) }
+        }
     }
 
     func status() -> [String: Any] {
@@ -338,8 +350,9 @@ final class CloudSync: ObservableObject {
         return rows
     }
 
-    private func sync() {
-        guard signedIn else { return }
+    @discardableResult
+    private func sync() -> Bool {
+        guard signedIn else { return false }
         do {
             var state = loadState()
             let docs = CloudDocument.all
@@ -450,12 +463,15 @@ final class CloudSync: ObservableObject {
             if pushed > 0 || incoming.values.contains(where: { !$0.isEmpty }) {
                 note("pocket cloud synced pulled=\(pulled) applied=\(incoming.values.reduce(0) { $0 + $1.count }) pushed=\(pushed)")
             }
+            return true
         } catch let failure as CloudFailure {
             note("pocket cloud sync failed status=\(failure.status) error=\(failure.message)")
             DispatchQueue.main.async { self.problem = failure.message }
+            return false
         } catch {
             note("pocket cloud sync failed error=\(error.localizedDescription)")
             DispatchQueue.main.async { self.problem = error.localizedDescription }
+            return false
         }
     }
 }

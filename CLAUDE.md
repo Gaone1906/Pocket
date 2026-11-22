@@ -254,13 +254,13 @@ projects. Details in [docs/kb/apps/zenda.md](docs/kb/apps/zenda.md). Rules to ke
 
 ## Fabula app (formerly Ortus)
 
-Movie recommender (`⌥7`, app id `ortus`): Recommend (swipe), Watchlist, Log, and Match with friends on the web. Its app id,
+Movie recommender (`⌥7`, app id `ortus`): Recommend (swipe), Watchlist, Log, Refiner, AI Mode, and Match with friends on the web. Its app id,
 data file and record kinds still say `ortus`. Details in [docs/kb/apps/fabula.md](docs/kb/apps/fabula.md). Rules to keep true:
 - The film catalogue lives only in the `movies` table, filled by the `fabula-tmdb` edge function. Never hard-code films.
-- Personal data is `ortus.log` and `ortus.swipe` records, id = TMDB id. Both apps write them; merge by id, newer `updated` wins.
+- Personal data is `ortus.log`, `ortus.swipe` and `ortus.unseen` records, id = TMDB id (`ortus.taste` id `book` is server-written). Both apps write them; merge by id, newer `updated` wins.
 - Recommendations come only from `rpc/fabula_deck`, so the Mac and the web always agree. Change the scorer in
   `cloud/fabula.sql` and apply it to the database; never re-implement it in an app.
-- The TMDB token is the `TMDB_TOKEN` edge-function secret and nowhere else. Friend Match links never carry the anon key: friends
+- The TMDB token is the `TMDB_TOKEN` edge-function secret and the Anthropic key is `ANT_KEY`; neither lives anywhere else. Friend Match links never carry the anon key: friends
   reach the locked `match_*` tables only through `fabula-match`.
 - Keep the UI free of instructional or hint text (the owner's rule).
 
