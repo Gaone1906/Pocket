@@ -23,10 +23,15 @@ create table if not exists public.movies (
   collection integer,
   providers text[] not null default '{}',
   recs integer[] not null default '{}',
+  imdb_id text,
+  imdb_rating numeric(3,1),
+  imdb_votes integer,
   updated timestamptz not null default now()
 );
 create index if not exists movies_year on public.movies(year);
 create index if not exists movies_language on public.movies(language);
+alter table public.movies add column if not exists imdb_id text, add column if not exists imdb_rating numeric(3,1), add column if not exists imdb_votes integer;
+create index if not exists movies_imdb_id on public.movies(imdb_id) where imdb_id is not null;
 create index if not exists movies_collection on public.movies(collection) where collection is not null;
 alter table public.movies enable row level security;
 create policy movies_read on public.movies for select to anon, authenticated using (true);
@@ -217,7 +222,7 @@ picked as (
 select coalesce(jsonb_agg(jsonb_build_object(
   'tmdb', p.tmdb, 'title', p.title, 'year', p.year, 'runtime', p.runtime, 'language', p.language,
   'genres', p.genres, 'director', p.director, 'cast', p."cast"[1:3], 'overview', p.overview,
-  'poster', p.poster, 'backdrop', p.backdrop, 'vote', p.vote, 'providers', p.providers,
+  'poster', p.poster, 'backdrop', p.backdrop, 'vote', p.vote, 'imdb', case when p.imdb_votes >= 1000 then p.imdb_rating end, 'providers', p.providers,
   'why', (
     select 'Because you loved ' || l.title from loved l
     where p.tmdb = any(l.recs) or (p.director is not null and l.director = p.director)
