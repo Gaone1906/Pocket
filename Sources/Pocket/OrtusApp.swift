@@ -525,7 +525,11 @@ struct FabulaCardFace: View {
 
     private var info: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(film.meta).font(Fab.sans(12)).foregroundStyle(Fab.muted).lineLimit(1)
+            HStack(spacing: 8) {
+                Text(film.meta).font(Fab.sans(12)).foregroundStyle(Fab.muted).lineLimit(1)
+                Spacer(minLength: 0)
+                FabulaImdbLabel(rating: film.imdb, size: 12)
+            }
             if !film.overview.isEmpty {
                 Text(film.overview)
                     .font(Fab.sans(13))
@@ -738,7 +742,11 @@ struct FabulaRecommend: View {
     @ViewBuilder private func details(_ motion: FabulaMotion) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             if let film = deck.top {
-                Text(film.meta).font(Fab.sans(14)).foregroundStyle(Fab.muted)
+                HStack(spacing: 8) {
+                    Text(film.meta).font(Fab.sans(14)).foregroundStyle(Fab.muted)
+                    Spacer(minLength: 0)
+                    FabulaImdbLabel(rating: film.imdb, size: 14)
+                }
                 if !film.overview.isEmpty {
                     Text(film.overview).font(Fab.sans(19)).lineSpacing(5).foregroundStyle(Fab.ink)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1431,5 +1439,22 @@ struct FabulaGlance: View {
         .foregroundStyle(Fab.ink)
         .environment(\.colorScheme, .dark)
         .ignoresSafeArea()
+    }
+}
+
+struct FabulaImdbLabel: View {
+    let rating: Double?
+    let size: CGFloat
+
+    var body: some View {
+        if let rating {
+            HStack(spacing: 0) {
+                Text("IMDb: ").foregroundStyle(Fab.muted)
+                Text(String(format: "%.1f", rating)).fontWeight(.semibold).foregroundStyle(Fab.gold)
+                Text("/10").foregroundStyle(Fab.muted)
+            }
+            .font(Fab.sans(size))
+            .fixedSize()
+        }
     }
 }
