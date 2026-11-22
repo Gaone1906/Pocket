@@ -29,19 +29,26 @@ function antKey() {
   return (Deno.env.get("ANT_KEY") || "").trim().replace(/^["']|["']$/g, "").trim();
 }
 
-async function haiku(system: string, user: string, maxTokens: number) {
+async function ask(system: string, user: string, maxTokens: number) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": antKey(), "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, system, messages: [{ role: "user", content: user }] }),
+    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, system: `${system} Reply with the JSON object alone: no prose, no code fences.`, messages: [{ role: "user", content: user }] }),
   });
   if (res.status === 401) throw new Error(`The ANT_KEY secret was refused (length ${antKey().length}, starts ${antKey().slice(0, 7)})`);
   if (!res.ok) throw new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const out = await res.json();
   const text = (out.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
+  console.log(JSON.stringify({ fn: "fabula-ai", stop: out.stop_reason, blocks: (out.content || []).map((c: any) => c.type), chars: text.length, usage: out.usage }));
+  return { text, stop: String(out.stop_reason || "") };
+}
+
+async function haiku(system: string, user: string, maxTokens: number) {
+  let { text, stop } = await ask(system, user, maxTokens);
+  if (!/[\[{]/.test(text) || stop === "max_tokens") ({ text, stop } = await ask(system, user, maxTokens * 2));
   const start = text.search(/[\[{]/);
   const end = Math.max(text.lastIndexOf("}"), text.lastIndexOf("]"));
-  if (start < 0 || end < start) throw new Error("Model gave no JSON");
+  if (start < 0 || end < start) throw new Error(`Model gave no JSON (${stop}, ${text.length} chars)`);
   const raw = text.slice(start, end + 1);
   try { return JSON.parse(raw); } catch { }
   try { return JSON.parse(raw.replace(/,\s*([\]}])/g, "$1").replace(/[“”]/g, '"')); } catch { }
@@ -79,7 +86,7 @@ async function taste(fresh: number[]) {
     recent.length ? `\nJust rated in this session:\n${recent.map(line).join("\n")}` : "",
     `\nReturn JSON: {"summary": one sentence under 22 words in second person describing their taste, "more": up to 4 short labels (2-4 words) for what they should get more of, weighted toward this session, "less": up to 3 short labels for what to show less, "likes": {"genres": up to 3 from ${JSON.stringify(GENRES)}, "directors": up to 5 exact names, "keywords": up to 8 lowercase TMDB-style keywords like "twist ending"}, "dislikes": {"genres": up to 2 from the same list, "directors": up to 3, "keywords": up to 5}}`,
   ].join("\n");
-  const t = await haiku(system, user, 1400);
+  const t = await haiku(system, user, 3000);
   const arr = (v: any, n: number, allow?: string[]) => (Array.isArray(v) ? v : []).map((x) => clean(x, 60)).filter((x) => x && (!allow || allow.includes(x))).slice(0, n);
   const now = new Date().toISOString();
   const data = {
@@ -146,7 +153,7 @@ async function mood(text: string, notes: string[], shown: number[]) {
     (shownRows || []).length ? `Already shown tonight (never suggest again): ${(shownRows || []).map((m: any) => `${m.title} (${m.year})`).join("; ")}` : "",
     `Return JSON: {"films": [8 items of {"title": exact English release title, "year": release year, "why": one sentence under 18 words tying it to the mood}]}`,
   ].filter(Boolean).join("\n\n");
-  const out = await haiku(system, user, 1800);
+  const out = await haiku(system, user, 3000);
   const ideas = (Array.isArray(out.films) ? out.films : Array.isArray(out) ? out : []).slice(0, 10);
   const resolved = await Promise.all(ideas.map(async (f: any) => {
     const title = clean(f.title, 120);
