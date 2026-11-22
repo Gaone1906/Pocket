@@ -25,6 +25,7 @@ This knowledge base is the full context for agents working on Pocket, a macOS me
 | Aqua (weekly routines, built 2026-11-19) | ⌥3 | [apps/schedule.md](apps/schedule.md) |
 | Ventus (runs today's routines step by step, journal) | ⌥2 | [apps/kairos.md](apps/kairos.md) |
 | Terra (calories against daily, weekly and monthly goals) | ⌥4 | [apps/misura.md](apps/misura.md) |
+| Fabula (movie recommender, formerly Ortus; app id `ortus`) | ⌥7 | [apps/fabula.md](apps/fabula.md), Mac notes in [apps/ortus.md](apps/ortus.md) |
 | Calculator | ⌥C | [apps/calculator.md](apps/calculator.md) |
 | Scratchpad | ⌥N | [apps/scratchpad.md](apps/scratchpad.md) |
 | System Stats | none | [apps/stats.md](apps/stats.md) |

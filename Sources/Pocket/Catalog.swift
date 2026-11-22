@@ -87,7 +87,7 @@ let catalog: [AppSpec] = [
             glyph: Glyphs.luna, hotKey: UInt32(kVK_ANSI_5), web: nil),
     AppSpec(id: "zenda", name: "Zenda", summary: "Mindfulness projects: breathe, visualize, affirm and journal, and tick Aqua as you go", symbol: "circle.circle",
             glyph: Glyphs.zenda, hotKey: UInt32(kVK_ANSI_6), web: nil),
-    AppSpec(id: "ortus", name: "Ortus", summary: "Quotes, reels, videos and stories to get you going", symbol: "sunrise.fill",
+    AppSpec(id: "ortus", name: "Fabula", summary: "Films picked for you: swipe, keep a watchlist and log what you watched", symbol: "film",
             glyph: Glyphs.ortus, hotKey: UInt32(kVK_ANSI_7), web: nil),
     AppSpec(id: "calculator", name: "Calculator", summary: "Type or tap a calculation, see the answer live", symbol: "plusminus.circle",
             glyph: nil, hotKey: UInt32(kVK_ANSI_C), web: nil),
