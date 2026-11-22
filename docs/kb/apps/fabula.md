@@ -1,0 +1,85 @@
+# Fabula
+
+Fabula (app id `ortus`, Mac shortcut ⌥7) is the movie recommender that replaced the Ortus motivation app on 2026-11-22. Only the
+names people see say Fabula; the app id, data file, `DataVault` name and record kinds still say `ortus`. Logo: the rooster with a
+film-reel tail and a popcorn bucket (F2 without music notes). Web app at `/Pocket/fabula/` (`web/fabula/`); `/Pocket/ortus/`
+redirects there. Mockups: the "Fabula mockups" canvas.
+
+Related: [../cloud-sync.md](../cloud-sync.md), [../web-pages.md](../web-pages.md).
+
+## Screens
+
+- **Recommend**: one card at a time. Drag right stamps YES (green, top left), drag left stamps NOPE (red, top right), drag up
+  stamps SEEN IT; release past 110 px to commit, otherwise the card springs back. Swipe up opens the rating sheet (1 to 10 grid,
+  a comments box hinted "Tell us about the movie!", Skip rating, Save to Log). Hold still 0.6 s: the card shakes (0.5 s
+  side-to-side wobble) and turns gold = superlike, which opens Tonight's pick. An undo arrow sits at the top left of every card.
+  Header: logo + "Fabula" + chevron (tap opens the sidebar), then round icon buttons for Watchlist (bookmark) and Match (people).
+  Under the header two dropdown pills, Language and Genre, each opening a multi-select sheet. No other chips, no bottom bar,
+  no instructional text anywhere.
+- **Tonight's pick** (after a superlike): poster, title, year · runtime · director, the streaming line (Fraunces, green,
+  "Streaming on Prime Video in India" from `providers`), "Watch this tonight" and "Keep swiping", and the other yeses.
+- **Watchlist**: superlikes first (gold border), then yeses, newest first; pills Language, Genre, Added (Any time, This week,
+  This month).
+- **Log**: stats (films logged, your average, best decade), search, sort, list with rating and comment. "+ Add film" searches
+  all of TMDB (any language) through `fabula-tmdb` `search`, then `add`, then a rating sheet.
+- **Match** (web only): host creates a room and shares the link; friends open it, see a "What's your name?" sheet, then swipe the
+  same 40 films. When every member has said yes to one film: "It's a match!".
+- **Sidebar** (from the logo): Recommend, Watchlist, Log, Match.
+- Mac: same Recommend card (drag with the mouse, or ← no, → yes, ↑ seen it, hold Space superlike, ⌘Z undo), Watchlist and Log in
+  the window rail. No Match on the Mac.
+
+## Data
+
+`movies` table (read-only for anon, written only by edge functions): `tmdb` (pk), `title`, `original_title`, `year`, `released`,
+`runtime`, `lang` (ISO 639-1), `language` (English name, e.g. Hindi), `genres` (TMDB names, "Science Fiction" stored as "Sci-fi"),
+`keywords`, `director`, `cast` (top 6), `overview`, `poster`, `backdrop` (TMDB paths: `https://image.tmdb.org/t/p/w500` + path),
+`vote`, `votes`, `popularity`, `collection`, `providers` (India flatrate names), `recs` (TMDB recommendations ids), `updated`.
+
+Personal data lives in the shared `records` table (fixed user, one row per item):
+
+| kind | id | data |
+| --- | --- | --- |
+| `ortus.log` | tmdb id | `{tmdb, title, year, rating (1-10, halves allowed), comment, poster, language, genres, director, runtime, logged, updated}` |
+| `ortus.swipe` | tmdb id | `{tmdb, verdict: yes \| no \| super \| seen, at, title, year, poster, language, genres, runtime, director, updated}` |
+
+Undo deletes the swipe row (`deleted: true`). Seen with a rating writes both a `seen` swipe and an `ortus.log`; Skip rating writes
+only the swipe. Watchlist = swipes `yes`/`super` with no log. The old `ortus.quote`, `ortus.story`, `ortus.reel` and `ortus.video`
+rows were deleted on 2026-11-22.
+
+## Recommending
+
+`rpc/fabula_deck` (`p_langs text[]`, `p_genres text[]`, `p_limit int`, `p_exclude int[]`) returns a JSON array of films with a
+`why` line ("Because you loved …"). Both apps call it, so the Mac and the web always agree. It centres ratings on 8.1 (7 is a
+soft no), treats swipes as pseudo-ratings (super 10, yes 8.8, no 7.0 fading over 90 days) at half weight, learns shrunk
+affinities for genres, keywords, director and top cast, boosts films TMDB recommends from films rated 9+, adds a quality prior,
+penalises sequels whose earlier parts are unseen, excludes everything logged or swiped (a no comes back after 180 days), and
+mixes about 20% exploration from ranks 40 to 400. Clients pass the ids already on screen as `p_exclude` and fetch more when 5
+cards are left.
+
+## Edge functions
+
+Base `https://oisplnonpwyvekcbwmhv.supabase.co/functions/v1/`, JSON `POST`, no JWT needed.
+
+- `fabula-tmdb`: `{action: "search", q, year?}` → `{results: [{tmdb, title, original_title, year, language, poster, votes}]}`;
+  `{action: "add", tmdb}` → `{movie}` (fetches from TMDB and stores it in `movies` if missing). `ingest` and `import` need the
+  admin token in `fabula_admin` and are run from the database only. The TMDB token is the `TMDB_TOKEN` function secret and is never
+  stored anywhere else.
+- `fabula-match`: `create {name, langs?, genres?}` (needs the app's own `apikey` header; the function checks it against the REST
+  API), `join {code, name}`, `state {code, member}`, `start {code, member}` (host only), `swipe {code, member, tmdb, yes}`,
+  `leave {code, member}`. Every answer is the room state `{code, me, started, members: [{name, host, swiped, me}], deck, swiped,
+  matched, total}`. Rooms live in locked tables `match_room`, `match_member`, `match_swipe` that only the function can touch; a
+  `pg_cron` job deletes rooms 2 hours after a match or 12 hours after creation. Friend links are
+  `/Pocket/fabula/match.html#<code>` and never carry the anon key. Up to 8 people per room; joining closes when the host starts.
+
+## Catalogue
+
+Loaded by `fabula-tmdb` `ingest` on a `pg_cron` job (`fabula-ingest`, every minute, unscheduled when done): for each year 1990 to
+2026, the most-voted films with at least 200 votes (90 for 2024, 40 for 2025, 15 for 2026), plus Hindi, Telugu, Tamil,
+Malayalam and Kannada films with at least 20 votes (5 from 2025). Documentaries are skipped. Progress is `ingest_cursor` in
+`fabula_admin`. Any film logged through search is added on the fly.
+
+## Look
+
+Dark cinema: ground #17100D, surface #241914, raised #1F1511, line #3A2A22, ink #FBEDE5, muted #BFA294, faint #9C8173, accent
+#E8673C (hover #F2875F), accent wash #3A2118 with text #FBD3C2, gold #F2C14E (text on gold #2A1A05), yes #4CC283, no #F0785C.
+Fraunces 600/700 for titles and numbers, Inter 400/500/600 for everything else.
