@@ -15,7 +15,7 @@ Related: [../cloud-sync.md](../cloud-sync.md), [../web-pages.md](../web-pages.md
   side-to-side wobble) and turns gold = superlike, which opens Tonight's pick. An undo arrow sits at the top left of every card.
   The description shows three lines; tapping it opens it upward over the poster in 0.38 s while the poster dims to 72% black
   (web `toggleHook`, Mac menu-bar card `open`); tapping again folds it, and a new card starts folded. The tap never starts a drag.
-  Header: logo + "Fabula" + chevron (tap opens the sidebar), then round icon buttons for Watchlist (bookmark) and Match (people).
+  Header: logo + "Fabula" + chevron (tap opens the sidebar), then a round Watchlist button (bookmark).
   Under the header two dropdown pills, Language and Genre, each opening a multi-select sheet. No other chips, no bottom bar,
   no instructional text anywhere.
 - **Tonight's pick** (after a superlike): poster, title, year · runtime · director, the streaming line (Fraunces, green,
@@ -28,7 +28,7 @@ Related: [../cloud-sync.md](../cloud-sync.md), [../web-pages.md](../web-pages.md
   same 40 films. When every member has said yes to one film: "It's a match!".
 - **Refiner**: pick Language and Genre chips (Any allowed), then rate 10 films at a time with 1-10 sliders; an untouched slider means not seen. "Continue: 10 more" saves the batch and loads 10 more; Stop saves it, asks `fabula-ai` `taste` for a new taste profile and shows Taste updated (counts, what changed, the one-line summary).
 - **AI Mode**: a mood box with four idea chips; `fabula-ai` `mood` returns up to 4 films with a `why` line. Fine-tune notes and "None of these, try again" start new rounds that never repeat a film; "This one" then "Watch X tonight" superlikes it and opens Tonight's pick.
-- **Sidebar** (from the logo): Recommend, Log, Refiner, AI Mode. Watchlist and Match are the round header buttons.
+- **Sidebar** (from the logo): Recommend, Log, Refiner, AI Mode, and at the bottom a highlighted Watch Party button (the web's Match screen, titled "Watch Party"). No credit line. Watchlist is the round header button.
 - Mac: same Recommend card (drag with the mouse, or ← no, → yes, ↑ seen it, hold Space superlike, ⌘Z undo); the window rail
   has Recommend, Watchlist, Log, Refiner and AI Mode. No Match on the Mac.
 
