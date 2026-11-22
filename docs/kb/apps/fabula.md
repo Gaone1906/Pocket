@@ -24,9 +24,14 @@ Related: [../cloud-sync.md](../cloud-sync.md), [../web-pages.md](../web-pages.md
   all of TMDB (any language) through `fabula-tmdb` `search`, then `add`, then a rating sheet.
 - **Match** (web only): host creates a room and shares the link; friends open it, see a "What's your name?" sheet, then swipe the
   same 40 films. When every member has said yes to one film: "It's a match!".
-- **Sidebar** (from the logo): Recommend, Watchlist, Log, Match.
-- Mac: same Recommend card (drag with the mouse, or ← no, → yes, ↑ seen it, hold Space superlike, ⌘Z undo), Watchlist and Log in
-  the window rail. No Match on the Mac.
+- **Refiner**: pick Language and Genre chips (multi-select, Any clears the rest), then rate 10 films at a time on 1 to 10
+  sliders; an untouched slider means "Not seen". Continue saves touched ratings as `ortus.log` rows and loads 10 more; Stop
+  saves, sends the whole session to `fabula-ai` `taste` and shows Taste updated (what changed, a one-line summary).
+- **AI Mode**: type a mood (or tap an idea chip), Haiku suggests 4 films as cards. Pick one ("Watch X tonight" superlikes it and
+  opens Tonight's pick), add a fine-tune note for the next round, or "None of these, try again".
+- **Sidebar** (from the logo): Recommend, Log, Refiner, AI Mode. Watchlist and Match are header buttons.
+- Mac: same Recommend card (drag with the mouse, or ← no, → yes, ↑ seen it, hold Space superlike, ⌘Z undo); rail has Recommend,
+  Watchlist, Log, Refiner, AI Mode (`FabulaRefiner.swift`, `FabulaAI.swift`). No Match on the Mac.
 
 ## Data
 
@@ -53,7 +58,9 @@ rows were deleted on 2026-11-22.
 soft no), treats swipes as pseudo-ratings (super 10, yes 8.8, no 7.0 fading over 90 days) at half weight, learns shrunk
 affinities for genres, keywords, director and top cast, boosts films TMDB recommends from films rated 9+, adds a quality prior,
 penalises sequels whose earlier parts are unseen, excludes everything logged or swiped (a no comes back after 180 days), and
-mixes about 20% exploration from ranks 40 to 400. Clients pass the ids already on screen as `p_exclude` and fetch more when 5
+mixes about 20% exploration from ranks 40 to 400. It also adds `0.8 * clamp(sum of matching taste weights, -1, 1)` from
+`fabula_taste.weights` (keys `g:<genre>`, `k:<keyword>`, `d:<director>`, `l:<language>`, each -1..1), written by Refiner's
+Stop. Clients pass the ids already on screen as `p_exclude` and fetch more when 5
 cards are left.
 
 ## Edge functions
@@ -70,6 +77,14 @@ Base `https://oisplnonpwyvekcbwmhv.supabase.co/functions/v1/`, JSON `POST`, no J
   matched, total}`. Rooms live in locked tables `match_room`, `match_member`, `match_swipe` that only the function can touch; a
   `pg_cron` job deletes rooms 2 hours after a match or 12 hours after creation. Friend links are
   `/Pocket/fabula/match.html#<projectRef>.<code>` (the Supabase subdomain from the host's setup link, so no project URL is in the repo) and never carry the anon key. Up to 8 people per room; joining closes when the host starts.
+
+- `fabula-ai` (Haiku `claude-haiku-5-5`, key in the `ANT_KEY` secret):
+  `{action: "refine", langs, genres, exclude}` → `{films}` (10, no AI; calls `rpc/fabula_refine`: top 300 by votes after
+  filters, random pick, never logged, swiped, in `fabula_refined` or excluded);
+  `{action: "taste", rated: [{tmdb, rating}], unseen}` → `{summary, changes: [{label, dir, strength}]}` (stores `unseen` in
+  `fabula_refined`, upserts row 1 of `fabula_taste`);
+  `{action: "mood", text, notes, exclude}` → `{films}` (up to 4, `why` from Haiku; titles resolved against `movies`, TMDB
+  search + add on a miss). Errors are `{error}` with 400 or 502. `fabula_refined` and `fabula_taste` are anon read-only.
 
 ## Catalogue
 
