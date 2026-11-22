@@ -126,10 +126,13 @@ Harshi ("Momo"). It has no Mac half. It uses the same setup link as the other we
 - **Edge functions.** `fabula-ai` takes `body.who` (`pranav` by default, or `momo`) for `taste` and `mood`, and saves the taste
   as `<prefix>.taste`. `fabula-match` `create` takes `who`.
 - **Guided refiner.** On first launch MomoFlix opens the guide: a bottom sheet "Hi Momo!" with the welcome text, which Okay
-  drops. The list of 120 films (40 English, 40 Hindi, 40 Telugu) lives in the database as the `momo.guide` record id `list`
-  under her user id, shaped `{"langs": [{"name", "tmdb": [ids]}], "batch": 10}`; change it with a db edit, never in code.
-  Films load through `fabula_films`. She rates 10 at a time with sliders; an untouched slider is Not seen, saved as
-  `momo.unseen`, and still counts toward the language's 40. Finishing writes `momo.guide` id `done`, calls `fabula-ai`
+  drops. Each language (English, Hindi, Telugu) takes 40 answers. The `momo.guide` record id `list` under her user id holds
+  only the start: `{"langs": [{"name", "per": 40, "seed": [10 TMDB ids]}], "batch": 10}`; change it with a db edit, never in code.
+  Seed films load through `fabula_films`. Every later batch of 10 comes live from `rpc/fabula_guide(p_who, p_lang, p_limit,
+  p_exclude)`: from the 300 most-voted films in that language she hasn't answered, it ranks by affinity to her ratings so far
+  (genres, keywords, director, centred on her mean) plus popularity and some randomness. She rates with sliders; an untouched
+  slider is Not seen, saved as `momo.unseen`, and still counts toward the 40. Guide answers carry `guide: <language>`. If a
+  language runs out of films it is skipped. Finishing writes `momo.guide` id `done`, calls `fabula-ai`
   `taste` with `who` `momo`, shows "Got it, Momo!", and then the full app unlocks.
 - **Look.** Pastel rose in `momo.css` over `../fabula/style.css`: ground #F9D9DF, cards #FFF4F5, ink #4A1520, red accent
   #D6334A, Fredoka for headings. The logo is Momo's chibi sticker on a pastel rose-to-red background. The name is spelled

@@ -790,12 +790,12 @@ function viewConnect() {
   </main>`;
 }
 
-const guide = { cache: {}, scores: {}, loading: false, error: "", batch: [], ready: false, dropping: false, taste: null, tasteLoading: false, tasteError: "", seq: 0 };
+const guide = { cache: {}, scores: {}, loading: false, error: "", batch: null, ready: false, dropping: false, taste: null, tasteLoading: false, tasteError: "", seq: 0, short: {} };
 
 function guideList() {
   const d = store.get(GUIDE, "list");
   if (!d || !Array.isArray(d.langs)) return null;
-  return d.langs.map((l) => ({ name: String(l.name || ""), ids: (Array.isArray(l.tmdb) ? l.tmdb : []).map(Number).filter(Boolean) }));
+  return d.langs.map((l) => ({ name: String(l.name || ""), per: Number(l.per) || 40, seed: (Array.isArray(l.seed) ? l.seed : []).map(Number).filter(Boolean) }));
 }
 
 function guideDone() {
@@ -806,15 +806,28 @@ function guideAnswered(id) {
   return !!(store.get(LOG, String(id)) || store.get(UNSEEN, String(id)));
 }
 
+function guideRecords() {
+  return [...store.all(LOG), ...store.all(UNSEEN)].filter((d) => d && d.guide);
+}
+
 function guideState() {
   const langs = guideList();
   if (!langs) return null;
-  const counts = langs.map((l) => l.ids.filter(guideAnswered).length);
-  const stage = counts.findIndex((c, i) => c < langs[i].ids.length);
+  const mine = guideRecords();
+  const counts = langs.map((l) => Math.min(l.per, mine.filter((d) => d.guide === l.name).length));
+  const stage = langs.findIndex((l, i) => counts[i] < l.per && !guide.short[l.name]);
   const total = counts.reduce((a, b) => a + b, 0);
-  const all = langs.reduce((a, l) => a + l.ids.length, 0);
-  const next = stage < 0 ? [] : langs[stage].ids.filter((id) => !guideAnswered(id)).slice(0, 10);
-  return { langs, counts, stage, total, all, next };
+  const all = langs.reduce((a, l) => a + l.per, 0);
+  let next = [];
+  let need = 0;
+  if (stage >= 0) {
+    const l = langs[stage];
+    need = Math.min(10, l.per - counts[stage]);
+    const seedLeft = l.seed.filter((id) => !guideAnswered(id));
+    if (seedLeft.length) next = seedLeft.slice(0, need);
+    else if (guide.batch && guide.batch.lang === l.name) next = guide.batch.ids.filter((id) => !guideAnswered(id)).slice(0, need);
+  }
+  return { langs, counts, stage, total, all, next, need };
 }
 
 function guideGated() {
@@ -838,6 +851,31 @@ async function guideLoad(ids) {
   render();
 }
 
+async function guidePick(st) {
+  if (guide.loading) return;
+  const l = st.langs[st.stage];
+  guide.loading = true;
+  guide.error = "";
+  const seq = ++guide.seq;
+  try {
+    await store.pushNow();
+    const exclude = guideRecords().map((d) => Number(d.tmdb)).filter(Boolean);
+    const rows = await store.rpc("fabula_guide", { p_who: P.who, p_lang: l.name, p_limit: st.need, p_exclude: exclude });
+    const films = (Array.isArray(rows) ? rows : []).filter((f) => f && f.tmdb && !guideAnswered(f.tmdb));
+    for (const f of films) guide.cache[f.tmdb] = f;
+    if (seq === guide.seq) {
+      guide.batch = { lang: l.name, ids: films.map((f) => f.tmdb) };
+      if (!films.length) guide.short[l.name] = true;
+    }
+  } catch (e) {
+    guide.error = e.message || "Can't load movies";
+  }
+  if (seq !== guide.seq) return;
+  guide.loading = false;
+  if (guideState() && guideState().stage < 0) return guideFinish();
+  render();
+}
+
 function guideRow(f) {
   const id = String(f.tmdb);
   const s = guide.scores[id];
@@ -857,8 +895,8 @@ function guideHead(st) {
     ? st.langs
         .map((l, i) => {
           const c = st.counts[i];
-          const n = l.ids.length || 1;
-          return `<div class="gd-stage ${i === st.stage ? "on" : ""}"><div class="gd-bar"><i style="width:${Math.round((c / n) * 100)}%" class="${c >= n ? "full" : ""}"></i></div><span>${esc(l.name)} ${c}/${l.ids.length}</span></div>`;
+          const n = l.per || 1;
+          return `<div class="gd-stage ${i === st.stage ? "on" : ""}"><div class="gd-bar"><i style="width:${Math.round((c / n) * 100)}%" class="${c >= n ? "full" : ""}"></i></div><span>${esc(l.name)} ${c}/${l.per}</span></div>`;
         })
         .join("")
     : "";
@@ -875,22 +913,22 @@ function viewGuide() {
   if (!st || st.stage < 0) body = [0, 1, 2].map(() => rowSkeleton("rf-row")).join("");
   else {
     const films = st.next.map((id) => guide.cache[id]).filter(Boolean);
-    if (films.length < st.next.length) {
-      if (!guide.loading && !guide.error) queueMicrotask(() => guideLoad(st.next));
-      body = guide.error
-        ? `<div class="done quiet"><b>Can't load movies</b><span>${esc(guide.error)}</span><button class="btn" data-act="guide-retry">Try again</button></div>`
-        : [0, 1, 2, 3].map(() => rowSkeleton("rf-row")).join("");
+    if (guide.error) {
+      body = `<div class="done quiet"><b>Can't load movies</b><span>${esc(guide.error)}</span><button class="btn" data-act="guide-retry">Try again</button></div>`;
+    } else if (!st.next.length || films.length < st.next.length) {
+      if (!guide.loading) queueMicrotask(() => (st.next.length ? guideLoad(st.next) : guidePick(st)));
+      body = [0, 1, 2, 3].map(() => rowSkeleton("rf-row")).join("");
     } else {
       const l = st.langs[st.stage];
       const from = st.counts[st.stage] + 1;
-      const last = st.counts[st.stage] + films.length >= l.ids.length;
-      const after = st.langs.slice(st.stage + 1).find((x) => x.ids.some((id) => !guideAnswered(id)));
+      const last = st.counts[st.stage] + films.length >= l.per;
+      const after = st.langs.slice(st.stage + 1).find((x, j) => st.counts[st.stage + 1 + j] < x.per && !guide.short[x.name]);
       const label = !last ? "Next 10" : after ? `On to ${after.name}` : "Finish";
       body = `<h2 class="gd-title">${esc(l.name)} · ${from}–${from + films.length - 1}</h2>${films.map(guideRow).join("")}<button class="btn big gd-next" data-act="guide-next">${esc(label)}</button>`;
-      const upcoming = after && !last ? [] : after ? after.ids.filter((id) => !guideAnswered(id)).slice(0, 10) : [];
-      const more = l.ids.filter((id) => !guideAnswered(id) && !st.next.includes(id)).slice(0, 10);
-      const pre = [...more, ...upcoming].filter((id) => !guide.cache[id]);
-      if (pre.length && !guide.loading) queueMicrotask(() => guideLoad(pre));
+      if (after && last) {
+        const pre = after.seed.filter((id) => !guideAnswered(id) && !guide.cache[id]).slice(0, 10);
+        if (pre.length && !guide.loading) queueMicrotask(() => guideLoad(pre));
+      }
     }
   }
   const welcome = !readLocal(lk("welcomed"), "") || guide.dropping;
@@ -908,36 +946,40 @@ function viewGuide() {
 
 function guideSave(st) {
   const now = isoNow();
+  const lang = st.langs[st.stage].name;
   for (const id of st.next) {
     const f = guide.cache[id];
     if (!f) continue;
     const s = guide.scores[String(id)];
-    if (s) store.put(LOG, String(id), { ...logRecord(f, s, ""), source: "guide" });
-    else store.put(UNSEEN, String(id), { tmdb: f.tmdb, kind: kindOf(f), title: f.title || "", year: f.year ?? null, at: now, updated: now, source: "guide" });
+    if (s) store.put(LOG, String(id), { ...logRecord(f, s, ""), source: "guide", guide: lang });
+    else store.put(UNSEEN, String(id), { tmdb: f.tmdb, kind: kindOf(f), title: f.title || "", year: f.year ?? null, at: now, updated: now, source: "guide", guide: lang });
   }
   guide.scores = {};
+}
+
+function guideFinish() {
+  const now = isoNow();
+  store.put(GUIDE, "done", { at: now, updated: now });
+  guide.ready = true;
+  render();
+  guideTaste();
 }
 
 async function guideNext() {
   const st = guideState();
   if (!st || st.stage < 0) return;
   guideSave(st);
+  guide.batch = null;
   window.scrollTo(0, 0);
   const after = guideState();
-  if (after && after.stage < 0) {
-    const now = isoNow();
-    store.put(GUIDE, "done", { at: now, updated: now });
-    guide.ready = true;
-    render();
-    guideTaste();
-    return;
-  }
+  if (after && after.stage < 0) return guideFinish();
   render();
 }
 
 function guideRated() {
   const langs = guideList() || [];
-  return langs.map((l) => ({ name: l.name, ids: l.ids.filter((id) => store.get(LOG, String(id))) }));
+  const logs = store.all(LOG).filter((d) => d && d.guide);
+  return langs.map((l) => ({ name: l.name, ids: logs.filter((d) => d.guide === l.name).map((d) => d.tmdb) }));
 }
 
 async function guideTaste() {
@@ -1434,6 +1476,7 @@ document.addEventListener("click", (e) => {
       return guideNext();
     case "guide-retry":
       guide.error = "";
+      guide.loading = false;
       break;
     case "guide-go":
       guide.ready = false;

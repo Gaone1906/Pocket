@@ -271,7 +271,9 @@ data file and record kinds still say `ortus`. Details in [docs/kb/apps/fabula.md
   the person. The Mac app pulls by kind, so it never sees `momo.*`.
 - A new person gets a row in `fabula_user` and `fabula_prefix` (`cloud/fabula.sql`) and a folder with its own `profile.js`;
   never fork the app code.
-- MomoFlix's guided refiner list is data: the `momo.guide` record id `list` in the database. Change it with a db edit, never in code.
+- MomoFlix's guided refiner is data: the `momo.guide` record id `list` holds each language's 10 seed films and its count (40); every
+  later batch of 10 comes from `rpc/fabula_guide`, which adapts to her ratings. Change seeds with a db edit and the picker in
+  `cloud/fabula.sql`, never in app code.
 
 ## Rollin app
 

@@ -407,3 +407,82 @@ security definer
 set search_path = public
 as $$ select public.fabula_refine('movie', p_langs, p_genres, p_limit, p_exclude) $$;
 grant execute on function public.fabula_refine(text[], text[], integer, integer[]) to anon, authenticated;
+
+create or replace function public.fabula_guide(p_who text, p_lang text, p_limit integer default 10, p_exclude integer[] default '{}')
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+set plan_cache_mode = force_custom_plan
+as $$
+declare
+  u uuid := public.fabula_user(p_who);
+  pre text := public.fabula_prefix(p_who);
+begin
+return (
+with recs as (
+  select kind, id, data from records
+  where user_id = u and kind in (pre || '.log', pre || '.swipe', pre || '.unseen') and not coalesce(deleted, false)
+),
+rated as (
+  select (data->>'tmdb')::int as tmdb, (data->>'rating')::numeric as r from recs where kind = pre || '.log' and data ? 'rating'
+),
+base as (
+  select coalesce(avg(r), 7.5) as mean from rated
+),
+r2 as (
+  select m.genres, m.keywords, m.director, rated.r - (select mean from base) as c from rated join movies m using (tmdb)
+),
+feat as (
+  select 'g:' || x as f, c from r2, unnest(genres) x
+  union all select 'k:' || x, c from r2, unnest(keywords) x
+  union all select 'd:' || director, c from r2 where director is not null
+),
+aff as (
+  select f, sum(c) / (count(*) + case left(f, 1) when 'g' then 2 when 'k' then 1.5 else 1 end) as a from feat group by f
+),
+pool as (
+  select m.tmdb, m.genres, m.keywords, m.director, m.votes from movies m
+  where m.kind = 'movie' and m.language = p_lang
+    and m.year between 1990 and 2026
+    and coalesce(m.runtime, 90) >= 60
+    and m.tmdb::text not in (select id from recs)
+    and not (m.tmdb = any(coalesce(p_exclude, '{}')))
+  order by m.votes desc nulls last
+  limit 300
+),
+top as (
+  select max(votes) as v from pool
+),
+cf as (
+  select p.tmdb, 'g:' || x as f, 'g' as t from pool p, unnest(p.genres) x
+  union all select p.tmdb, 'k:' || x, 'k' from pool p, unnest(p.keywords) x
+  union all select p.tmdb, 'd:' || p.director, 'd' from pool p where p.director is not null
+),
+agg as (
+  select cf.tmdb,
+    avg(a.a) filter (where cf.t = 'g') as ga,
+    sum(a.a) filter (where cf.t = 'k') as ka,
+    max(a.a) filter (where cf.t = 'd') as da
+  from cf join aff a using (f) group by cf.tmdb
+),
+scored as (
+  select p.tmdb,
+    0.9 * coalesce(g.ga, 0) + 0.4 * tanh(coalesce(g.ka, 0)) + 0.5 * coalesce(g.da, 0)
+    + 1.2 * ln(1 + coalesce(p.votes, 0)) / ln(2 + coalesce((select v from top), 1))
+    + random() * 0.6 as score
+  from pool p left join agg g on g.tmdb = p.tmdb
+),
+picked as (
+  select tmdb, score from scored order by score desc limit greatest(1, least(p_limit, 20))
+)
+select coalesce(jsonb_agg(jsonb_build_object(
+  'tmdb', m.tmdb, 'title', m.title, 'year', m.year, 'director', m.director, 'overview', m.overview, 'poster', m.poster,
+  'language', m.language, 'genres', m.genres, 'runtime', m.runtime, 'kind', m.kind
+) order by p.score desc), '[]'::jsonb)
+from picked p join movies m using (tmdb)
+);
+end
+$$;
+grant execute on function public.fabula_guide(text, text, integer, integer[]) to anon, authenticated;
