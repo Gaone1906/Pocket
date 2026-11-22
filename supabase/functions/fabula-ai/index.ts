@@ -137,7 +137,7 @@ async function tmdbFn(body: unknown) {
   return await res.json();
 }
 
-const FIELDS = "tmdb,title,year,runtime,language,genres,director,cast,overview,poster,backdrop,vote,providers";
+const FIELDS = "tmdb,title,year,runtime,language,genres,director,cast,overview,poster,backdrop,vote,providers,imdb_rating,imdb_votes";
 
 async function find(title: string, y: number | null) {
   const { data } = await db.from("movies").select(FIELDS).ilike("title", title.replace(/[%_]/g, "")).limit(5);
@@ -185,7 +185,8 @@ async function mood(text: string, notes: string[], shown: number[]) {
     try {
       const m = await find(title, Number(f.year) || null);
       if (!m || seenIds.has(m.tmdb) || shownSet.has(m.tmdb)) return null;
-      return { ...m, cast: (m.cast || []).slice(0, 3), why: clean(f.why, 200) };
+      const { imdb_rating, imdb_votes, ...rest } = m;
+      return { ...rest, imdb: (imdb_votes ?? 0) >= 1000 ? imdb_rating : null, cast: (m.cast || []).slice(0, 3), why: clean(f.why, 200) };
     } catch { return null; }
   }));
   const films: any[] = [];
