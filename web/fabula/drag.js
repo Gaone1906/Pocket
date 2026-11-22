@@ -49,7 +49,7 @@ export function attach(el, { up = false, onHold = null, onStart = null, onReleas
   let timer = null;
 
   el.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0 || e.target.closest("button, a, input")) return;
+    if (e.button !== 0 || e.target.closest("button, a, input, .hook")) return;
     sx = e.clientX;
     sy = e.clientY;
     dx = dy = 0;

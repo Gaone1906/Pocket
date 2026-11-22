@@ -303,11 +303,11 @@ function viewRecommend() {
   const top = ui.queue[0];
   let stage;
   if (top) {
-    stage = `${card(ui.queue[1])}${card(top, { top: true, undo: true, canUndo: ui.history.length > 0 })}`;
+    stage = `${card(ui.queue[1])}${card(top, { top: true, undo: true, canUndo: ui.history.length > 0, open: ui.hookOpen === top.tmdb })}`;
   } else if (ui.deckError) {
     stage = `<div class="plate"></div><div class="done"><b>Can't load films</b><span>${esc(ui.deckError)}</span><button class="btn" data-act="retry">Try again</button></div>`;
   } else if (ui.loading || !ui.exhausted) {
-    stage = `<div class="plate"></div><div class="card skeleton"><div class="face"><div class="poster"></div><div class="info"><span class="bar w60"></span><span class="bar"></span><span class="bar w80"></span></div></div></div>`;
+    stage = `<div class="plate"></div><div class="card skeleton"><div class="face"><div class="poster"></div><div class="lower"><div class="info"><span class="bar w60"></span><span class="bar"></span><span class="bar w80"></span></div></div></div></div>`;
   } else {
     stage = `<div class="plate"></div><div class="done"><b>That's every film for now</b>${
       ui.langs.length || ui.genres.length ? `<button class="btn ghost" data-act="clear-all">Clear filters</button>` : ""
@@ -786,6 +786,15 @@ function render() {
 
 function bind() {
   const top = $(".rec .card.top");
+  if (top && top.classList.contains("open")) {
+    const hook = top.querySelector(".hook");
+    if (hook) {
+      hook.style.transition = "none";
+      hookFit(top, hook);
+      hook.getBoundingClientRect();
+      hook.style.transition = "";
+    }
+  }
   if (top) {
     if (ui.enter && !reduceMotion()) top.classList.add("enter");
     ui.enter = false;
@@ -815,6 +824,31 @@ function bind() {
     const n = $('[data-input="name"]');
     if (n && document.activeElement !== n) n.focus();
   }
+}
+
+function hookFit(card, hook) {
+  if (!card.classList.contains("open")) {
+    hook.style.maxHeight = "";
+    return;
+  }
+  const face = card.querySelector(".face");
+  const title = card.querySelector(".ctitle");
+  const info = card.querySelector(".info");
+  const room = face.clientHeight - title.offsetHeight - (info.offsetHeight - hook.offsetHeight) - 64;
+  hook.style.maxHeight = `${Math.max(64, Math.min(hook.scrollHeight, room))}px`;
+}
+
+function toggleHook(hook) {
+  const card = hook.closest(".card.top");
+  if (!card) return;
+  const open = !card.classList.contains("open");
+  if (!open) hook.style.maxHeight = `${hook.offsetHeight}px`;
+  hook.getBoundingClientRect();
+  card.classList.toggle("open", open);
+  hook.setAttribute("aria-expanded", String(open));
+  ui.hookOpen = open ? Number(card.dataset.card) : null;
+  if (open) hookFit(card, hook);
+  else hook.style.maxHeight = "";
 }
 
 function toast(text) {
@@ -1133,6 +1167,8 @@ document.addEventListener("click", (e) => {
       return go(v);
     case "undo":
       return undo();
+    case "hook":
+      return toggleHook(el);
     case "retry":
       ui.deckError = "";
       return refill();
