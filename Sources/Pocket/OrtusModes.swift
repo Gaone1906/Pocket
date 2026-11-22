@@ -7,7 +7,8 @@ extension Fab {
 
 extension FabulaFilm {
     var byline: String {
-        [year.map { String($0) } ?? "", director].filter { !$0.isEmpty }.joined(separator: " · ")
+        if kind != .movie { return credits }
+        return [year.map { String($0) } ?? "", director].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     var cardURL: URL? { FabulaFormat.poster(poster, size: "w342") }
@@ -154,8 +155,18 @@ struct FabulaRefinerPick: View {
             Text("What would you like to refine?").font(Fab.serif(28))
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    group("Language", options: FabulaRefiner.languages, chosen: refiner.langs) { refiner.toggleLang($0) }
-                    group("Genre", options: FabulaRefiner.genres, chosen: refiner.genres) { refiner.toggleGenre($0) }
+                    VStack(alignment: .leading, spacing: 10) {
+                        FabulaKicker(text: "Type")
+                        FabulaFlow(spacing: 8) {
+                            ForEach(FabulaKind.allCases) { kind in
+                                FabulaChip(title: kind.name, on: refiner.kind == kind) { refiner.setKind(kind) }
+                            }
+                        }
+                    }
+                    if refiner.kind != .anime {
+                        group("Language", options: refiner.kind.refinerLanguages, chosen: refiner.langs) { refiner.toggleLang($0) }
+                    }
+                    group("Genre", options: refiner.kind.refinerGenres, chosen: refiner.genres) { refiner.toggleGenre($0) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 12)
@@ -303,7 +314,7 @@ struct FabulaRefinerDone: View {
     @ObservedObject var nav: FabulaNav
 
     private var counts: String {
-        "\(refiner.rated) \(refiner.rated == 1 ? "film" : "films") rated, \(refiner.skipped) not seen."
+        "\(refiner.rated) \(refiner.kind.noun(refiner.rated)) rated, \(refiner.skipped) not seen."
     }
 
     var body: some View {
@@ -435,6 +446,7 @@ struct FabulaAIView: View {
 
 struct FabulaAIMood: View {
     @ObservedObject var ai: FabulaAI
+    @ObservedObject private var deck = FabulaDeck.shared
 
     private var empty: Bool { ai.mood.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
@@ -449,6 +461,7 @@ struct FabulaAIMood: View {
                     .background(Circle().fill(Fab.wash))
                 Text("What are you in the mood for?").font(Fab.serif(28)).multilineTextAlignment(.center)
             }
+            FabulaKindSeg(deck: deck)
             HStack(spacing: 8) {
                 ForEach(FabulaAI.ideas, id: \.self) { idea in
                     Button { ai.mood = idea } label: {
@@ -475,7 +488,7 @@ struct FabulaAIMood: View {
                     .onSubmit { ai.find() }
                 Button { ai.find() } label: {
                     HStack(spacing: 8) {
-                        Text("Find films")
+                        Text("Find \(deck.kind.noun(2))")
                         Image(systemName: "arrow.right").font(.system(size: 14, weight: .bold))
                     }
                     .font(Fab.sans(15, .bold))

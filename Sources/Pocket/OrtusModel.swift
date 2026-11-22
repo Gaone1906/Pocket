@@ -62,6 +62,28 @@ enum FabulaFormat {
         return value.rounded() == value ? String(Int(value)) : String(format: "%.1f", value)
     }
 
+    static func count(_ value: Int?, _ one: String, _ many: String) -> String {
+        guard let value, value > 0 else { return "" }
+        return "\(value) \(value == 1 ? one : many)"
+    }
+
+    static func line(kind: FabulaKind, year: Int?, runtime: Int?, genres: [String], language: String, director: String, format: String,
+                     episodes: Int?, seasons: Int?, byline: Bool) -> String {
+        let when = year.map { String($0) } ?? ""
+        let tail = byline ? director : genres.prefix(2).joined(separator: ", ")
+        let parts: [String]
+        switch kind {
+        case .anime:
+            parts = [when, format, format == "Movie" ? Self.runtime(runtime) : count(episodes, "ep", "eps"), tail.isEmpty ? director : tail]
+        case .show:
+            parts = [when, count(seasons, "season", "seasons"), (runtime ?? 0) > 0 ? "\(runtime ?? 0)m" : "", tail,
+                     language == "English" ? "" : language]
+        case .movie:
+            parts = byline ? [when, Self.runtime(runtime), director] : [when, Self.runtime(runtime), tail, language == "English" ? "" : language]
+        }
+        return parts.filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
     static func added(_ text: String) -> String {
         guard let date = FabulaClock.date(text) else { return "" }
         let calendar = Calendar.current
@@ -77,6 +99,82 @@ enum FabulaFormat {
     }
 }
 
+enum FabulaKind: String, CaseIterable, Identifiable {
+    case movie, show, anime
+
+    static let defaultsKey = "fabula.kind"
+    private static let movieLanguages = ["English", "Hindi", "Telugu", "Tamil", "Malayalam", "Kannada", "Korean", "Japanese", "Spanish", "French"]
+    private static let movieGenres = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Family", "Fantasy", "Horror", "Mystery",
+                                      "Romance", "Sci-fi", "Thriller", "War"]
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .movie: return "Movies"
+        case .show: return "Shows"
+        case .anime: return "Anime"
+        }
+    }
+
+    func noun(_ count: Int = 1) -> String {
+        switch self {
+        case .movie: return count == 1 ? "film" : "films"
+        case .show: return count == 1 ? "show" : "shows"
+        case .anime: return "anime"
+        }
+    }
+
+    var languages: [String] {
+        switch self {
+        case .movie: return Self.movieLanguages
+        case .show: return ["English", "Korean", "Hindi"]
+        case .anime: return []
+        }
+    }
+
+    var genres: [String] {
+        switch self {
+        case .movie: return Self.movieGenres
+        case .show: return ["Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Family", "Fantasy", "Mystery", "Romance", "Sci-fi", "War"]
+        case .anime: return ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Horror", "Mystery", "Romance", "Sci-fi", "Slice of Life", "Sports",
+                             "Supernatural", "Thriller"]
+        }
+    }
+
+    var refinerLanguages: [String] {
+        self == .movie ? ["English", "Hindi", "Telugu", "Tamil", "Malayalam", "Kannada", "Korean", "Japanese", "Spanish"] : languages
+    }
+
+    var refinerGenres: [String] {
+        self == .movie ? ["Action", "Animation", "Comedy", "Crime", "Drama", "Fantasy", "Horror", "Mystery", "Romance", "Sci-fi", "Thriller", "War"] : genres
+    }
+
+    var searchMinimum: Int { self == .anime ? 3 : 2 }
+
+    func filterKey(_ name: String) -> String {
+        self == .movie ? "fabula.\(name)" : "fabula.\(name).\(rawValue)"
+    }
+
+    func saved(_ name: String, allowed: [String]) -> [String] {
+        (UserDefaults.standard.stringArray(forKey: filterKey(name)) ?? []).filter { allowed.contains($0) }
+    }
+
+    static var current: FabulaKind {
+        UserDefaults.standard.string(forKey: defaultsKey).flatMap(FabulaKind.init(rawValue:)) ?? .movie
+    }
+
+    static func of(_ kind: String?, id: Int) -> FabulaKind {
+        if let kind, let known = FabulaKind(rawValue: kind) { return known }
+        if id >= 200_000_000 { return .anime }
+        return id >= 100_000_000 ? .show : .movie
+    }
+
+    static func named(_ name: String) -> FabulaKind? {
+        allCases.first { $0.name == name }
+    }
+}
+
 enum FabulaVerdict: String {
     case yes
     case no
@@ -86,6 +184,7 @@ enum FabulaVerdict: String {
 
 struct FabulaFilm: Identifiable, Equatable {
     let tmdb: Int
+    let kind: FabulaKind
     let title: String
     let year: Int?
     let runtime: Int?
@@ -98,6 +197,10 @@ struct FabulaFilm: Identifiable, Equatable {
     let backdrop: String
     let vote: Double?
     let imdb: Double?
+    let mal: Double?
+    let seasons: Int?
+    let episodes: Int?
+    let format: String
     let providers: [String]
     let why: String
 
@@ -107,6 +210,7 @@ struct FabulaFilm: Identifiable, Equatable {
         guard let tmdb = FabulaLoose.int(raw["tmdb"]), tmdb > 0, let title = FabulaLoose.text(raw["title"]) else { return nil }
         self.tmdb = tmdb
         self.title = title
+        kind = FabulaKind.of(FabulaLoose.text(raw["kind"]), id: tmdb)
         year = FabulaLoose.int(raw["year"])
         runtime = FabulaLoose.int(raw["runtime"])
         language = FabulaLoose.text(raw["language"]) ?? ""
@@ -118,6 +222,10 @@ struct FabulaFilm: Identifiable, Equatable {
         backdrop = FabulaLoose.text(raw["backdrop"]) ?? ""
         vote = FabulaLoose.number(raw["vote"])
         imdb = FabulaLoose.number(raw["imdb"])
+        mal = FabulaLoose.number(raw["mal"]) ?? FabulaLoose.number(raw["mal_score"])
+        seasons = FabulaLoose.int(raw["seasons"])
+        episodes = FabulaLoose.int(raw["episodes"])
+        format = FabulaLoose.text(raw["format"]) ?? ""
         providers = FabulaLoose.texts(raw["providers"])
         why = FabulaLoose.text(raw["why"]) ?? ""
     }
@@ -126,13 +234,13 @@ struct FabulaFilm: Identifiable, Equatable {
     var thumbURL: URL? { FabulaFormat.poster(poster, size: "w185") }
 
     var meta: String {
-        [year.map { String($0) } ?? "", FabulaFormat.runtime(runtime), genres.prefix(2).joined(separator: ", "),
-         language == "English" ? "" : language]
-            .filter { !$0.isEmpty }.joined(separator: " · ")
+        FabulaFormat.line(kind: kind, year: year, runtime: runtime, genres: genres, language: language, director: director, format: format,
+                          episodes: episodes, seasons: seasons, byline: false)
     }
 
     var credits: String {
-        [year.map { String($0) } ?? "", FabulaFormat.runtime(runtime), director].filter { !$0.isEmpty }.joined(separator: " · ")
+        FabulaFormat.line(kind: kind, year: year, runtime: runtime, genres: genres, language: language, director: director, format: format,
+                          episodes: episodes, seasons: seasons, byline: true)
     }
 
     var people: String {
@@ -147,7 +255,10 @@ struct FabulaFilm: Identifiable, Equatable {
     }
 
     var record: [String: Any] {
-        var out: [String: Any] = ["tmdb": tmdb, "title": title, "language": language, "genres": genres]
+        var out: [String: Any] = ["tmdb": tmdb, "kind": kind.rawValue, "title": title, "language": language, "genres": genres]
+        if let seasons { out["seasons"] = seasons }
+        if let episodes { out["episodes"] = episodes }
+        if !format.isEmpty { out["format"] = format }
         out["year"] = Self.orNull(year)
         out["runtime"] = Self.orNull(runtime)
         out["poster"] = Self.orNull(poster)
@@ -172,6 +283,7 @@ struct FabulaHit: Identifiable {
     let original: String
     let year: Int?
     let language: String
+    let format: String
     let poster: String
 
     var id: Int { tmdb }
@@ -183,13 +295,14 @@ struct FabulaHit: Identifiable {
         original = FabulaLoose.text(raw["original_title"]) ?? ""
         year = FabulaLoose.int(raw["year"])
         language = FabulaLoose.text(raw["language"]) ?? ""
+        format = FabulaLoose.text(raw["format"]) ?? ""
         poster = FabulaLoose.text(raw["poster"]) ?? ""
     }
 
     var thumbURL: URL? { FabulaFormat.poster(poster, size: "w185") }
 
     var meta: String {
-        [year.map { String($0) } ?? "", language, original == title ? "" : original].filter { !$0.isEmpty }.joined(separator: " · ")
+        [year.map { String($0) } ?? "", format.isEmpty ? language : format, original == title ? "" : original].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
 
@@ -212,6 +325,10 @@ struct FabulaEntry: Identifiable {
     var genres: [String] { FabulaLoose.texts(raw["genres"]) }
     var director: String { FabulaLoose.text(raw["director"]) ?? "" }
     var runtime: Int? { FabulaLoose.int(raw["runtime"]) }
+    var kind: FabulaKind { FabulaKind.of(FabulaLoose.text(raw["kind"]), id: tmdb) }
+    var seasons: Int? { FabulaLoose.int(raw["seasons"]) }
+    var episodes: Int? { FabulaLoose.int(raw["episodes"]) }
+    var format: String { FabulaLoose.text(raw["format"]) ?? "" }
     var verdict: FabulaVerdict? { FabulaLoose.text(raw["verdict"]).flatMap(FabulaVerdict.init(rawValue:)) }
     var rating: Double? { FabulaLoose.number(raw["rating"]) }
     var comment: String { (raw["comment"] as? String) ?? "" }
@@ -233,7 +350,11 @@ struct FabulaEntry: Identifiable {
     }
 
     var meta: String {
-        [year.map { String($0) } ?? "", FabulaFormat.runtime(runtime), genres.first ?? "", language == "English" ? "" : language]
+        if kind != .movie {
+            return FabulaFormat.line(kind: kind, year: year, runtime: runtime, genres: genres, language: language, director: director, format: format,
+                                     episodes: episodes, seasons: seasons, byline: false)
+        }
+        return [year.map { String($0) } ?? "", FabulaFormat.runtime(runtime), genres.first ?? "", language == "English" ? "" : language]
             .filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
@@ -331,10 +452,10 @@ final class OrtusStore: ObservableObject {
         note("fabula book empty path=\(file.path)")
     }
 
-    var watchlist: [FabulaEntry] {
+    func watchlist(_ kind: FabulaKind) -> [FabulaEntry] {
         let logged = Set(logs.map(\.id))
         return swipes
-            .filter { ($0.verdict == .yes || $0.verdict == .superlike) && !logged.contains($0.id) }
+            .filter { ($0.verdict == .yes || $0.verdict == .superlike) && !logged.contains($0.id) && $0.kind == kind }
             .sorted { a, b in
                 if (a.verdict == .superlike) != (b.verdict == .superlike) { return a.verdict == .superlike }
                 return FabulaClock.newer(a.at, than: b.at)
@@ -399,7 +520,7 @@ final class OrtusStore: ObservableObject {
         let now = FabulaClock.now()
         var added = 0
         for film in films {
-            var raw: [String: Any] = ["id": String(film.tmdb), "tmdb": film.tmdb, "title": film.title, "at": now, "updated": now]
+            var raw: [String: Any] = ["id": String(film.tmdb), "tmdb": film.tmdb, "kind": film.kind.rawValue, "title": film.title, "at": now, "updated": now]
             raw["year"] = FabulaFilm.orNull(film.year)
             guard let entry = FabulaEntry(raw) else { continue }
             if !unseen.contains(where: { $0.id == entry.id }) { added += 1 }
@@ -541,19 +662,15 @@ struct FabulaMove {
 
 final class FabulaDeck: ObservableObject {
     static let shared = FabulaDeck()
-    static let langsKey = "fabula.langs"
-    static let genresKey = "fabula.genres"
-    static let languages = ["English", "Hindi", "Telugu", "Tamil", "Malayalam", "Kannada", "Korean", "Japanese", "Spanish", "French"]
-    static let genres = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Family", "Fantasy", "Horror", "Mystery",
-                         "Romance", "Sci-fi", "Thriller", "War"]
 
     @Published private(set) var cards: [FabulaFilm] = []
     @Published private(set) var loading = false
     @Published private(set) var failed = false
     @Published private(set) var history: [FabulaMove] = []
     @Published private(set) var tonight: [FabulaFilm] = []
-    @Published private(set) var langs: [String] = UserDefaults.standard.stringArray(forKey: FabulaDeck.langsKey) ?? []
-    @Published private(set) var genres: [String] = UserDefaults.standard.stringArray(forKey: FabulaDeck.genresKey) ?? []
+    @Published private(set) var kind: FabulaKind = FabulaKind.current
+    @Published private(set) var langs: [String] = FabulaKind.current.saved("langs", allowed: FabulaKind.current.languages)
+    @Published private(set) var genres: [String] = FabulaKind.current.saved("genres", allowed: FabulaKind.current.genres)
 
     private var ticket = 0
     private var stale = false
@@ -563,19 +680,30 @@ final class FabulaDeck: ObservableObject {
     var top: FabulaFilm? { cards.first }
     var canUndo: Bool { !history.isEmpty }
 
+    func setKind(_ value: FabulaKind) {
+        guard value != kind else { return }
+        kind = value
+        UserDefaults.standard.set(value.rawValue, forKey: FabulaKind.defaultsKey)
+        langs = value.saved("langs", allowed: value.languages)
+        genres = value.saved("genres", allowed: value.genres)
+        history = []
+        note("fabula kind changed kind=\(value.rawValue) langs=\(langs.count) genres=\(genres.count)")
+        reload(source: "kind")
+    }
+
     func setLangs(_ value: [String]) {
         guard value != langs else { return }
         langs = value
-        UserDefaults.standard.set(value, forKey: Self.langsKey)
-        note("fabula filter changed langs=\(value.joined(separator: ","))")
+        UserDefaults.standard.set(value, forKey: kind.filterKey("langs"))
+        note("fabula filter changed kind=\(kind.rawValue) langs=\(value.joined(separator: ","))")
         reload(source: "filter")
     }
 
     func setGenres(_ value: [String]) {
         guard value != genres else { return }
         genres = value
-        UserDefaults.standard.set(value, forKey: Self.genresKey)
-        note("fabula filter changed genres=\(value.joined(separator: ","))")
+        UserDefaults.standard.set(value, forKey: kind.filterKey("genres"))
+        note("fabula filter changed kind=\(kind.rawValue) genres=\(value.joined(separator: ","))")
         reload(source: "filter")
     }
 
@@ -607,13 +735,17 @@ final class FabulaDeck: ObservableObject {
         guard FabulaNet.connected else {
             loading = false
             failed = true
-            note("fabula deck skipped reason=not connected source=\(source)")
+            note("fabula deck skipped reason=not connected kind=\(kind.rawValue) source=\(source)")
             return
         }
         loading = true
         failed = false
         let exclude = Array(Set(cards.map(\.tmdb) + OrtusStore.shared.known + history.map(\.film.tmdb))).sorted()
-        let body: [String: Any] = ["p_langs": langs, "p_genres": genres, "p_limit": 20, "p_exclude": exclude]
+        let asked = kind
+        let body: [String: Any] = ["p_kind": asked.rawValue,
+                                   "p_langs": langs.isEmpty || asked == .anime ? NSNull() as Any : langs as Any,
+                                   "p_genres": genres.isEmpty ? NSNull() as Any : genres as Any,
+                                   "p_limit": 20, "p_exclude": exclude]
         FabulaNet.rpc("fabula_deck", body: body) { [weak self] result in
             guard let self, mine == self.ticket else { return }
             self.loading = false
@@ -625,10 +757,10 @@ final class FabulaDeck: ObservableObject {
                 let fresh = films.filter { !skip.contains($0.tmdb) && seen.insert($0.tmdb).inserted }
                 self.cards.append(contentsOf: fresh)
                 self.failed = self.cards.isEmpty
-                note("fabula deck fetched source=\(source) received=\(films.count) added=\(fresh.count) cards=\(self.cards.count) langs=\(self.langs.count) genres=\(self.genres.count) excluded=\(exclude.count)")
+                note("fabula deck fetched kind=\(asked.rawValue) source=\(source) received=\(films.count) added=\(fresh.count) cards=\(self.cards.count) langs=\(self.langs.count) genres=\(self.genres.count) excluded=\(exclude.count)")
             case .failure(let error):
                 self.failed = self.cards.isEmpty
-                note("fabula deck fetch failed source=\(source) error=\(error.localizedDescription) cards=\(self.cards.count)")
+                note("fabula deck fetch failed kind=\(asked.rawValue) source=\(source) error=\(error.localizedDescription) cards=\(self.cards.count)")
             }
         }
     }
@@ -756,7 +888,13 @@ final class FabulaNav: ObservableObject {
     }
 
     func watch(_ film: FabulaFilm, source: String) {
-        if let url = URL(string: "https://www.themoviedb.org/movie/\(film.tmdb)/watch?locale=IN") { NSWorkspace.shared.open(url) }
+        let link: String
+        switch film.kind {
+        case .anime: link = "https://myanimelist.net/anime/\(film.tmdb - 200_000_000)"
+        case .show: link = "https://www.themoviedb.org/tv/\(film.tmdb - 100_000_000)/watch?locale=IN"
+        case .movie: link = "https://www.themoviedb.org/movie/\(film.tmdb)/watch?locale=IN"
+        }
+        if let url = URL(string: link) { NSWorkspace.shared.open(url) }
         note("fabula watch tonight tmdb=\(film.tmdb) providers=\(film.providers.count) source=\(source)")
         pick = nil
     }
@@ -785,7 +923,7 @@ final class FabulaSearch: ObservableObject {
     private func schedule() {
         work?.cancel()
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard text.count >= 2 else {
+        guard text.count >= FabulaDeck.shared.kind.searchMinimum else {
             ticket += 1
             hits = []
             busy = false
@@ -800,17 +938,21 @@ final class FabulaSearch: ObservableObject {
         ticket += 1
         let mine = ticket
         busy = true
-        FabulaNet.function("fabula-tmdb", body: ["action": "search", "q": String(text.prefix(100))]) { [weak self] result in
+        let kind = FabulaDeck.shared.kind
+        let name = kind == .anime ? "fabula-anime" : "fabula-tmdb"
+        var body: [String: Any] = ["action": "search", "q": String(text.prefix(kind == .anime ? 64 : 100))]
+        if kind != .anime { body["kind"] = kind.rawValue }
+        FabulaNet.function(name, body: body) { [weak self] result in
             guard let self, mine == self.ticket else { return }
             self.busy = false
             switch result {
             case .success(let json):
                 let list = ((json as? [String: Any])?["results"] as? [Any]) ?? []
                 self.hits = list.compactMap { ($0 as? [String: Any]).flatMap(FabulaHit.init) }
-                note("fabula search done length=\(text.count) results=\(self.hits.count)")
+                note("fabula search done kind=\(kind.rawValue) length=\(text.count) results=\(self.hits.count)")
             case .failure(let error):
                 self.hits = []
-                note("fabula search failed length=\(text.count) error=\(error.localizedDescription)")
+                note("fabula search failed kind=\(kind.rawValue) length=\(text.count) error=\(error.localizedDescription)")
             }
         }
     }
@@ -818,19 +960,20 @@ final class FabulaSearch: ObservableObject {
     func add(_ hit: FabulaHit, done: @escaping (FabulaFilm) -> Void) {
         guard adding == nil else { return }
         adding = hit.tmdb
-        FabulaNet.function("fabula-tmdb", body: ["action": "add", "tmdb": hit.tmdb]) { [weak self] result in
+        let kind = FabulaKind.of(nil, id: hit.tmdb)
+        FabulaNet.function(kind == .anime ? "fabula-anime" : "fabula-tmdb", body: ["action": "add", "tmdb": hit.tmdb]) { [weak self] result in
             guard let self else { return }
             self.adding = nil
             switch result {
             case .success(let json):
                 if let raw = (json as? [String: Any])?["movie"] as? [String: Any], let film = FabulaFilm(raw) {
-                    note("fabula add done tmdb=\(film.tmdb)")
+                    note("fabula add done kind=\(kind.rawValue) tmdb=\(film.tmdb)")
                     done(film)
                 } else {
-                    note("fabula add failed tmdb=\(hit.tmdb) error=no movie in answer")
+                    note("fabula add failed kind=\(kind.rawValue) tmdb=\(hit.tmdb) error=no movie in answer")
                 }
             case .failure(let error):
-                note("fabula add failed tmdb=\(hit.tmdb) error=\(error.localizedDescription)")
+                note("fabula add failed kind=\(kind.rawValue) tmdb=\(hit.tmdb) error=\(error.localizedDescription)")
             }
         }
     }
@@ -861,11 +1004,9 @@ final class FabulaRefiner: ObservableObject {
     enum Stage { case pick, list, done }
 
     static let shared = FabulaRefiner()
-    static let languages = ["English", "Hindi", "Telugu", "Tamil", "Malayalam", "Kannada", "Korean", "Japanese", "Spanish"]
-    static let genres = ["Action", "Animation", "Comedy", "Crime", "Drama", "Fantasy", "Horror", "Mystery", "Romance", "Sci-fi",
-                         "Thriller", "War"]
 
     @Published private(set) var stage: Stage = .pick
+    @Published private(set) var kind: FabulaKind = FabulaKind.current
     @Published private(set) var langs: [String] = []
     @Published private(set) var genres: [String] = []
     @Published private(set) var films: [FabulaFilm] = []
@@ -890,7 +1031,14 @@ final class FabulaRefiner: ObservableObject {
     var choice: String {
         let lang = langs.isEmpty ? "Any language" : langs.joined(separator: ", ")
         let genre = genres.isEmpty ? "Any genre" : genres.joined(separator: ", ")
-        return lang + " · " + genre
+        return [kind.name, kind == .anime ? "" : lang, genre].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    func setKind(_ value: FabulaKind) {
+        guard value != kind else { return }
+        kind = value
+        langs = []
+        genres = []
     }
 
     func toggleLang(_ name: String?) {
@@ -923,7 +1071,7 @@ final class FabulaRefiner: ObservableObject {
         films = []
         scores = [:]
         stage = .list
-        note("fabula refiner started langs=\(langs.joined(separator: ",")) genres=\(genres.joined(separator: ","))")
+        note("fabula refiner started kind=\(kind.rawValue) langs=\(langs.joined(separator: ",")) genres=\(genres.joined(separator: ","))")
         fetch(source: "start")
     }
 
@@ -1021,12 +1169,14 @@ final class FabulaRefiner: ObservableObject {
         guard FabulaNet.connected else {
             loading = false
             problem = "Cloud not connected"
-            note("fabula refiner fetch skipped reason=not connected source=\(source)")
+            note("fabula refiner fetch skipped reason=not connected kind=\(kind.rawValue) source=\(source)")
             return
         }
         loading = true
         problem = nil
-        let body: [String: Any] = ["p_langs": langs.isEmpty ? NSNull() as Any : langs as Any,
+        let asked = kind
+        let body: [String: Any] = ["p_kind": asked.rawValue,
+                                   "p_langs": langs.isEmpty || asked == .anime ? NSNull() as Any : langs as Any,
                                    "p_genres": genres.isEmpty ? NSNull() as Any : genres as Any,
                                    "p_limit": 10, "p_exclude": shown]
         FabulaNet.rpc("fabula_refine", body: body) { [weak self] result in
@@ -1040,11 +1190,11 @@ final class FabulaRefiner: ObservableObject {
                 self.shown.append(contentsOf: batch.map(\.tmdb))
                 self.films = batch
                 self.scores = [:]
-                self.problem = batch.isEmpty ? "No films left for this choice" : nil
-                note("fabula refiner fetched source=\(source) received=\(list.count) added=\(batch.count) shown=\(self.shown.count)")
+                self.problem = batch.isEmpty ? "No \(asked.noun(2)) left for this choice" : nil
+                note("fabula refiner fetched kind=\(asked.rawValue) source=\(source) received=\(list.count) added=\(batch.count) shown=\(self.shown.count)")
             case .failure(let error):
                 self.problem = error.localizedDescription
-                note("fabula refiner fetch failed source=\(source) error=\(error.localizedDescription) shown=\(self.shown.count)")
+                note("fabula refiner fetch failed kind=\(asked.rawValue) source=\(source) error=\(error.localizedDescription) shown=\(self.shown.count)")
             }
         }
     }
@@ -1065,6 +1215,7 @@ final class FabulaAI: ObservableObject {
     @Published private(set) var round = 0
 
     private var text = ""
+    private var asked: FabulaKind = .movie
     private var notes: [String] = []
     private var shown: [Int] = []
     private var ticket = 0
@@ -1077,6 +1228,7 @@ final class FabulaAI: ObservableObject {
         let value = mood.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return }
         text = value
+        asked = FabulaDeck.shared.kind
         notes = []
         shown = []
         thread = [value]
@@ -1084,7 +1236,7 @@ final class FabulaAI: ObservableObject {
         chosen = nil
         round = 0
         active = true
-        note("fabula ai started moodLength=\(value.count)")
+        note("fabula ai started kind=\(asked.rawValue) moodLength=\(value.count)")
         run(source: "mood")
     }
 
@@ -1137,7 +1289,7 @@ final class FabulaAI: ObservableObject {
             return
         }
         loading = true
-        let body: [String: Any] = ["action": "mood", "text": text, "notes": notes, "shown": shown]
+        let body: [String: Any] = ["action": "mood", "kind": asked.rawValue, "text": text, "notes": notes, "shown": shown]
         FabulaNet.function("fabula-ai", body: body, timeout: 60) { [weak self] result in
             guard let self, mine == self.ticket else { return }
             self.loading = false
@@ -1148,13 +1300,13 @@ final class FabulaAI: ObservableObject {
                 let picks = Array(list.filter { seen.insert($0.tmdb).inserted }.prefix(4))
                 for film in picks where !self.shown.contains(film.tmdb) { self.shown.append(film.tmdb) }
                 self.films = picks
-                self.problem = picks.isEmpty ? "No films this round" : nil
-                note("fabula ai round done source=\(source) round=\(self.round) films=\(picks.count) notes=\(self.notes.count) shown=\(self.shown.count)")
+                self.problem = picks.isEmpty ? "No \(self.asked.noun(2)) this round" : nil
+                note("fabula ai round done kind=\(self.asked.rawValue) source=\(source) round=\(self.round) films=\(picks.count) notes=\(self.notes.count) shown=\(self.shown.count)")
             case .failure(let error):
                 self.films = before.0
                 self.round = before.1
                 self.problem = error.localizedDescription
-                note("fabula ai round failed source=\(source) round=\(self.round) error=\(error.localizedDescription)")
+                note("fabula ai round failed kind=\(self.asked.rawValue) source=\(source) round=\(self.round) error=\(error.localizedDescription)")
             }
         }
     }
