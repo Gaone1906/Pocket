@@ -11,6 +11,10 @@ class PocketApp: NSObject, NSWindowDelegate {
     let spec: AppSpec
     var onDisplayChange: ((PocketApp) -> Void)?
     var panelIfLoaded: Panel?
+    var overHiddenBar = false
+    var openedOver: pid_t?
+    var outsideClicks: Any?
+    var appSwitches: NSObjectProtocol?
 
     init(spec: AppSpec) {
         self.spec = spec
@@ -32,6 +36,7 @@ class PocketApp: NSObject, NSWindowDelegate {
     func barTitle() -> NSAttributedString? { nil }
 
     func stop() {
+        unwatchOutside()
         panelIfLoaded?.delegate = nil
         panelIfLoaded?.orderOut(nil)
         panelIfLoaded = nil
@@ -75,30 +80,80 @@ class PocketApp: NSObject, NSWindowDelegate {
         AppDelegate.shared.hideOthers(except: self)
         let panel = self.panel
         let size = panel.frame.size
+        let front = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        openedOver = front == ProcessInfo.processInfo.processIdentifier ? nil : front
+        overHiddenBar = (anchor?.button?.window?.screen ?? NSScreen.main).map { barHides(on: $0) } ?? false
         if let window = anchor?.button?.window, let area = (window.screen ?? NSScreen.main)?.visibleFrame {
             let spot = window.frame
             let x = min(max(spot.midX - size.width / 2, area.minX + 8), area.maxX - size.width - 8)
-            panel.setFrame(NSRect(x: x, y: spot.minY - size.height - 6, width: size.width, height: size.height), display: true)
+            let gap: CGFloat = overHiddenBar ? 0 : 6
+            panel.setFrame(NSRect(x: x, y: spot.minY - size.height - gap, width: size.width, height: size.height), display: true)
         } else if let area = NSScreen.main?.visibleFrame {
             panel.setFrame(NSRect(x: area.midX - size.width / 2, y: area.midY - size.height / 2, width: size.width, height: size.height), display: true)
         }
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
-        note("pocket shown app=\(spec.id) source=\(source) anchored=\(anchor != nil)")
+        if overHiddenBar { watchOutside() } else { unwatchOutside() }
+        note("pocket shown app=\(spec.id) source=\(source) anchored=\(anchor != nil) hiddenBar=\(overHiddenBar)")
         didShow()
     }
 
     func hide(reason: String) {
         guard let panel = panelIfLoaded, panel.isVisible else { return }
+        unwatchOutside()
         panel.orderOut(nil)
-        if reason != "focus lost" && reason != "switched" { NSApp.hide(nil) }
+        if !["focus lost", "switched", "clicked outside", "other app"].contains(reason) { NSApp.hide(nil) }
         note("pocket hidden app=\(spec.id) reason=\(reason)")
         didHide()
     }
 
     func windowDidResignKey(_ notification: Notification) {
         guard (notification.object as? NSWindow) === panelIfLoaded, !shouldStayOpen() else { return }
+        guard !overHiddenBar else {
+            note("pocket kept app=\(spec.id) reason=focus lost over hidden menu bar")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.reclaimKey() }
+            return
+        }
         hide(reason: "focus lost")
+    }
+
+    func reclaimKey() {
+        guard let panel = panelIfLoaded, panel.isVisible, !panel.isKeyWindow else { return }
+        panel.makeKey()
+    }
+
+    func watchOutside() {
+        unwatchOutside()
+        outsideClicks = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] _ in
+            self?.hide(reason: "clicked outside")
+        }
+        appSwitches = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] notification in
+            guard let self, let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            let pid = app.processIdentifier
+            guard pid != ProcessInfo.processInfo.processIdentifier, pid != self.openedOver else { return }
+            self.hide(reason: "other app")
+        }
+    }
+
+    func unwatchOutside() {
+        if let outsideClicks { NSEvent.removeMonitor(outsideClicks) }
+        if let appSwitches { NSWorkspace.shared.notificationCenter.removeObserver(appSwitches) }
+        outsideClicks = nil
+        appSwitches = nil
+    }
+
+    func barHides(on screen: NSScreen) -> Bool {
+        if screen.visibleFrame.maxY >= screen.frame.maxY - 1 { return true }
+        guard let pid = openedOver,
+              let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return false }
+        let size = screen.frame.size
+        return windows.contains { info in
+            guard (info[kCGWindowOwnerPID as String] as? pid_t) == pid,
+                  (info[kCGWindowLayer as String] as? Int) == 0,
+                  let bounds = info[kCGWindowBounds as String] as? NSDictionary,
+                  let rect = CGRect(dictionaryRepresentation: bounds as CFDictionary) else { return false }
+            return abs(rect.width - size.width) < 1 && abs(rect.height - size.height) < 1
+        }
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {
