@@ -84,9 +84,16 @@ osascript -l JavaScript -e 'ObjC.import("Foundation"); $.NSDistributedNotificati
   - Size: if resizable, restored from UserDefaults `size.<id>` (`NSStringFromSize`) when ≥ `minSize`, saved in
     `windowDidEndLiveResize`.
   - `show(anchor:source:)`: `hideOthers` → position centred under the status item's button window, clamped 8 pt
-    inside the screen's `visibleFrame`, 6 pt below; with no anchor, centred on the main screen → `NSApp.activate` →
-    `makeKeyAndOrderFront` → log `pocket shown app= source= anchored=` → `didShow()`.
-  - `hide(reason:)`: no-op if not visible; `orderOut`; `NSApp.hide(nil)` unless reason is `focus lost` or `switched`
+    inside the screen's `visibleFrame`, 6 pt below (flush, 0 pt, when the menu bar hides); with no anchor, centred on
+    the main screen → `NSApp.activate` → `makeKeyAndOrderFront` → log `pocket shown app= source= anchored= hiddenBar=`
+    → `didShow()`.
+  - Hidden menu bar (`barHides(on:)`: the screen's `visibleFrame` reaches the top, or the app frontmost at open has an
+    on-screen layer-0 window the size of the screen, i.e. full screen): macOS hands focus back to that app when the
+    menu bar slides away, so resigning key does not hide the panel; it takes key back after 0.2 s. Instead
+    `watchOutside()` hides it on a mouse-down in another app (`clicked outside`) or when an app other than Pocket or the
+    one it opened over becomes active (`other app`). `hide` and `stop` remove both watchers.
+  - `hide(reason:)`: no-op if not visible; `orderOut`; `NSApp.hide(nil)` unless reason is `focus lost`, `switched`,
+    `clicked outside` or `other app`
     (returns focus to the previous app) → log `pocket hidden app= reason=` → `didHide()`.
   - `windowDidResignKey`: hides with `focus lost` unless `shouldStayOpen()` (WebApp keeps open while e.g. a popup or
     file dialog is up).
@@ -303,7 +310,7 @@ or `##"…"##` when the SVG contains `"#`.
 | Start | right after create | `start()`: timers, store observers, first `changed()`. `WebApp.start()` builds the panel and loads unless `unloadAfter` is set (deferred to first open). The panel/`makeContent()` is otherwise lazy, built on first `show`. |
 | Bar refresh | app calls `changed()` | `barImage()` / `barTitle()` read again |
 | Show | click, hotkey, tray tile, notification tap, distributed `toggle`, setup sign-in | `toggle` → `show`: others hidden (`switched`), panel positioned, activated, `didShow()` |
-| Hide | Esc (`escape`), focus loss (`focus lost`, unless `shouldStayOpen()`), toggle again (same source string), another app shown (`switched`) | `orderOut`, `NSApp.hide` unless focus lost/switched, `didHide()` |
+| Hide | Esc (`escape`), focus loss (`focus lost`, unless `shouldStayOpen()` or the menu bar hides, where `clicked outside`/`other app` stand in), toggle again (same source string), another app shown (`switched`) | `orderOut`, `NSApp.hide` unless focus lost/switched, `didHide()` |
 | Remove | id leaves `layout.enabled` | `stop()` (base: detach delegate, `orderOut`, drop panel), removed from `apps` |
 | Quit | "Quit Pocket", SIGTERM (`pkill`, `install.sh`) | `applicationWillTerminate` → `stop()` on every app |
 
@@ -352,7 +359,7 @@ override. Per-app overrides are listed in each `apps/*.md`.
   restores them.
 - **Same-combo collisions** inside Pocket are resolved by stealing (`setShortcut`), but a combo held by another
   process fails registration silently except for the log line.
-- **Hide returns focus** via `NSApp.hide(nil)` except for `focus lost`/`switched`; a new hide reason that should not
+- **Hide returns focus** via `NSApp.hide(nil)` except for `focus lost`/`switched`/`clicked outside`/`other app`; a new hide reason that should not
   bounce focus must be added to that condition in `PocketApp.hide`.
 - Stale UserDefaults keys from removed features exist in the real domain (`size.claude`, `scene.*`); they are inert.
 
