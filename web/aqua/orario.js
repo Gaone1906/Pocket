@@ -278,7 +278,7 @@ function weekView(ctx) {
       <button class="icon quiet" data-orario-week="7" ${start >= hi ? "disabled" : ""} aria-label="Next week">${ICONS.right}</button>
     </div>
     ${rows}
-    ${productsCard(ctx, start)}`;
+    ${productsCard(ctx, start === weekStart(ctx.now.today) ? shiftDay(start, 7) : start)}`;
 }
 
 function monthView(ctx) {

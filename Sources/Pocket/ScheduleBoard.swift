@@ -1041,6 +1041,11 @@ private struct ScheduleDayView: View {
     @ObservedObject var store: ScheduleStore
     @ObservedObject var focus: ScheduleBoardFocus
 
+    private var productsWeek: String {
+        let start = ScheduleBoardDates.weekStart(focus.selected)
+        return start == ScheduleBoardDates.weekStart(store.today) ? ScheduleDays.shift(start, by: 7) : start
+    }
+
     var body: some View {
         GeometryReader { geo in
             let narrow = geo.size.width < 680
@@ -1063,7 +1068,7 @@ private struct ScheduleDayView: View {
                         .transition(.opacity)
                     }
                     if focus.span == .week {
-                        ScheduleProductsCard(store: store, week: ScheduleBoardDates.weekStart(focus.selected))
+                        ScheduleProductsCard(store: store, week: productsWeek)
                             .transition(.opacity)
                     }
                 }
