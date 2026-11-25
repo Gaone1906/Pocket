@@ -724,6 +724,7 @@ private struct ScheduleSlotCard: View {
 
 private struct ScheduleProductsCard: View {
     @ObservedObject var store: ScheduleStore
+    let week: String
 
     private struct Product {
         let key: String
@@ -770,9 +771,11 @@ private struct ScheduleProductsCard: View {
     private var products: [Product] {
         var found: [String: Product] = [:]
         for routine in store.shown {
-            for weekday in ScheduleDays.weekOrder {
+            for (offset, weekday) in ScheduleDays.weekOrder.enumerated() {
+                let day = ScheduleDays.shift(week, by: offset)
+                guard routine.runs(on: day) else { continue }
                 for slot in ScheduleSlot.allCases {
-                    for step in routine.steps(weekday, slot) {
+                    for step in routine.steps(on: day, slot) {
                         let title = step.title.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !title.isEmpty else { continue }
                         let key = title.lowercased()
@@ -1060,7 +1063,7 @@ private struct ScheduleDayView: View {
                         .transition(.opacity)
                     }
                     if focus.span == .week {
-                        ScheduleProductsCard(store: store)
+                        ScheduleProductsCard(store: store, week: ScheduleBoardDates.weekStart(focus.selected))
                             .transition(.opacity)
                     }
                 }
