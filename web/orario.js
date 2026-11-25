@@ -46,12 +46,20 @@ function firstDay() {
   return all.length ? all.map((r) => r.starts).sort()[0] : START_DAY;
 }
 
+function runsOn(r, day) {
+  return r.starts <= day && (!r.ends || day <= r.ends);
+}
+
+function stepsOn(r, day, slot) {
+  const dated = r.dated && r.dated[`${day}-${slot}`];
+  return dated || (r.plan && r.plan[`${weekday(day)}-${slot}`]) || [];
+}
+
 function items(day, slot, pool, done) {
-  const wd = weekday(day);
   return pool
-    .filter((r) => r.starts <= day)
+    .filter((r) => runsOn(r, day))
     .flatMap((r) =>
-      ((r.plan && r.plan[`${wd}-${slot}`]) || []).map((step) => {
+      stepsOn(r, day, slot).map((step) => {
         const id = `${r.id}|${day}|${slot}|${step.id}`;
         return { id, routine: r, step, slot, day, done: done.has(id) };
       })
@@ -164,10 +172,12 @@ function stepLabel(title) {
 
 function productsCard(ctx) {
   const found = new Map();
+  const start = weekStart(ctx.now.today);
   for (const r of ctx.pool) {
-    for (const w of WEEK) {
+    for (const [i, w] of WEEK.entries()) {
+      const day = shiftDay(start, i);
       for (const slot of SLOTS) {
-        for (const step of (r.plan && r.plan[`${w}-${slot}`]) || []) {
+        for (const step of stepsOn(r, day, slot)) {
           const title = (step.title || "").trim();
           if (!title) continue;
           const key = title.toLowerCase();
