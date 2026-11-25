@@ -170,12 +170,12 @@ function stepLabel(title) {
   return amount ? `${esc(name.trim())} <span class="amount">${esc(amount)}</span>` : esc(name.trim());
 }
 
-function productsCard(ctx) {
+function productsCard(ctx, start) {
   const found = new Map();
-  const start = weekStart(ctx.now.today);
   for (const r of ctx.pool) {
     for (const [i, w] of WEEK.entries()) {
       const day = shiftDay(start, i);
+      if (!runsOn(r, day)) continue;
       for (const slot of SLOTS) {
         for (const step of stepsOn(r, day, slot)) {
           const title = (step.title || "").trim();
@@ -250,7 +250,7 @@ function weekView(ctx) {
       <button class="icon quiet" data-orario-week="7" ${start >= hi ? "disabled" : ""} aria-label="Next week">${ICONS.right}</button>
     </div>
     ${rows}
-    ${productsCard(ctx)}`;
+    ${productsCard(ctx, start)}`;
 }
 
 function monthView(ctx) {

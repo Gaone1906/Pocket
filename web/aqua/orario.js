@@ -198,12 +198,14 @@ function stepLabel(title) {
   return amount ? `${esc(name.trim())} <span class="amount">${esc(amount)}</span>` : esc(name.trim());
 }
 
-function productsCard(ctx) {
+function productsCard(ctx, start) {
   const found = new Map();
   for (const r of ctx.pool) {
-    for (const w of WEEK) {
+    for (const [i, w] of WEEK.entries()) {
+      const day = shiftDay(start, i);
+      if (!runs(r, day)) continue;
       for (const slot of SLOTS) {
-        for (const step of (r.plan && r.plan[`${w}-${slot}`]) || []) {
+        for (const step of stepsOn(r, day, slot)) {
           const title = (step.title || "").trim();
           if (!title) continue;
           const key = title.toLowerCase();
@@ -276,7 +278,7 @@ function weekView(ctx) {
       <button class="icon quiet" data-orario-week="7" ${start >= hi ? "disabled" : ""} aria-label="Next week">${ICONS.right}</button>
     </div>
     ${rows}
-    ${productsCard(ctx)}`;
+    ${productsCard(ctx, start)}`;
 }
 
 function monthView(ctx) {
